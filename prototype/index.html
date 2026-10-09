@@ -39,7 +39,7 @@ h1,h2,h3{margin:0;line-height:1.2}
 h1{font-size:20px} h2{font-size:16px} h3{font-size:14px}
 .muted{color:var(--muted)} .small{font-size:13px} .tiny{font-size:12px}
 /* Top bar: light blue, logo, 4px orange stripe directly underneath (no hairline). */
-.topbar{background:var(--bar);color:#fff;position:sticky;top:0;z-index:1500}
+.topbar{background:var(--bar);color:#fff;position:sticky;top:env(safe-area-inset-top,0px);z-index:1500}
 .topbar-inner{max-width:1200px;margin:0 auto;height:56px;display:flex;align-items:center;gap:10px;padding:0 16px}
 .topbar .logo{height:32px;width:auto;color:#fff;display:block}
 .brandlink{display:flex;align-items:center;gap:10px;color:#fff;text-decoration:none}
@@ -485,7 +485,8 @@ let maps = [];
 function mountRouteMap(el, route, stopPoi){
   if (!window.L){ el.innerHTML = trackSVG(route, stopPoi); return; }
   const m = L.map(el, { scrollWheelZoom: false, attributionControl: true }); maps.push(m);
-  tileLayer().addTo(m);
+  // Tiles blocked (offline or sandboxed): swap to the SVG outline.
+  tileLayer().once('tileerror', () => { try { m.remove(); } catch(e){} el.className = 'map'; el.innerHTML = trackSVG(route, stopPoi); }).addTo(m);
   const line = L.polyline(route.track.map(p => [p[0], p[1]]), { color: '#0077D1', weight: 4 }).addTo(m);
   L.circleMarker([route.track[0][0], route.track[0][1]], { radius: 7, color: '#fff', weight: 2, fillColor: '#0077D1', fillOpacity: 1 }).addTo(m).bindTooltip('Start');
   if (stopPoi) L.circleMarker([stopPoi.lat, stopPoi.lng], { radius: 6, color: '#041DB2', weight: 3, fillColor: '#fff', fillOpacity: 1 }).addTo(m).bindTooltip(stopPoi.name);
