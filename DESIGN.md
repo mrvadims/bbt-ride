@@ -15,11 +15,11 @@ Sign-in is required. Users sign in with Google (OpenID Connect, handled by the W
 
 | Role | Can do |
 |------|--------|
-| **Read** (default) | View rides, weekend board, spot detail, forecasts |
+| **View** (default) | View rides, weekend board, spot detail, forecasts |
 | **Edit** | Read + create, edit, publish and archive rides; manage spots |
 | **Admin** | Edit + change team settings (thresholds, defaults, kit chart) and manage users |
 
-- An Admin invites a user by email and picks a role (Read by default). The invite is a row in `users` with status `invited`.
+- An Admin invites a user by email and picks a role (View by default). The invite is a row in `users` with status `invited`.
 - On first Google sign-in, the Worker matches the verified Google email (`email_verified = true`) to an invited row, stores the Google `sub`, and marks it `active`. Later sign-ins match on `sub`, so an email change at Google doesn't lock anyone out.
 - A Google account not in `users` gets a "Not invited — ask a team admin" page. No row is created.
 - Sessions: an opaque random session ID in an `HttpOnly; Secure; SameSite=Lax` cookie, stored in D1 `sessions` (30-day sliding expiry). Role is re-read from `users` on each request, so a role change or removal takes effect immediately.
@@ -29,7 +29,7 @@ Sign-in is required. Users sign in with Google (OpenID Connect, handled by the W
 
 ### Data model (D1)
 ```
-users(id, email UNIQUE, google_sub UNIQUE NULL, name, role CHECK(role IN ('read','edit','admin')) DEFAULT 'read',
+users(id, email UNIQUE, google_sub UNIQUE NULL, name, role CHECK(role IN ('view','edit','admin')) DEFAULT 'view',
       status CHECK(status IN ('invited','active','disabled')), invited_by, created_at, last_login_at)
 sessions(id PRIMARY KEY, user_id, created_at, expires_at, user_agent)
 settings(key PRIMARY KEY, value_json, updated_by, updated_at)        -- one row per setting
@@ -46,12 +46,18 @@ audit_log(id, user_id, action, entity, entity_id, diff_json, at)
 ### Rides (viewer home)
 - Editor plans a ride on **any date** (weekend or weekday): date, roll-out time, start spot, avg pace, notes, and one or more routes. Draft → Publish.
   - Usually one route; occasionally a labeled alternate (e.g., "Full" / "Short") sharing the same spot and time.
-- Home shows upcoming published rides as date tabs: this Saturday and Sunday always, plus any other day that has a published ride. Each ride page:
-  - Route card from RWGPS (switcher when there are alternates): name, map preview, distance, elevation gain, est. moving time (distance ÷ pace), elevation profile, "Open in RWGPS".
-  - Parking: spot name, notes, "Open in Google Maps" pin link.
-  - Conditions at start for the ride window: road status, temp, real feel + bike feel, wind/gusts/direction, rain.
-  - What to wear (with per-rider cold/avg/hot offset).
-  - Captain's notes.
+- Home shows upcoming published rides as date tabs: this Saturday and Sunday always, plus any other day that has a published ride. The tab carries the date; the page doesn't repeat it.
+- Ride page, top to bottom:
+  - Title: spot — route name.
+  - **Summary** (the essentials):
+    - **Park:** spot name, linking to Google Maps; "Details" expands the parking notes and a link to the spot forecast.
+    - **Meet:** roll-out time plus temp and bike feel at that time. Tapping the time (or "Hourly forecast") opens the hour-by-hour table in Conditions, so there's only one hourly table.
+    - **Back:** estimated return = moving time + regroup buffer + coffee stop, with the time without the stop.
+    - **Route:** Full/Short switcher, distance and climbing, "Open in RWGPS", and "Send to device" (opens the route in RWGPS for its own Garmin/Wahoo/Hammerhead sync, or downloads GPX/TCX).
+  - **Warnings, only when something needs attention:** wet or drying roads, cold, heat, wind, rain, thunder, each with a one-line reason. No Go badge; a clean forecast shows nothing.
+  - Conditions for the ride window: four tiles (temp with real feel and bike feel, wind, rain, roads) and the hour-by-hour table.
+  - Route map and elevation profile.
+  - Notes, What to wear, Coffee stop (always shown when the ride has one, labeled optional; no on/off switch).
 - Route picker: search RWGPS routes from the captain's personal library **and** the BBT club library, or paste a RWGPS link. Suggest start spot by nearest saved spot to route start.
   - "Open in RWGPS" works for viewers only if the route is public or shared; map/stats render regardless.
 - **Coffee / muffin stop (optional)** — a ride can have an optional mid-ride stop.
@@ -225,7 +231,7 @@ Never in the repo, the built assets, or any response to the browser. All third-p
 ## Architecture
 - Cloudflare Worker + static assets (React + TypeScript + Vite) on ride.bbt.team.
 - D1: spots, rides, route cache, settings, kit chart. KV: forecast cache.
-- Every route requires a session (Google sign-in); API routes enforce Read / Edit / Admin server-side.
+- Every route requires a session (Google sign-in); API routes enforce View / Edit / Admin server-side.
 
 ## Backlog (post-v1)
 1. **RWGPS route weather** (phase 2) — forecast at each point by ETA; head/tail/crosswind per segment.

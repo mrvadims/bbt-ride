@@ -137,6 +137,33 @@ textarea{min-height:80px;resize:vertical}
 .wear-list li{margin:3px 0}
 .addon{margin-top:10px;padding:8px 10px;border-radius:10px;background:var(--card2);font-size:13px}
 .rolebar{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin:-4px 0 12px}
+.facts{margin:0 0 14px;display:grid;gap:0;background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
+.facts>div{display:grid;grid-template-columns:64px minmax(0,1fr);gap:10px;padding:11px 14px;border-bottom:1px solid var(--line)}
+.facts>div:last-child{border-bottom:0}
+.facts dt{font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);padding-top:2px}
+.facts dd{margin:0;min-width:0}
+.facts a{text-decoration:none}
+.linkbtn{appearance:none;background:none;border:0;padding:0;font:inherit;color:var(--link);cursor:pointer}
+.linkbtn.small{font-size:13px;margin-left:6px;text-decoration:underline}
+details.more{display:inline}
+details.more>summary{list-style:none;cursor:pointer;display:inline}
+details.more>summary::-webkit-details-marker{display:none}
+.facts details.more:not(.send)>summary{color:var(--link);font-size:13px;margin-left:8px;text-decoration:underline}
+.facts details.more[open]:not(.send){display:block}
+.facts details.more p{margin:6px 0 4px;color:var(--muted);font-size:14px}
+.send{position:relative}
+.send[open]{display:block;flex-basis:100%}
+.send .menu{margin-top:8px;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:4px}
+.send .menu a{display:flex;flex-direction:column;gap:2px;padding:9px 10px;border-radius:8px;color:var(--text)}
+.send .menu a:hover{background:var(--win)}
+.send .menu span{font-size:12px;color:var(--muted)}
+.warns{display:grid;gap:8px;margin:0 0 14px}
+.warn{display:flex;gap:10px;align-items:flex-start;border-radius:12px;padding:10px 12px}
+.warn svg{width:14px;height:14px;flex:none;margin-top:3px}
+.warn b{display:block}
+.warn span{font-size:13px;opacity:.85}
+.kv.kv4{grid-template-columns:repeat(2,1fr)}
+@media (min-width:760px){.kv.kv4{grid-template-columns:repeat(4,1fr)}}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 @media (min-width:760px){
   .board{grid-template-columns:repeat(3,1fr)}
@@ -223,12 +250,12 @@ let S = Object.assign({}, DEFAULTS, store.get('bbt.settings', {}));
 const saveSettings = () => store.set('bbt.settings', S);
 
 /* ---------- roles (demo switcher; live app reads the signed-in user's role from D1) ---------- */
-const ROLES = ['read', 'edit', 'admin'], ROLE_LABEL = { read: 'Read', edit: 'Edit', admin: 'Admin' };
+const ROLES = ['view', 'edit', 'admin'], ROLE_LABEL = { view: 'View', edit: 'Edit', admin: 'Admin' };
 let ROLE = ROLES.includes(store.get('bbt.role', 'admin')) ? store.get('bbt.role', 'admin') : 'admin';
-const can = { plan: () => ROLE !== 'read', settings: () => ROLE === 'admin' };
+const can = { plan: () => ROLE !== 'view', settings: () => ROLE === 'admin' };
 const USERS = [
   { name: 'Vadim (you)', email: 'your Google account', role: 'admin', status: 'Active' },
-  { name: 'Example rider', email: 'rider@example.com', role: 'read', status: 'Active' },
+  { name: 'Example rider', email: 'rider@example.com', role: 'view', status: 'Active' },
   { name: 'Example ride leader', email: 'leader@example.com', role: 'edit', status: 'Invited' }
 ];
 
@@ -573,7 +600,21 @@ function verdictBlock(ev){
 }
 
 /* ---------- views ---------- */
-const UI = { day: null, route: 0, board: null, stopOn: true };
+const UI = { day: null, route: 0, board: null };
+// Only conditions that need attention are shown; a clean forecast shows nothing.
+function warnings(ev){
+  const st = ev.st, out = [];
+  for (const f of ev.factors){
+    if (!f.level) continue;
+    if (f.k === 'Road') out.push([f.level, `Roads ${st.road.state.toLowerCase()} at roll-out`, `${fmtIn(st.road.rainIn)} of rain in the last ${S.lookback} h${st.roadEnd && st.roadEnd.state !== st.road.state ? `; ${st.roadEnd.state.toLowerCase()} by the finish` : ''}`]);
+    if (f.k === 'Cold') out.push([f.level, `Cold: bike feel down to ${r0(st.feelMin)}°`, 'Dress for the start; see What to wear']);
+    if (f.k === 'Heat') out.push([f.level, `Hot: real feel up to ${r0(st.appMax)}°`, 'Bring extra water']);
+    if (f.k === 'Wind') out.push([f.level, `Windy: ${r0(st.wsMax)} mph, gusts ${r0(st.wgMax)}`, `From the ${compass(st.dir)}`]);
+    if (f.k === 'Rain') out.push([f.level, st.thunder ? 'Thunderstorms possible' : `Rain: ${r0(st.ppMax)}% chance`, `${fmtIn(st.rain)} expected during the ride`]);
+  }
+  out.sort((a, b) => b[0] - a[0]);
+  return out.length ? `<section class="warns" aria-label="Warnings">${out.map(([l, h, d]) => `<div class="warn lv${l}">${ICON[l]}<div><b>${h}</b><span>${d}</span></div></div>`).join('')}</section>` : '';
+}
 function viewRide(arg){
   const weekend = weekendDates();
   RIDES.filter(r => r.date && !weekend.some(w => w.date === r.date)).forEach(r => weekend.push({ date: r.date, dow: dow(r.date) }));
@@ -584,39 +625,48 @@ function viewRide(arg){
   const ride = rideOn(sel.date);
   if (!ride) return dayTabs + `<div class="card empty"><h2>No ride posted for ${dayLabel(sel.date, true)}</h2><p class="muted">Check the weekend board for conditions at each spot.</p><a class="btn btn-primary" href="#board">Weekend board</a></div>`;
   const ri = Math.min(UI.route, ride.routes.length - 1), rt = ride.routes[ri], route = routeById(rt.id), spot = spotById(ride.spot);
-  const cfg = { time: ride.time, pace: S.pace, stop: UI.stopOn ? rt.stop : null, stopMin: S.stopMin };
-  const t = rideTimes(route, cfg), poi = poiFor(rt);
+  const t = rideTimes(route, { time: ride.time, pace: S.pace, stop: rt.stop, stopMin: S.stopMin }), poi = poiFor(rt);
   const se = WX.series[spot.id], ev = se && evaluate(se, sel.date, t.start, t.end - t.start, S.pace);
+  const f0 = se && fIdx(se, sel.date, t.start);
+  const meetWx = f0 != null ? `${r0(at(se.T, f0))}°, feels ${r0(bikeFeel(at(se.T, f0), at(se.ws, f0), at(se.app, f0), S.pace))}° on the bike` : '';
   const switcher = ride.routes.length > 1 ? `<div class="seg" role="group" aria-label="Route">${ride.routes.map((r, i) => `<button type="button" data-route="${i}" aria-pressed="${i === ri}">${r.label} · ${r0(routeById(r.id).distance_m / MI)} mi</button>`).join('')}</div>` : '';
-  const head = `<div class="ride-head"><div><div class="kicker">${dayLabel(sel.date, true)} · roll-out ${fmtTime(t.start)}</div><h1>${esc(spot.name)} — ${esc(route.name)}</h1>
-    <div class="muted small">Back about ${fmtTime(t.end)} · ${fmtDur(t.movingH)} moving${t.regroupMin >= 1 ? ` + ${r0(t.regroupMin)} min regroups` : ''}${t.stop ? ` + ${t.stop.len} min stop` : ''}</div></div>${ev ? `<div>${pill(ev.level)}</div>` : ''}</div>`;
-  const routeCard = `<section class="card" aria-label="Route"><div class="card-h"><h2>Route</h2>${switcher}</div>
-    <div class="map" id="routemap"></div>
-    <div class="stats"><div class="stat"><b>${t.distMi.toFixed(1)} mi</b><span>distance</span></div><div class="stat"><b>${r0(t.climbFt).toLocaleString()} ft</b><span>climbing</span></div><div class="stat"><b>${fmtDur(t.movingH)}</b><span>moving at ${S.pace} mph</span></div></div>
-    ${elevationSVG(route, t.stop ? t.stop.mile : null)}
-    <div class="btnrow" style="margin-top:10px"><a class="btn btn-primary" href="${route.url}" target="_blank" rel="noopener">Open in RWGPS</a></div></section>`;
-  const condCard = ev ? `<section class="card" aria-label="Conditions"><div class="card-h"><h2>Conditions ${fmtTime(t.start)}–${fmtTime(t.end)}</h2>${pill(ev.level)}</div>
-    ${conditionsKV(ev.st)}${verdictBlock(ev)}
-    <details style="margin-top:10px"><summary class="small" style="cursor:pointer;font-weight:600">Hour by hour</summary>${hourRows(se, sel.date, ev.f0, ev.f1, ev.f0, ev.f1, S.pace)}</details></section>`
+  const gpx = `https://ridewithgps.com/routes/${route.id}.gpx?sub_format=track`, tcx = `https://ridewithgps.com/routes/${route.id}.tcx`;
+  const facts = `<dl class="facts">
+    <div><dt>Park</dt><dd><a href="${spot.maps_url}" target="_blank" rel="noopener"><b>${esc(spot.name)}</b></a>
+      <details class="more"><summary>Details</summary><p>${esc(spot.note)}</p><a class="small" href="#spot/${spot.id}">Forecast for this spot →</a></details></dd></div>
+    <div><dt>Meet</dt><dd><button type="button" class="linkbtn" data-hourly><b>${fmtTime(t.start)}</b></button>${meetWx ? ` <span class="muted">· ${meetWx}</span>` : ''}
+      <button type="button" class="linkbtn small" data-hourly>Hourly forecast</button></dd></div>
+    <div><dt>Back</dt><dd><b>≈ ${fmtTime(t.end)}</b> <span class="muted">· ${fmtDur(t.movingH)} moving + ${r0(t.regroupMin)} min regroups${t.stop ? ` + ${t.stop.len} min coffee (≈ ${fmtTime(t.end - t.stop.len)} without)` : ''}</span></dd></div>
+    <div><dt>Route</dt><dd>${switcher ? `<div style="margin-bottom:6px">${switcher}</div>` : ''}<span><b>${t.distMi.toFixed(1)} mi</b> · ${r0(t.climbFt).toLocaleString()} ft climbing</span>
+      <div class="btnrow" style="margin-top:8px"><a class="btn btn-primary btn-sm" href="${route.url}" target="_blank" rel="noopener">Open in RWGPS</a>
+      <details class="more send"><summary class="btn btn-outline btn-sm">Send to device</summary><div class="menu">
+        <a href="${route.url}" target="_blank" rel="noopener"><b>Garmin, Wahoo, Hammerhead</b><span>Opens the route in RWGPS; use its "Send to device" (needs your device linked in RWGPS)</span></a>
+        <a href="${gpx}" target="_blank" rel="noopener"><b>Download GPX</b><span>For any GPS unit or app</span></a>
+        <a href="${tcx}" target="_blank" rel="noopener"><b>Download TCX</b><span>Turn-by-turn cues for Garmin</span></a></div></details></div></dd></div>
+  </dl>`;
+  const head = `<div class="ride-head"><h1>${esc(spot.name)} — ${esc(route.name)}</h1></div>`;
+  const st = ev && ev.st;
+  const condCard = ev ? `<section class="card" aria-label="Conditions"><div class="card-h"><h2>Conditions ${fmtTime(t.start)}–${fmtTime(t.end)}</h2></div>
+    <div class="kv kv4">
+      <div><div class="k">Temp</div><div class="v">${r0(st.tMin)}–${r0(st.tMax)}°</div><div class="s">feels ${r0(st.appMin)}–${r0(st.appMax)}° · bike ${r0(st.feelMin)}–${r0(st.feelMax)}°</div></div>
+      <div><div class="k">Wind</div><div class="v">${arrow(st.dir)} ${r0(st.wsMax)} mph</div><div class="s">gusts ${r0(st.wgMax)} · from ${compass(st.dir)}</div></div>
+      <div><div class="k">Rain</div><div class="v">${r0(st.ppMax)}%</div><div class="s">${fmtIn(st.rain)} expected · ${wxLabel(st.code).toLowerCase()}</div></div>
+      <div><div class="k">Roads</div><div class="v">${st.road.state}</div><div class="s">${st.road.sinceRain == null ? `no rain in ${S.lookback} h` : `${fmtIn(st.road.rainIn)} in last ${S.lookback} h`}</div></div>
+    </div>
+    <details id="hourly" style="margin-top:10px"><summary class="small" style="cursor:pointer;font-weight:600">Hour by hour</summary>${hourRows(se, sel.date, ev.f0, ev.f1, ev.f0, ev.f1, S.pace)}</details></section>`
     : `<section class="card"><h2>Conditions</h2><p class="muted">Forecast not available for this date yet.</p></section>`;
-  const parkCard = `<section class="card" aria-label="Parking"><div class="card-h"><h2>Parking</h2><a class="small" href="#spot/${spot.id}">Spot forecast →</a></div>
-    <p style="margin:0 0 10px"><b>${esc(spot.name)}</b><br><span class="muted">${esc(spot.note)}</span></p>
-    <a class="btn btn-outline" href="${spot.maps_url}" target="_blank" rel="noopener">Open in Google Maps</a></section>`;
+  const routeCard = `<section class="card" aria-label="Route map"><div class="map" id="routemap"></div>${elevationSVG(route, t.stop ? t.stop.mile : null)}</section>`;
   let stopCard = '';
   if (poi){
-    const ps = WX.series[poiKey(poi)], tt = rideTimes(route, Object.assign({}, cfg, { stop: rt.stop }));
-    const f = ps && fIdx(ps, sel.date, tt.stop.eta);
+    const ps = WX.series[poiKey(poi)], f = ps && fIdx(ps, sel.date, t.stop.eta);
     const w = f != null ? { T: at(ps.T, f), app: at(ps.app, f), ws: at(ps.ws, f), pp: near(ps.pp, f), code: near(ps.code, f) } : null;
-    stopCard = `<section class="card" aria-label="Coffee stop"><div class="card-h"><h2>Coffee stop <span class="tag">optional</span></h2>
-      <div class="seg" role="group" aria-label="Include stop"><button type="button" data-stop="1" aria-pressed="${UI.stopOn}">On</button><button type="button" data-stop="0" aria-pressed="${!UI.stopOn}">Skip</button></div></div>
-      <p style="margin:0 0 8px"><b>${esc(poi.name)}</b> · mile ${tt.stop.mile.toFixed(1)}</p>
-      <div class="kv"><div><div class="k">ETA</div><div class="v">${fmtTime(tt.stop.eta)}</div><div class="s">${tt.stop.len}-min stop</div></div>
-      ${w ? `<div><div class="k">Weather there</div><div class="v">${r0(w.T)}°</div><div class="s">${wxLabel(w.code)} · ${r0(w.pp)}% rain</div></div><div><div class="k">Bike feel after</div><div class="v">${r0(bikeFeel(w.T, w.ws, w.app, S.pace))}°</div><div class="s">wind ${r0(w.ws)} mph</div></div>` : ''}</div>
-      <div class="btnrow" style="margin-top:10px"><a class="btn btn-outline" href="${mapsLink(poi.lat, poi.lng)}" target="_blank" rel="noopener">Open in Maps</a></div></section>`;
+    stopCard = `<section class="card" aria-label="Coffee stop"><div class="card-h"><h2>Coffee stop <span class="tag">optional</span></h2></div>
+      <p style="margin:0 0 8px"><a href="${mapsLink(poi.lat, poi.lng)}" target="_blank" rel="noopener"><b>${esc(poi.name)}</b></a> · mile ${t.stop.mile.toFixed(1)} · ≈ ${fmtTime(t.stop.eta)} · ${t.stop.len} min</p>
+      ${w ? `<p class="small muted" style="margin:0">${r0(w.T)}° there, ${wxLabel(w.code).toLowerCase()}, ${r0(w.pp)}% rain · bike feel ${r0(bikeFeel(w.T, w.ws, w.app, S.pace))}° rolling out</p>` : ''}</section>`;
   }
   const wearCard = ev ? wearHTML(ev.st) : '';
-  const notesCard = `<section class="card" aria-label="Captain notes"><div class="card-h"><h2>Captain’s notes</h2></div><p class="notes">${esc(ride.notes)}</p></section>`;
-  return dayTabs + head + `<div class="ride-grid"><div>${routeCard}${condCard}</div><div>${parkCard}${stopCard}${wearCard}${notesCard}</div></div>`;
+  const notesCard = ride.notes ? `<section class="card" aria-label="Notes"><div class="card-h"><h2>Notes</h2></div><p class="notes">${esc(ride.notes)}</p></section>` : '';
+  return dayTabs + head + facts + (ev ? warnings(ev) : '') + `<div class="ride-grid"><div>${condCard}${routeCard}</div><div>${notesCard}${wearCard}${stopCard}</div></div>`;
 }
 function wearHTML(st){
   const k = kitAdvice(st), cur = store.get('bbt.kitOffset', 'avg');
@@ -696,7 +746,7 @@ function nearestSpot(route){
   return SPOTS.map(s => ({ s, d: haversine(la, ln, s.lat, s.lng) })).sort((a, b) => a.d - b.d)[0];
 }
 function viewPlan(){
-  if (!can.plan()) return `<div class="card empty"><h2>Editors only</h2><p class="muted">Your role is Read. Ask an admin for the Edit role to plan rides.</p></div>`;
+  if (!can.plan()) return `<div class="card empty"><h2>Editors only</h2><p class="muted">Your role is View. Ask an admin for the Edit role to plan rides.</p></div>`;
   const weekend = weekendDates();
   P.date = P.date || weekend[0].date; P.time = P.time || S.rollout; P.pace = P.pace || S.pace;
   const route = P.route && routeById(P.route), alt = P.altOn && P.alt && routeById(P.alt);
@@ -743,7 +793,7 @@ function viewSettings(){
       ${USERS.map((u, i) => `<tr><td>${esc(u.name)}</td><td style="text-align:left">${esc(u.email)}</td><td style="text-align:left">${i === 0 ? 'Admin' : `<select data-user-role="${i}" aria-label="Role for ${esc(u.email)}" style="min-height:32px;padding:4px 8px;width:auto">${ROLES.map(r => `<option value="${r}" ${u.role === r ? 'selected' : ''}>${ROLE_LABEL[r]}</option>`).join('')}</select>`}</td><td>${u.status}</td></tr>`).join('')}</tbody></table></div>
       <div class="controls" style="margin:12px 0 0"><label class="field" style="flex:1 1 220px">Invite by email<input type="email" id="u-email" placeholder="name@gmail.com" autocomplete="off"></label>
         <label class="field">Role<select id="u-role">${ROLES.map(r => `<option value="${r}">${ROLE_LABEL[r]}</option>`).join('')}</select></label><button class="btn btn-primary" type="button" id="invite">Invite</button></div>
-      <p class="tiny muted" style="margin:8px 0 0">Read: view rides and forecasts. Edit: also create and edit rides. Admin: also change settings and manage users.</p></section>` : '';
+      <p class="tiny muted" style="margin:8px 0 0">View: see rides and forecasts. Edit: also create and edit rides. Admin: also change settings and manage users.</p></section>` : '';
   return `<div class="ride-head"><div><div class="kicker">Team</div><h1>Settings</h1></div></div>
     <p class="small muted" style="margin-top:-6px">${can.settings() ? 'Team-wide settings. Live app saves them to the database; this prototype keeps them in this browser.' : 'Only admins can change team settings. Appearance is yours to change.'}</p>
     ${users}
@@ -774,6 +824,8 @@ function render(){
   if (WX.source === 'loading'){ app.innerHTML = `<div class="card empty muted">Loading forecast…</div>`; return; }
   const banner = WX.source === 'fallback' ? `<div class="banner" role="status">Live forecast unavailable (${esc(WX.err || 'offline')}). Showing the saved Open-Meteo sample from ${SEED.generated} for SUNY Purchase at every spot.</div>` : '';
   document.querySelector('[data-nav="plan"]').hidden = !can.plan();
+  document.querySelector('[data-nav="settings"]').hidden = !can.settings();
+  if ((page === 'settings' && !can.settings()) || (page === 'plan' && !can.plan())){ location.hash = 'ride'; return; }
   const demo = `<div class="rolebar"><span class="tiny muted">Prototype · view as</span><div class="seg" role="group" aria-label="Demo role">${ROLES.map(r => `<button type="button" data-role-set="${r}" aria-pressed="${ROLE === r}">${ROLE_LABEL[r]}</button>`).join('')}</div></div>`;
   const views = { ride: viewRide, board: viewBoard, spot: viewSpot, plan: viewPlan, settings: viewSettings };
   app.innerHTML = demo + banner + (views[page] || viewRide)(arg);
@@ -781,7 +833,7 @@ function render(){
 }
 function mount(page){
   const rm = document.getElementById('routemap');
-  if (rm){ const ride = rideOn(UI.day), rt = ride.routes[Math.min(UI.route, ride.routes.length - 1)]; mountRouteMap(rm, routeById(rt.id), UI.stopOn ? poiFor(rt) : null); }
+  if (rm){ const ride = rideOn(UI.day), rt = ride.routes[Math.min(UI.route, ride.routes.length - 1)]; mountRouteMap(rm, routeById(rt.id), poiFor(rt)); }
   const pm = document.getElementById('planmap');
   if (pm && P.route){ const r = routeById(P.route); mountRouteMap(pm, r, r.pois.find(p => p.name === P.stop)); }
   const rd = document.getElementById('radarmap');
@@ -790,10 +842,10 @@ function mount(page){
 function toast(msg){ const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 2600); }
 
 document.addEventListener('click', e => {
-  const el = e.target.closest('[data-route],[data-stop],[data-offset],[data-bday],[data-spot],[data-pick],[data-theme-set],[data-role-set],#publish,#savedraft,#reset,#themebtn,#p-spotauto,#invite');
+  const el = e.target.closest('[data-route],[data-hourly],[data-offset],[data-bday],[data-spot],[data-pick],[data-theme-set],[data-role-set],#publish,#savedraft,#reset,#themebtn,#p-spotauto,#invite');
   if (!el) return;
   if (el.dataset.route != null){ UI.route = +el.dataset.route; render(); }
-  else if (el.dataset.stop != null){ UI.stopOn = el.dataset.stop === '1'; render(); }
+  else if (el.dataset.hourly != null){ const d = document.getElementById('hourly'); if (d){ d.open = true; d.scrollIntoView({ behavior: 'smooth', block: 'start' }); } }
   else if (el.dataset.offset){ store.set('bbt.kitOffset', el.dataset.offset); render(); }
   else if (el.dataset.bday){ UI.board.date = el.dataset.bday; render(); }
   else if (el.dataset.pick){ const id = +el.dataset.id; if (el.dataset.pick === 'alt'){ P.alt = id; P.qAlt = routeById(id).name; } else { P.route = id; P.q = routeById(id).name; P.stop = null; P.spotAuto = true; } render(); }
