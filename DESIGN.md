@@ -10,19 +10,43 @@ Help the BBT captain plan weekend rides and the team show up prepared:
 3. **What should we wear?**
 4. **Where/when/which route?** — the published ride with RWGPS route details and parking pin.
 
-## Roles
-| Role | Can do | Auth |
-|------|--------|------|
-| Owner | Everything, manage editors | Cloudflare Access |
-| Editor | Manage spots, rides, settings, kit chart | Cloudflare Access (email allowlist; Google or one-time PIN) |
-| Viewer | Read-only, no login | none |
+## Users and roles
+Sign-in is required. Users sign in with Google (OpenID Connect, handled by the Worker). Access is invite-only: the `users` table is the allowlist.
+
+| Role | Can do |
+|------|--------|
+| **Read** (default) | View rides, weekend board, spot detail, forecasts |
+| **Edit** | Read + create, edit, publish and archive rides; manage spots |
+| **Admin** | Edit + change team settings (thresholds, defaults, kit chart) and manage users |
+
+- An Admin invites a user by email and picks a role (Read by default). The invite is a row in `users` with status `invited`.
+- On first Google sign-in, the Worker matches the verified Google email (`email_verified = true`) to an invited row, stores the Google `sub`, and marks it `active`. Later sign-ins match on `sub`, so an email change at Google doesn't lock anyone out.
+- A Google account not in `users` gets a "Not invited — ask a team admin" page. No row is created.
+- Sessions: an opaque random session ID in an `HttpOnly; Secure; SameSite=Lax` cookie, stored in D1 `sessions` (30-day sliding expiry). Role is re-read from `users` on each request, so a role change or removal takes effect immediately.
+- Every API route checks the role server-side; the UI only hides what the role can't do.
+- Bootstrap: the first Admin's email comes from the `BOOTSTRAP_ADMIN_EMAIL` Worker variable and is inserted as an active Admin by the first migration run.
+- Audit: `audit_log` records who changed rides, settings and users, and when.
+
+### Data model (D1)
+```
+users(id, email UNIQUE, google_sub UNIQUE NULL, name, role CHECK(role IN ('read','edit','admin')) DEFAULT 'read',
+      status CHECK(status IN ('invited','active','disabled')), invited_by, created_at, last_login_at)
+sessions(id PRIMARY KEY, user_id, created_at, expires_at, user_agent)
+settings(key PRIMARY KEY, value_json, updated_by, updated_at)        -- one row per setting
+kit_bands(id, min_feel_f, name, items_json, sort)                    -- editable kit chart
+spots(id, name, lat, lng, maps_url, note, archived)
+rides(id, date, rollout, spot_id, pace_mph, stop_min, notes, status CHECK(status IN ('draft','published','archived')), created_by, updated_by, updated_at)
+ride_routes(ride_id, sort, label, rwgps_route_id, stop_poi_json)
+route_cache(rwgps_route_id PRIMARY KEY, json, fetched_at)
+audit_log(id, user_id, action, entity, entity_id, diff_json, at)
+```
 
 ## v1 scope
 
 ### Rides (viewer home)
-- Editor plans a ride: date, roll-out time, start spot, avg pace, notes, and one or more routes. Draft → Publish.
+- Editor plans a ride on **any date** (weekend or weekday): date, roll-out time, start spot, avg pace, notes, and one or more routes. Draft → Publish.
   - Usually one route; occasionally a labeled alternate (e.g., "Full" / "Short") sharing the same spot and time.
-- Viewer home shows upcoming published rides (e.g., Sat / Sun tabs). Each ride page:
+- Home shows upcoming published rides as date tabs: this Saturday and Sunday always, plus any other day that has a published ride. Each ride page:
   - Route card from RWGPS (switcher when there are alternates): name, map preview, distance, elevation gain, est. moving time (distance ÷ pace), elevation profile, "Open in RWGPS".
   - Parking: spot name, notes, "Open in Google Maps" pin link.
   - Conditions at start for the ride window: road status, temp, real feel + bike feel, wind/gusts/direction, rain.
@@ -39,8 +63,8 @@ Help the BBT captain plan weekend rides and the team show up prepared:
 - Name, Google Maps parking pin link (coordinates parsed from link; short links resolved server-side), notes (parking, restrooms).
 - Add via Maps link, search, map tap, or current location. One-off spots allowed.
 
-### Weekend board (editor planning view; also visible to viewers)
-- Card per spot for selected day + start time + duration: road status (Dry / Drying / Wet), temp range, real feel / bike feel, wind + gusts + direction, rain chance/amount, Go / Caution / No-go verdict (worst factor wins).
+### Weekend board (planning view; visible to all roles)
+- Sat / Sun tabs plus an "Other day" date picker (any day in the forecast range). Card per spot for selected day + start time + duration: road status (Dry / Drying / Wet), temp range, real feel / bike feel, wind + gusts + direction, rain chance/amount, Go / Caution / No-go verdict (worst factor wins).
 
 ### Spot detail
 - Rain bars −12h → +8h with ride window highlighted, hourly (15-min where available) table, radar loop.
@@ -50,8 +74,16 @@ Help the BBT captain plan weekend rides and the team show up prepared:
 - Per-rider offset (runs cold / avg / hot, ±5°) stored in that rider's browser.
 - Shedding hints when temp rises during the ride; fenders when roads damp.
 
-### Settings
-- Units (°F/mph default), thresholds (min feel, max wind/gust, rain cutoff, look-back hours), default roll-out time/duration/pace, kit chart.
+### Settings (Admin only, stored in D1)
+Every setting lives in the `settings` table and is edited on the Settings tab; nothing is hard-coded except first-run defaults.
+- Ride defaults: roll-out **8:30**, board duration 3 h, pace 17 mph, coffee stop **20 min** (typical 15–20), regroup buffer **5 %** of moving time.
+- Road wetness: look-back hours, Wet / Drying film thresholds.
+- Verdict thresholds: cold, heat, wind, gusts, rain chance, rain amount.
+- Kit chart bands and items (`kit_bands`).
+- Units (°F/mph for v1).
+- Users (invite, change role, disable).
+
+Per-rider preferences (theme, cold/avg/hot offset) stay in the rider's browser.
 
 ### Metrics
 - **Real feel** — standard apparent temperature.
@@ -158,11 +190,12 @@ Add-ons:
 ### ETA math
 ```
 moving time      = distance ÷ pace                         (46.2 mi ÷ 17 mph = 2 h 43 m)
-ETA at mile m    = roll-out + m ÷ pace                     (Tazza, mile 24.4 → 8:00 + 1 h 26 m = 9:26)
+k                = 1 + regroup buffer (default 5 % → 1.05)
+ETA at mile m    = roll-out + (m ÷ pace) × k               (Tazza, mile 24.4 → 8:30 + 1 h 30 m = 10:00)
 after the stop   = + stop length (default 20 min)
-ride window      = roll-out → roll-out + moving time + stop (8:00 → 11:03)
+ride window      = roll-out → roll-out + moving time × k + stop (8:30 → 11:41)
 ```
-Mile markers come from the POI's distance along the RWGPS track (nearest track point). No allowance for regroups or lights in v1 (see QUESTIONS.md). Weather at the stop is the forecast at the POI's coordinates at its ETA.
+Mile markers come from the POI's distance along the RWGPS track (nearest track point). The regroup buffer is an Admin setting; 0 % gives pure moving time. Weather at the stop is the forecast at the POI's coordinates at its ETA.
 
 ## Prototype
 `prototype/index.html` — one self-contained file (inline CSS/JS, Leaflet 1.9.4 from cdnjs). Built from `prototype/src/app.html` by `python3 prototype/build.py`, which inlines `data/seed.json`, the fallback forecast `data/raw/om_purchase.json`, and the logo.
@@ -173,12 +206,26 @@ Mile markers come from the POI's distance along the RWGPS track (nearest track p
 ## Data sources
 - **Forecast:** Open-Meteo (free, no key) — HRRR (3 km, 15-min) + NBM for US; past hours for road-dryness.
 - **Observed:** nearest NWS station observations; RainViewer radar tiles.
-- **Routes:** RideWithGPS API v1 (API client key + auth token, stored as Worker secrets). To verify at build time: listing club/organization routes via the API; paste-link fallback always works.
+- **Routes:** RideWithGPS API v1 (API key + secret + auth token, stored as Worker secrets; see Secrets). To verify at build time: listing club/organization routes via the API; paste-link fallback always works.
+
+## Secrets
+Never in the repo, the built assets, or any response to the browser. All third-party calls that need a credential go through the Worker.
+
+| Secret | Where it lives | Used by |
+|---|---|---|
+| `RWGPS_API_KEY`, `RWGPS_API_SECRET`, `RWGPS_AUTH_TOKEN` | Cloudflare Worker secrets (`wrangler secret put …`) | Worker → RideWithGPS |
+| `GOOGLE_CLIENT_ID` (not secret), `GOOGLE_CLIENT_SECRET` | Worker variable / Worker secret | Google sign-in |
+| `SESSION_SECRET` (random 32 bytes) | Worker secret | Signing OAuth `state` / CSRF tokens |
+| `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` | Claude Code cloud environment secret (and your own machine for manual deploys) | `wrangler deploy`, D1 migrations |
+
+- Local development: `.dev.vars` (git-ignored) with the same names; a committed `.dev.vars.example` lists the names with empty values.
+- Worker secrets are write-only: once set, Cloudflare never shows them again; rotate by running `wrangler secret put` with the new value.
+- The browser calls `/api/routes/:id` and `/api/routes/search`; the Worker adds the RWGPS credentials and caches results in D1 `route_cache`.
 
 ## Architecture
 - Cloudflare Worker + static assets (React + TypeScript + Vite) on ride.bbt.team.
 - D1: spots, rides, route cache, settings, kit chart. KV: forecast cache.
-- Editor routes/APIs gated by Cloudflare Access; viewer routes public.
+- Every route requires a session (Google sign-in); API routes enforce Read / Edit / Admin server-side.
 
 ## Backlog (post-v1)
 1. **RWGPS route weather** (phase 2) — forecast at each point by ETA; head/tail/crosswind per segment.
