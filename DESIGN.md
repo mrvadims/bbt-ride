@@ -72,6 +72,8 @@ Both use `fill="currentColor"` so they can switch between navy, white, and orang
 | BBT Orange | `#FF3115` | Accent only: stripe under top bar, active tab underline. Not used for buttons |
 | BBT Dark Blue | `#020C2B` | Dark-mode page background |
 | Logo navy | `#03144D` | Primary text on light; dark-mode cards |
+
+Navy roles confirmed 2026-10-09: `#020C2B` background, `#03144D` text/cards; `#1C367B` is not used.
 | BBT Transition Blue | `#041DB2` | Secondary accent (charts, selected states) |
 
 - **Top bar:** white bike logo (`bbt-logo.svg`, ~32px tall) on Light Blue, with a 4px orange stripe directly underneath (no separator). Same bar in light and dark mode. Orange and light blue are nearly equal in brightness (1.25:1); if the edge shimmers on real phones, fall back to a 2px white hairline between them.

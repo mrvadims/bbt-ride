@@ -2,8 +2,10 @@
 
 Each has a recommended default. Reply with the number and "ok" or your change. The prototype already uses every default.
 
+**Resolved 2026-10-09:** 1 (split navy roles), 4 (Drying = Caution; tune after real rides), 5 (cold limits 40 / 32 kept).
+
 ## Brand
-1. **Which navy is official?** The brand files have three: `#020C2B` (color sheet "Dark Blue"), `#03144D` (logo fill), `#1C367B` (in the PDF, not on the sheet).
+1. ✅ **Resolved — split roles.** **Which navy is official?** The brand files have three: `#020C2B` (color sheet "Dark Blue"), `#03144D` (logo fill), `#1C367B` (in the PDF, not on the sheet).
    **Default:** `#020C2B` = dark-mode page background, `#03144D` = primary text on light + dark-mode cards, drop `#1C367B`.
 2. **Blue/orange header edge.** The 4px orange stripe sits directly on Light Blue with no hairline. It looked fine in headless Chromium at 375px and 1280px; a real-phone check is still needed (shimmer risk, 1.25:1 brightness).
    **Default:** keep it without the hairline unless you see a shimmer on your phone; the fallback is a 2px white line.
@@ -11,9 +13,9 @@ Each has a recommended default. Reply with the number and "ok" or your change. T
 ## Weather model
 3. **Bike feel formula and display.** Wind chill with airflow `√(pace² + wind²)`; the chill fades linearly to zero between 50 and 70 °F; above 70 °F it equals real feel (DESIGN.md → Bike feel). Shown as a min–max range for the ride window next to temp and real feel.
    **Default:** keep. Alternative: `pace + wind/2` (slightly colder in windy conditions).
-4. **Road-wet thresholds.** Wet if the water film is ≥ 0.5 mm or it is raining that hour; Drying if ≥ 0.1 mm; 12 h look-back. Drying coefficients are a first guess.
+4. ✅ **Resolved — Drying = Caution.** **Road-wet thresholds.** Wet if the water film is ≥ 0.5 mm or it is raining that hour; Drying if ≥ 0.1 mm; 12 h look-back. Drying coefficients are a first guess.
    **Default:** ship as is, then log the verdict next to what the team actually found on 4–6 rides and tune. Question for you: should **Drying** be Caution (current) or Go?
-5. **Verdict thresholds.** Cold caution < 40 / no-go < 32 (bike feel); heat ≥ 92 / ≥ 100 (real feel); wind ≥ 15 / ≥ 22; gusts ≥ 25 / ≥ 35; rain chance ≥ 30 % / ≥ 60 %; rain ≥ 0.01" / ≥ 0.05"; thunder = No-go.
+5. ✅ **Resolved — keep 40 / 32.** **Verdict thresholds.** Cold caution < 40 / no-go < 32 (bike feel); heat ≥ 92 / ≥ 100 (real feel); wind ≥ 15 / ≥ 22; gusts ≥ 25 / ≥ 35; rain chance ≥ 30 % / ≥ 60 %; rain ≥ 0.01" / ≥ 0.05"; thunder = No-go.
    **Default:** keep. The 32° bike-feel no-go is the one most likely to be too strict for this group.
 6. **Kit chart defaults.** Seven bands on bike feel (≥70, 60s, 52–59, 45–51, 38–44, 30–37, <30) plus rain-jacket, fender/shoe-cover, wind-vest and shedding add-ons (DESIGN.md → Kit chart).
    **Default:** keep; editors tune it in Settings. Please look at the 45–59° bands, where opinions differ most.
