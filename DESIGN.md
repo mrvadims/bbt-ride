@@ -30,6 +30,9 @@ Help the BBT captain plan weekend rides and the team show up prepared:
   - Captain's notes.
 - Route picker: search RWGPS routes from the captain's personal library **and** the BBT club library, or paste a RWGPS link. Suggest start spot by nearest saved spot to route start.
   - "Open in RWGPS" works for viewers only if the route is public or shared; map/stats render regardless.
+- **Coffee / muffin stop (optional)** — a ride can have an optional mid-ride stop.
+  - Auto-suggested from the route's RWGPS POIs (`poi_type_name` = `coffee` or `food`); editor confirms, picks another POI, or adds one manually (name + Google Maps link).
+  - Ride page shows: name, mile marker, ETA (roll-out + distance ÷ pace), stop length (default 20 min, shifts the rest of the ride window), weather at the stop, "Open in Maps", and an "optional" label.
 - **Archive** — past rides list (date, route(s), spot, recorded conditions at roll-out); "reuse this plan".
 
 ### Spots
@@ -94,6 +97,14 @@ Both use `fill="currentColor"` so they can switch between navy, white, and orang
 4. **Morning-of push alert** — PWA push N hours before ride.
 5. **Model comparison** — HRRR vs NBM vs ECMWF agreement/confidence.
 
+## Seed data
+`data/seed.json` (built 2026-10-08 from public sources; raw responses in `data/raw/`):
+- Spots: SUNY Purchase, Armonk, Reeves (coordinates resolved from the Google Maps links).
+- Routes: 57426135, 57406828, 57215407, 37475253 with stats, simplified track (lat, lng, elev m, dist m), POIs with distance along route, and nearest spot (all start within 160 m of a spot).
+- 36 route IDs linked from the public RWGPS group page `groups/BBT`.
+- Default pace 17 mph.
+
+Verified 2026-10-08: public route JSON (`/routes/{id}.json`) needs no key; listing a user's routes (`/users/{id}/routes.json`) returns 403 without auth; Open-Meteo `best_match`, `gfs_hrrr`, `ncep_nbm_conus`, `minutely_15`, `past_days` all work for these spots; NWS points API works (grid OKX).
+
 ## Open questions
-- Usual start spots (name + Google Maps parking link + notes) to seed.
-- See chat for current round of questions.
+See `QUESTIONS.md`.
