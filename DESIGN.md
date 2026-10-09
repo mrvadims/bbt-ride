@@ -16,7 +16,7 @@ Sign-in is required. Users sign in with Google (OpenID Connect, handled by the W
 | Role | Can do |
 |------|--------|
 | **View** (default) | View rides, weekend board, spot detail, forecasts |
-| **Edit** | Read + create, edit, publish and archive rides; manage spots |
+| **Edit** | View + create, edit, publish and archive rides; manage spots |
 | **Admin** | Edit + change team settings (thresholds, defaults, kit chart) and manage users |
 
 - An Admin invites a user by email and picks a role (View by default). The invite is a row in `users` with status `invited`.
