@@ -57,6 +57,26 @@ Help the BBT captain plan weekend rides and the team show up prepared:
 ### Platform
 - Mobile-first, installable PWA; desktop uses multi-column layout of the same views.
 
+## Brand
+Source files in `brand/` (color sheet, logo .ai/.svg/.pdf, favicon). Web-ready versions in `brand/web/`:
+- `bbt-logo.svg` — full bike logo, used in the top bar (5 KB; source SVG was 948 KB due to an embedded ICC profile).
+- `bbt-wordmark.svg` — "bbt" wordmark for favicon/app icons (1 KB).
+Both use `fill="currentColor"` so they can switch between navy, white, and orange.
+
+| Name | sRGB | Use |
+|------|------|-----|
+| BBT Light Blue | `#0077D1` | Top bar; primary buttons (white text, 4.6:1 AA); links on light. Links/outline buttons lightened to `#4DA3FF` on dark |
+| BBT Orange | `#FF3115` | Accent only: stripe under top bar, active tab underline. Not used for buttons |
+| BBT Dark Blue | `#020C2B` | Dark-mode page background |
+| Logo navy | `#03144D` | Primary text on light; dark-mode cards |
+| BBT Transition Blue | `#041DB2` | Secondary accent (charts, selected states) |
+
+- **Top bar:** white bike logo (`bbt-logo.svg`, ~32px tall) on Light Blue, with a 4px orange stripe directly underneath (no separator). Same bar in light and dark mode. Orange and light blue are nearly equal in brightness (1.25:1); if the edge shimmers on real phones, fall back to a 2px white hairline between them.
+
+- Go / Caution / No-go use separate green / amber / red tinted pills (with icon + label) so No-go never reads as brand orange.
+- Light and dark mode both supported; dark mode is navy-based, not gray.
+- PWA icons (180/192/512) generated from the wordmark at build time.
+
 ## Data sources
 - **Forecast:** Open-Meteo (free, no key) — HRRR (3 km, 15-min) + NBM for US; past hours for road-dryness.
 - **Observed:** nearest NWS station observations; RainViewer radar tiles.
