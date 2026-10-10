@@ -1,0 +1,1123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>BBT Ride Weather</title>
+<meta name="theme-color" content="#0077D1">
+<style>
+:root{
+  --bar:#0077D1; --stripe:#FF3115;
+  --bg:#F3F6FA; --card:#FFFFFF; --card2:#F7F9FC; --text:#03144D; --muted:#56638A; --line:#DCE3EE;
+  --primary:#0077D1; --primary-hover:#0067B5; --on-primary:#FFFFFF; --link:#0067B5;
+  --chart:#041DB2; --chart-soft:rgba(4,29,178,.12); --win:rgba(0,119,209,.10); --win-line:#0077D1;
+  --go-bg:#E2F5E9; --go-fg:#126B3B; --cau-bg:#FFF1D1; --cau-fg:#875400; --no-bg:#FCE3E3; --no-fg:#A11C1C;
+  --shadow:0 1px 2px rgba(3,20,77,.06),0 2px 8px rgba(3,20,77,.05);
+  --sun:#F2A900; --cloud:#E4E9F2; --cloud-edge:#8C98B8; --rain:#0077D1;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#020C2B; --card:#03144D; --card2:#061B5C; --text:#EAF0FF; --muted:#9DABD1; --line:#1B2B68;
+    --primary:#0077D1; --primary-hover:#1A88DB; --link:#4DA3FF;
+    --chart:#7FB2FF; --chart-soft:rgba(127,178,255,.18); --win:rgba(77,163,255,.14); --win-line:#4DA3FF;
+    --go-bg:rgba(52,199,120,.16); --go-fg:#7FE0A8; --cau-bg:rgba(255,190,40,.16); --cau-fg:#FFD27A; --no-bg:rgba(255,90,90,.18); --no-fg:#FFA3A3;
+    --shadow:none; --sun:#FFC53D; --cloud:#3A4C86; --cloud-edge:#A9B6DA; --rain:#4DA3FF; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#020C2B; --card:#03144D; --card2:#061B5C; --text:#EAF0FF; --muted:#9DABD1; --line:#1B2B68;
+  --primary:#0077D1; --primary-hover:#1A88DB; --link:#4DA3FF;
+  --chart:#7FB2FF; --chart-soft:rgba(127,178,255,.18); --win:rgba(77,163,255,.14); --win-line:#4DA3FF;
+  --go-bg:rgba(52,199,120,.16); --go-fg:#7FE0A8; --cau-bg:rgba(255,190,40,.16); --cau-fg:#FFD27A; --no-bg:rgba(255,90,90,.18); --no-fg:#FFA3A3;
+  --shadow:none; --sun:#FFC53D; --cloud:#3A4C86; --cloud-edge:#A9B6DA; --rain:#4DA3FF; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;font-variant-numeric:tabular-nums}
+a{color:var(--link)}
+h1,h2,h3{margin:0;line-height:1.2}
+h1{font-size:20px} h2{font-size:16px} h3{font-size:14px}
+.muted{color:var(--muted)} .small{font-size:13px} .tiny{font-size:12px}
+/* Top bar: light blue, logo, 4px orange stripe directly underneath (no hairline). */
+.topbar{background:var(--bar);color:#fff;position:sticky;top:env(safe-area-inset-top,0px);z-index:1500}
+.topbar-inner{max-width:1200px;margin:0 auto;height:56px;display:flex;align-items:center;gap:10px;padding:0 16px}
+.topbar .logo{height:32px;width:auto;color:#fff;display:block}
+.brandlink{display:flex;align-items:center;gap:10px;color:#fff;text-decoration:none}
+.topbar .spacer{flex:1}
+.datachip{font-size:12px;background:rgba(255,255,255,.18);border-radius:999px;padding:3px 9px;white-space:nowrap}
+.iconbtn{background:transparent;border:0;color:#fff;width:36px;height:36px;border-radius:8px;display:grid;place-items:center;cursor:pointer}
+.iconbtn:hover{background:rgba(255,255,255,.15)}
+.stripe{height:4px;background:var(--stripe)}
+/* Tabs: orange underline for active only. */
+.nav{background:var(--card);border-bottom:1px solid var(--line)}
+.tabs{display:flex;gap:4px;max-width:1200px;margin:0 auto;padding:0 8px;overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{appearance:none;background:none;border:0;color:var(--muted);font:inherit;font-weight:600;padding:12px 10px 10px;border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap;text-decoration:none}
+.tab[aria-selected="true"]{color:var(--text);border-bottom-color:var(--stripe)}
+.tab:focus-visible{outline:2px solid var(--primary);outline-offset:-2px}
+main{max-width:1200px;margin:0 auto;padding:16px 16px 48px}
+.daytabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:-4px 0 14px}
+.daytabs .tab{padding:10px 12px 8px}
+.banner{border-radius:10px;padding:10px 12px;margin:0 0 14px;font-size:13px;background:var(--cau-bg);color:var(--cau-fg)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;box-shadow:var(--shadow);margin-bottom:14px;min-width:0}
+.kicker{font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--muted)}
+.btn{appearance:none;display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:10px;border:1px solid transparent;padding:9px 14px;font:inherit;font-weight:600;cursor:pointer;text-decoration:none;min-height:40px}
+.btn-primary{background:var(--primary);color:var(--on-primary)}
+.btn-primary:hover{background:var(--primary-hover)}
+.btn-outline{background:transparent;color:var(--link);border-color:var(--line)}
+.btn-outline:hover{border-color:var(--link)}
+.btn-sm{padding:6px 10px;min-height:32px;font-size:13px}
+.btnrow{display:flex;flex-wrap:wrap;gap:8px}
+.seg{display:inline-flex;background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px}
+.seg button{appearance:none;border:0;background:transparent;color:var(--muted);font:inherit;font-weight:600;font-size:13px;padding:6px 12px;border-radius:7px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--primary);color:#fff}
+.map{height:220px;border-radius:10px;overflow:hidden;background:var(--card2);position:relative}
+.map svg{width:100%;height:100%;display:block}
+.profile{width:100%;height:auto;display:block;margin-top:8px}
+.pill{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:3px 10px;font-size:13px;font-weight:700;white-space:nowrap}
+.pill svg{width:12px;height:12px}
+.lv0{background:var(--go-bg);color:var(--go-fg)} .lv1{background:var(--cau-bg);color:var(--cau-fg)} .lv2{background:var(--no-bg);color:var(--no-fg)}
+.tablewrap{overflow-x:auto;margin:10px -14px -4px;padding:0 14px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:6px 6px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);font-weight:700}
+tr.inwin td{background:var(--win)}
+tr.now td:first-child{box-shadow:inset 3px 0 0 var(--win-line)}
+.arrow{display:inline-block;width:12px;height:12px;vertical-align:-1px}
+.list{list-style:none;margin:0;padding:0}
+.list li{display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)}
+.list li:last-child{border-bottom:0}
+.tag{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border:1px solid var(--line);color:var(--muted);border-radius:6px;padding:1px 6px}
+.notes{white-space:pre-wrap;margin:0}
+.grid{display:grid;gap:14px}
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:14px}
+label.field{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;color:var(--muted);min-width:0}
+input,select,textarea{font:inherit;color:var(--text);background:var(--card);border:1px solid var(--line);border-radius:9px;padding:8px 10px;min-height:40px;width:100%}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--primary);outline-offset:-1px;border-color:transparent}
+textarea{min-height:80px;resize:vertical}
+.results{border:1px solid var(--line);border-radius:10px;margin-top:6px;max-height:220px;overflow:auto}
+.results button{display:flex;width:100%;justify-content:space-between;gap:8px;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);padding:9px 10px;font:inherit;color:var(--text);cursor:pointer}
+.results button:last-child{border-bottom:0}
+.results button:hover,.results button[aria-selected="true"]{background:var(--win)}
+.radio{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--line);cursor:pointer}
+.radio:last-child{border-bottom:0}
+.radio input{width:18px;min-height:18px;margin-top:2px;flex:none}
+.settings-grid,.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:600;z-index:3000;box-shadow:0 4px 18px rgba(0,0,0,.25);max-width:calc(100% - 32px)}
+.chart{width:100%;height:auto;display:block}
+.chart text{fill:var(--muted);font-size:11px}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--muted);margin-top:6px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+.empty{text-align:center;padding:32px 16px}
+.wear-list{margin:6px 0 0;padding-left:18px}
+.wear-list li{margin:3px 0}
+.addon{margin-top:10px;padding:8px 10px;border-radius:10px;background:var(--card2);font-size:13px}
+.rolebar{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin:-4px 0 12px}
+.warns{display:grid;gap:8px;margin:0 0 14px}
+.warn{display:flex;gap:10px;align-items:flex-start;border-radius:12px;padding:10px 12px}
+.warn svg{width:14px;height:14px;flex:none;margin-top:3px}
+.warn b{display:block}
+.warn span{font-size:13px;opacity:.85}
+@media (min-width:760px){.kv.kv4{grid-template-columns:repeat(4,1fr)}}
+.panels{display:grid;gap:10px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);min-width:0}
+.panel-h{display:grid;grid-template-columns:66px minmax(0,1fr) 16px;gap:10px;align-items:start;padding:13px 14px;cursor:pointer}
+.panel-t{appearance:none;background:none;border:0;padding:2px 0 0;font:inherit;font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);text-align:left;cursor:pointer}
+.panel-t:focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:4px}
+.panel-s{min-width:0;line-height:1.5}
+.panel-s a{text-decoration:none}
+.panel-s .sw{margin-top:8px}
+.panel-s .seg button{white-space:nowrap}
+.panel-s .pill{font-size:12px;padding:1px 8px;vertical-align:1px}
+.chev{width:16px;height:16px;color:var(--muted);margin-top:3px;transition:transform .15s}
+.panel-t[aria-expanded="true"]~.chev{transform:rotate(180deg)}
+@media (prefers-reduced-motion:reduce){.chev{transition:none}}
+.panel-b{padding:0 14px 14px;border-top:1px solid var(--line);padding-top:12px}
+.kvlist{margin:0 0 12px;display:grid;gap:10px}
+.kvlist>div{display:grid;gap:2px}
+.kvlist dt{font-size:12px;font-weight:600;color:var(--muted)}
+.kvlist dd{margin:0}
+.kvlist dd span{display:block;font-size:13px;color:var(--muted)}
+.sub{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.sub-h{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;font-weight:700;margin-bottom:6px}
+.sub p{margin:0 0 4px}
+.clamp{display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+.panel-b .tablewrap{margin:8px -14px 0}
+@media (min-width:960px){.panels{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}.plan-grid .panels{grid-template-columns:minmax(0,1fr)}}
+.dayrow{display:flex;align-items:flex-end;gap:8px;border-bottom:1px solid var(--line);margin:-4px 0 14px}
+.dayrow .daytabs{border-bottom:0;margin:0;flex:1}
+.iconbtn.share{color:var(--link);margin-bottom:4px}
+.iconbtn.share:hover{background:var(--win)}
+.sheet{position:fixed;inset:0;background:rgba(2,12,43,.45);display:grid;place-items:end center;z-index:2500;padding:16px}
+.sheet-card{background:var(--card);color:var(--text);border-radius:16px;padding:16px;width:min(520px,100%);box-shadow:0 10px 40px rgba(0,0,0,.3)}
+.choices{display:grid;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.choices a,.choices button{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:12px 14px;background:none;border:0;border-bottom:1px solid var(--line);font:inherit;font-weight:600;color:var(--text);text-align:left;text-decoration:none;cursor:pointer}
+.choices>:last-child{border-bottom:0}
+.choices a:hover,.choices button:hover,.choices a:focus-visible,.choices button:focus-visible{background:var(--win);outline:none}
+.choices span{font-size:12px;font-weight:400;color:var(--muted)}
+.sheet textarea{font-size:13px;min-height:180px}
+@media (min-width:760px){.sheet{place-items:center}}
+.panel.titled .panel-h{grid-template-columns:minmax(0,1fr) 16px}
+.panel.titled .panel-t{grid-column:1;font-size:15px;font-weight:700;letter-spacing:0;text-transform:none;color:var(--text);padding:0}
+.panel.titled .panel-s{grid-column:1;grid-row:2;margin-top:2px}
+.panel.titled .chev{grid-column:2;grid-row:1}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.chips .pill{font-size:12px;padding:1px 8px}
+.spotlist{display:grid;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.spotrow{display:flex;gap:10px;align-items:flex-start;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);padding:11px 12px;font:inherit;color:var(--text);cursor:pointer}
+.spotlist>:last-child{border-bottom:0}
+.spotrow:hover{background:var(--win)}
+.spotrow:focus-visible{outline:2px solid var(--primary);outline-offset:-2px}
+.spotrow[aria-checked="true"]{background:var(--win)}
+.spotrow-b{display:grid;gap:2px;min-width:0}
+.spotrow-b .chips{margin-top:4px}
+.radio-dot{width:18px;height:18px;border-radius:50%;border:2px solid var(--muted);flex:none;margin-top:2px;display:grid;place-items:center;font-weight:700;line-height:1}
+.spotrow[aria-checked="true"] .radio-dot{border-color:var(--primary);box-shadow:inset 0 0 0 4px var(--card);background:var(--primary)}
+.radio-dot.plus{border-style:dashed;color:var(--link);font-size:14px}
+.spotrow.add b{color:var(--link)}
+.newspot{display:grid;gap:12px;padding:12px;background:var(--card2)}
+.sec-h{padding:13px 14px 0;font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--muted)}
+.sec-b{padding:10px 14px 14px;display:grid;gap:12px}
+.panel.empty{padding:16px 14px}
+.panel.empty p{margin:0 0 6px}
+.people{display:grid;gap:10px}
+.plist{display:flex;flex-wrap:wrap;gap:6px}
+.person{border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:13px;background:var(--card2)}
+.person.me{border-color:var(--primary);font-weight:600}
+.msg{padding:8px 0;border-bottom:1px solid var(--line)}
+.msg:last-of-type{border-bottom:0}
+.msg .meta{font-size:13px}
+.msg p{margin:2px 0 4px;white-space:pre-wrap}
+.msg.reply{padding:6px 0 6px 12px;border-bottom:0;border-left:2px solid var(--line);margin-top:4px}
+.replies{margin-left:4px}
+.linkbtn{appearance:none;background:none;border:0;padding:0;font:inherit;font-size:13px;color:var(--link);cursor:pointer}
+.compose{display:grid;gap:8px;margin-top:10px}
+.compose textarea{min-height:64px}
+.wxi{width:22px;height:22px;display:block;margin:0 auto}
+th.sky,td.sky{text-align:center}
+.notice{border-radius:12px;padding:10px 12px;margin:0 0 14px;background:var(--win);font-size:14px}
+.warn.big{margin:0 0 14px}
+.editbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;border-radius:12px;padding:10px 12px;margin:-4px 0 12px;background:var(--win);font-size:14px}
+.editbar.lv2{background:var(--no-bg);color:var(--no-fg)}
+.msg.sys .meta b{color:var(--link)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+@media (min-width:760px){
+  .map{height:280px}
+}
+@media (min-width:960px){
+  .plan-grid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:16px;align-items:start}
+  .settings-grid{grid-template-columns:repeat(4,1fr)}
+}
+/* Minimal Leaflet 1.9 layout rules (stylesheets must be inline). */
+.leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
+.leaflet-container{overflow:hidden;-webkit-tap-highlight-color:transparent;font-size:12px}
+.leaflet-container.leaflet-touch-drag{touch-action:pan-x pan-y}
+.leaflet-tile,.leaflet-marker-icon{user-select:none;-webkit-user-drag:none}
+.leaflet-tile{filter:inherit;visibility:hidden}.leaflet-tile-loaded{visibility:inherit}
+.leaflet-container img.leaflet-tile,.leaflet-container .leaflet-overlay-pane svg{max-width:none!important;max-height:none!important}
+.leaflet-pane{z-index:400}.leaflet-tile-pane{z-index:200}.leaflet-overlay-pane{z-index:400}.leaflet-marker-pane{z-index:600}.leaflet-tooltip-pane{z-index:650}.leaflet-popup-pane{z-index:700}
+.leaflet-zoom-animated{transform-origin:0 0}
+.leaflet-zoom-anim .leaflet-zoom-animated{transition:transform .25s cubic-bezier(0,0,.25,1)}
+.leaflet-zoom-anim .leaflet-tile,.leaflet-pan-anim .leaflet-tile{transition:none}
+.leaflet-interactive{cursor:pointer}
+.leaflet-control{position:relative;z-index:800;pointer-events:auto;float:left;clear:both}
+.leaflet-top,.leaflet-bottom{position:absolute;z-index:1000;pointer-events:none}
+.leaflet-top{top:0}.leaflet-right{right:0}.leaflet-bottom{bottom:0}.leaflet-left{left:0}
+.leaflet-right .leaflet-control{float:right}
+.leaflet-top .leaflet-control{margin-top:8px}.leaflet-left .leaflet-control{margin-left:8px}.leaflet-right .leaflet-control{margin-right:0}.leaflet-bottom .leaflet-control{margin-bottom:0}
+.leaflet-bar{border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,.35);overflow:hidden}
+.leaflet-bar a{display:block;width:30px;height:30px;line-height:30px;text-align:center;background:#fff;color:#03144D;text-decoration:none;font:bold 18px/30px system-ui;border-bottom:1px solid #ddd}
+.leaflet-bar a:last-child{border-bottom:0}
+.leaflet-control-attribution{background:rgba(255,255,255,.8);color:#333;padding:0 5px;font-size:10px;line-height:1.5}
+.leaflet-control-attribution a{color:#0067B5}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brandlink" href="#ride" aria-label="BBT Ride home"><!--BBT_LOGO--></a>
+    <span class="spacer"></span>
+    <span class="datachip" id="datachip">Loading…</span>
+    <button class="iconbtn" id="themebtn" type="button" aria-label="Toggle dark mode" title="Toggle dark mode">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+    </button>
+  </div>
+</header>
+<div class="stripe" aria-hidden="true"></div>
+<nav class="nav" aria-label="Main">
+  <div class="tabs" role="tablist" id="navtabs">
+    <a class="tab" href="#ride" data-nav="ride" role="tab">Ride</a>
+    <a class="tab" href="#plan" data-nav="plan" role="tab">Plan</a>
+    <a class="tab" href="#settings" data-nav="settings" role="tab">Settings</a>
+  </div>
+</nav>
+<main id="app" aria-live="polite"></main>
+
+<script type="application/json" id="seed">/*SEED_JSON*/</script>
+<script type="application/json" id="fallback">/*FALLBACK_JSON*/</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+'use strict';
+const SEED = JSON.parse(document.getElementById('seed').textContent);
+const FALLBACK = JSON.parse(document.getElementById('fallback').textContent);
+const TZ = 'America/New_York';
+const MI = 1609.344, FT = 3.28084, MM_PER_IN = 25.4;
+
+/* ---------- storage (every access guarded) ---------- */
+const store = {
+  get(k, d){ try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch(e){ return d; } },
+  set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} },
+  del(k){ try { localStorage.removeItem(k); } catch(e){} }
+};
+
+const DEFAULTS = {
+  pace: SEED.default_pace_mph || 17, lookback: 12, rollout: '08:30', durationH: 3, stopMin: 20, regroupPct: 5,
+  feelCaution: 40, feelNoGo: 32, heatCaution: 92, heatNoGo: 100,
+  windCaution: 15, windNoGo: 22, gustCaution: 25, gustNoGo: 35,
+  rainProbCaution: 30, rainProbNoGo: 60, rainAmtCaution: 0.01, rainAmtNoGo: 0.05,
+  wetMm: 0.5, dryingMm: 0.1, theme: 'auto'
+};
+let S = Object.assign({}, DEFAULTS, store.get('bbt.settings', {}));
+const saveSettings = () => store.set('bbt.settings', S);
+
+/* ---------- roles (demo switcher; live app reads the signed-in user's role from D1) ---------- */
+const ROLES = ['view', 'edit', 'admin'], ROLE_LABEL = { view: 'View', edit: 'Edit', admin: 'Admin' };
+let ROLE = ROLES.includes(store.get('bbt.role', 'admin')) ? store.get('bbt.role', 'admin') : 'admin';
+const can = { plan: () => ROLE !== 'view', settings: () => ROLE === 'admin' };
+const USERS = [
+  { name: 'Vadim (you)', email: 'your Google account', role: 'admin', status: 'Active' },
+  { name: 'Example rider', email: 'rider@example.com', role: 'view', status: 'Active' },
+  { name: 'Example ride leader', email: 'leader@example.com', role: 'edit', status: 'Invited' }
+];
+
+/* ---------- sample published rides ---------- */
+const SPOTS = SEED.spots;
+const ROUTES = SEED.routes;
+const rideOn = date => RIDES.find(r => r.date ? r.date === date : r.day === dow(date) && !RIDES.some(x => x.date === date));
+const spotById = id => SPOTS.find(s => s.id === id);
+const routeById = id => ROUTES.find(r => r.id === +id);
+const RIDES = [
+  { day: 6, time: '08:30', spot: 'suny-purchase', pace: 17, stopMin: 20,
+    routes: [ { label: 'Full', id: 57406828, stop: 'Tazza Cafe' }, { label: 'Short', id: 57426135, stop: 'Tazza Cafe' } ],
+    notes: 'Regroup at the top of every climb. Short group splits at Kensico and meets us at Tazza.\nBring lights — low sun on the reservoir roads before 9.' },
+  { day: 0, time: '08:30', spot: 'armonk', pace: 17, stopMin: 20,
+    routes: [ { label: 'Main', id: 57215407, stop: 'BreadsNBakes' } ],
+    notes: 'Showers possible after noon — we roll on time and skip the stop if the radar looks bad.' }
+];
+
+/* ---------- time helpers (all times are America/New_York wall-clock) ---------- */
+function nyNow(){
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', hourCycle:'h23' })
+    .formatToParts(new Date()).map(x => [x.type, x.value]));
+  return { date: `${p.year}-${p.month}-${p.day}`, min: (+p.hour) * 60 + (+p.minute) };
+}
+const pad = n => String(n).padStart(2, '0');
+function addDays(d, n){ const t = new Date(d + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); }
+const dow = d => new Date(d + 'T00:00:00Z').getUTCDay();
+function dayLabel(d, long){ return new Date(d + 'T12:00:00Z').toLocaleDateString('en-US', { timeZone: 'UTC', weekday: long ? 'long' : 'short', month: 'short', day: 'numeric' }); }
+const hhmmToMin = s => { const [h, m] = s.split(':').map(Number); return h * 60 + m; };
+const minToHHMM = m => `${pad(Math.floor(m / 60) % 24)}:${pad(Math.round(m % 60))}`;
+function fmtTime(m){ m = Math.round(m); const h = Math.floor(m / 60) % 24, mm = m % 60; return `${h % 12 || 12}:${pad(mm)} ${h < 12 ? 'AM' : 'PM'}`; }
+function fmtDur(h){ const m = Math.round(h * 60); return `${Math.floor(m / 60)}h ${pad(m % 60)}m`; }
+
+/* ---------- forecast data ---------- */
+const HOURLY = 'temperature_2m,apparent_temperature,precipitation,precipitation_probability,weather_code,cloud_cover,wind_speed_10m,wind_direction_10m,wind_gusts_10m,dew_point_2m,relative_humidity_2m,shortwave_radiation,is_day';
+let WX = { source: 'loading', at: null, series: {} };
+
+function toSeries(o){
+  const h = o.hourly, idx = new Map();
+  h.time.forEach((t, i) => idx.set(t, i));
+  return { time: h.time, idx, T: h.temperature_2m, app: h.apparent_temperature, p: h.precipitation, pp: h.precipitation_probability,
+    code: h.weather_code, cloud: h.cloud_cover, ws: h.wind_speed_10m, wd: h.wind_direction_10m, wg: h.wind_gusts_10m,
+    dew: h.dew_point_2m, rh: h.relative_humidity_2m, sw: h.shortwave_radiation, day: h.is_day, daily: o.daily };
+}
+function forecastPoints(){
+  const pts = SPOTS.map(s => ({ key: s.id, lat: s.lat, lng: s.lng }));
+  RIDES.forEach(r => r.routes.forEach(rt => {
+    const p = poiFor(rt); if (p && !pts.some(x => x.key === poiKey(p))) pts.push({ key: poiKey(p), lat: p.lat, lng: p.lng });
+  }));
+  return pts;
+}
+const poiKey = p => 'poi:' + p.name;
+function poiFor(rt){ const r = routeById(rt.id); return r && rt.stop ? r.pois.find(p => p.name === rt.stop) : null; }
+
+async function loadForecast(){
+  const pts = forecastPoints();
+  const url = 'https://api.open-meteo.com/v1/forecast?' + new URLSearchParams({
+    latitude: pts.map(p => p.lat.toFixed(4)).join(','), longitude: pts.map(p => p.lng.toFixed(4)).join(','),
+    hourly: HOURLY, daily: 'sunrise,sunset', temperature_unit: 'fahrenheit', wind_speed_unit: 'mph', precipitation_unit: 'inch',
+    timezone: TZ, past_days: '2', forecast_days: '7'
+  });
+  try {
+    const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), 9000);
+    const res = await fetch(url, { signal: ctl.signal }); clearTimeout(timer);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    let data = await res.json(); if (!Array.isArray(data)) data = [data];
+    if (data.length !== pts.length || !data[0].hourly) throw new Error('unexpected shape');
+    const series = {}; pts.forEach((p, i) => series[p.key] = toSeries(data[i]));
+    WX = { source: 'live', at: new Date(), series };
+  } catch (e) {
+    const s = toSeries(FALLBACK), series = {}; pts.forEach(p => series[p.key] = s);
+    WX = { source: 'fallback', at: null, series, err: String(e && e.message || e) };
+  }
+  updateChip(); render();
+}
+function updateChip(){
+  const el = document.getElementById('datachip');
+  if (WX.source === 'live') el.textContent = 'Live · ' + WX.at.toLocaleTimeString('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit' });
+  else if (WX.source === 'fallback') el.textContent = 'Sample data';
+  else el.textContent = 'Loading…';
+}
+
+/* Fractional hourly index for a wall-clock date + minutes. */
+function fIdx(se, date, min){
+  const dayStart = se.idx.get(date + 'T00:00'); if (dayStart == null) return null;
+  const f = dayStart + min / 60; return f > se.time.length - 1 ? null : f;
+}
+function at(arr, f){
+  if (f == null) return null; const i = Math.floor(f), r = f - i;
+  if (arr[i] == null) return null; if (r === 0 || arr[i + 1] == null) return arr[i];
+  return arr[i] + (arr[i + 1] - arr[i]) * r;
+}
+const near = (arr, f) => arr[Math.min(arr.length - 1, Math.round(f))];
+
+/* ---------- algorithms (documented in DESIGN.md) ---------- */
+// Bike feel: NWS wind chill with relative airflow = sqrt(pace² + wind²); tapered to zero between 50–70 °F; above 70 °F = real feel.
+function windChill(T, V){ const v = Math.pow(V, 0.16); return 35.74 + 0.6215 * T - 35.75 * v + 0.4275 * T * v; }
+function bikeFeel(T, wind, app, pace){
+  const V = Math.sqrt(pace * pace + wind * wind);
+  if (V < 3) return T;
+  if (T <= 50) return Math.min(T, windChill(T, V));
+  if (T < 70) return T + (windChill(50, V) - 50) * (70 - T) / 20;
+  return app != null ? app : T;
+}
+// Road wetness: water-film bucket over the look-back window. Rain adds film (mm); drying removes it each hour.
+function dryingRate(se, i){
+  const T = se.T[i], dew = se.dew[i], ws = se.ws[i] || 0;
+  const Tc = (T - 32) * 5 / 9, spread = Math.max(0, (T - dew) * 5 / 9);
+  const sw = se.sw && se.sw[i] != null ? se.sw[i] : (se.day[i] ? (1 - (se.cloud[i] || 0) / 100) * 600 : 0);
+  let d = (0.02 + 0.004 * Math.max(0, Tc) + 0.015 * Math.min(spread, 15) + 0.0006 * sw) * (1 + 0.03 * Math.min(ws, 20));
+  if (spread < 1) d *= 0.25;                     // near-saturated air: dew, barely any evaporation
+  if ((se.p[i] || 0) * MM_PER_IN > 0.1) d *= 0.2; // still raining this hour
+  return d;
+}
+function roadAt(se, f){
+  if (f == null) return null;
+  const end = Math.floor(f), start = Math.max(0, end - S.lookback + 1);
+  let W = 0, rainIn = 0, lastRain = null;
+  for (let i = start; i <= end; i++){
+    const pin = se.p[i] || 0; rainIn += pin; if (pin >= 0.005) lastRain = i;
+    W = Math.min(2, W + pin * MM_PER_IN);
+    W = Math.max(0, W - dryingRate(se, i));
+  }
+  const raining = (se.p[Math.ceil(f)] || 0) >= 0.01;
+  const state = raining || W >= S.wetMm ? 'Wet' : W >= S.dryingMm ? 'Drying' : 'Dry';
+  return { state, W, rainIn, sinceRain: lastRain == null ? null : f - lastRain, raining, level: state === 'Wet' ? 2 : state === 'Drying' ? 1 : 0 };
+}
+const lvl3 = (v, c, n, higherWorse = true) => higherWorse ? (v >= n ? 2 : v >= c ? 1 : 0) : (v < n ? 2 : v < c ? 1 : 0);
+// Evaluate a ride window at a forecast point; worst factor wins.
+function evaluate(se, date, startMin, durMin, pace){
+  const f0 = fIdx(se, date, startMin), f1 = fIdx(se, date, startMin + durMin);
+  if (f0 == null || f1 == null) return null;
+  const samples = [];
+  for (let f = f0; f <= f1 + 1e-6; f += 0.25) samples.push(f);
+  const v = samples.map(f => {
+    const T = at(se.T, f), app = at(se.app, f), ws = at(se.ws, f);
+    return { f, T, app, ws, wg: at(se.wg, f), pp: near(se.pp, f) ?? 0, code: near(se.code, f), feel: bikeFeel(T, ws, app, pace) };
+  });
+  let rain = 0; for (let i = Math.floor(f0) + 1; i <= Math.ceil(f1); i++) rain += se.p[i] || 0;
+  const mx = k => Math.max(...v.map(x => x[k])), mn = k => Math.min(...v.map(x => x[k]));
+  const road = roadAt(se, f0), roadEnd = roadAt(se, f1);
+  const st = { tMin: mn('T'), tMax: mx('T'), appMin: mn('app'), appMax: mx('app'), feelMin: mn('feel'), feelMax: mx('feel'),
+    wsMax: mx('ws'), wgMax: mx('wg'), ppMax: mx('pp'), rain, dir: near(se.wd, f0), road, roadEnd,
+    thunder: v.some(x => x.code >= 95), code: near(se.code, (f0 + f1) / 2) };
+  const factors = [
+    { k: 'Road', level: road.level, val: road.state, why: road.state === 'Dry' ? (road.rainIn > 0 ? `${fmtIn(road.rainIn)} in last ${S.lookback}h, dried` : `no rain in last ${S.lookback}h`) : `${fmtIn(road.rainIn)} in last ${S.lookback}h` },
+    { k: 'Cold', level: lvl3(st.feelMin, S.feelCaution, S.feelNoGo, false), val: `${r0(st.feelMin)}° bike feel`, why: `min over ride; caution < ${S.feelCaution}°` },
+    { k: 'Heat', level: lvl3(st.appMax, S.heatCaution, S.heatNoGo), val: `${r0(st.appMax)}° real feel`, why: `max; caution ≥ ${S.heatCaution}°` },
+    { k: 'Wind', level: Math.max(lvl3(st.wsMax, S.windCaution, S.windNoGo), lvl3(st.wgMax, S.gustCaution, S.gustNoGo)), val: `${r0(st.wsMax)} / ${r0(st.wgMax)} mph`, why: 'sustained / gusts' },
+    { k: 'Rain', level: st.thunder ? 2 : Math.max(lvl3(st.ppMax, S.rainProbCaution, S.rainProbNoGo), lvl3(rain, S.rainAmtCaution, S.rainAmtNoGo)), val: `${r0(st.ppMax)}% · ${fmtIn(rain)}`, why: st.thunder ? 'thunderstorms forecast' : 'max chance · total' }
+  ];
+  const level = Math.max(...factors.map(x => x.level));
+  return { level, factors, st, f0, f1 };
+}
+// Kit chart: bands on bike feel (after rider offset), plus add-ons.
+const KIT = [
+  { min: 70, name: 'Summer', items: ['Short-sleeve jersey', 'Bib shorts', 'Light socks', 'Sunglasses + sunscreen'] },
+  { min: 60, name: 'Mild', items: ['Short-sleeve jersey', 'Bib shorts', 'Arm warmers for the start (optional)'] },
+  { min: 52, name: 'Cool', items: ['Short-sleeve jersey + arm warmers', 'Bib shorts + knee warmers', 'Wind vest', 'Light gloves'] },
+  { min: 45, name: 'Chilly', items: ['Base layer', 'Long-sleeve jersey', 'Knee warmers or 3/4 bibs', 'Wind vest', 'Full-finger gloves'] },
+  { min: 38, name: 'Cold', items: ['Long-sleeve base layer', 'Thermal jersey', 'Bib tights', 'Wind vest', 'Full-finger gloves', 'Headband or cap', 'Toe covers'] },
+  { min: 30, name: 'Very cold', items: ['Thermal base layer', 'Thermal jacket', 'Thermal tights', 'Winter gloves', 'Skull cap', 'Shoe covers'] },
+  { min: -99, name: 'Deep winter', items: ['Thermal base layer', 'Winter jacket', 'Thermal tights', 'Lobster gloves', 'Balaclava', 'Winter shoe covers'] }
+];
+const kitBand = feel => KIT.find(b => feel >= b.min);
+const OFFSETS = { cold: -5, avg: 0, hot: 5 };
+function kitAdvice(st){
+  const off = OFFSETS[store.get('bbt.kitOffset', 'avg')] ?? 0;
+  const start = kitBand(st.feelMin + off), end = kitBand(st.feelMax + off);
+  const add = [];
+  if (st.ppMax >= S.rainProbCaution || st.rain >= S.rainAmtCaution) add.push(['Packable rain jacket', `${r0(st.ppMax)}% chance of rain, ${fmtIn(st.rain)} expected`, 'rain jacket']);
+  if (st.road.state !== 'Dry') add.push(['Clip-on fenders + shoe covers', `roads ${st.road.state.toLowerCase()} at roll-out`, 'fenders']);
+  if (st.wsMax >= 12 && !start.items.includes('Wind vest')) add.push(['Wind vest', `wind up to ${r0(st.wsMax)} mph`, 'wind vest']);
+  if (st.thunder) add.push(['Rethink the ride', 'thunderstorms in the window', 'thunder']);
+  const shed = start !== end && st.feelMax - st.feelMin >= 8 ? `Warms up ${r0(st.feelMax - st.feelMin)}° — dress for ${start.name.toLowerCase()} and pack layers to shed down to ${end.name.toLowerCase()}.` : null;
+  return { start, end, add, shed, off };
+}
+
+/* ---------- formatting ---------- */
+const r0 = v => v == null || isNaN(v) ? '–' : Math.round(v);
+const fmtIn = v => (v < 0.005 ? '0' : v < 0.1 ? v.toFixed(2) : v.toFixed(1)) + '"';
+const COMPASS = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+const compass = d => COMPASS[Math.round(((d % 360) + 360) % 360 / 22.5) % 16];
+const arrow = d => `<svg class="arrow" viewBox="0 0 12 12" aria-hidden="true" style="transform:rotate(${(d + 180) % 360}deg)"><path d="M6 1 L10 10 L6 8 L2 10 Z" fill="currentColor"/></svg>`;
+// Sky icons (24px grid, stroked). Clear and mostly clear switch to a moon at night.
+const WXI = {
+  sun: '<circle cx="12" cy="12" r="4.2" fill="var(--sun)" stroke="none"/><g stroke="var(--sun)"><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></g>',
+  moon: '<path d="M19 14.5A7.5 7.5 0 0 1 9.5 5a7.5 7.5 0 1 0 9.5 9.5z" fill="var(--muted)" stroke="none"/>',
+  cloud: '<path d="M7 18h10.5a4 4 0 0 0 .4-8 5.5 5.5 0 0 0-10.6 1.2A3.4 3.4 0 0 0 7 18z" fill="var(--cloud)" stroke="var(--cloud-edge)"/>',
+  sunsmall: '<circle cx="8" cy="8" r="3.2" fill="var(--sun)" stroke="none"/><g stroke="var(--sun)"><path d="M8 1.8v1.4M2 8h1.4M3.6 3.6l1 1M12.4 3.6l-1 1"/></g>',
+  moonsmall: '<path d="M12 9.5A5 5 0 0 1 6.5 4a5 5 0 1 0 5.5 5.5z" fill="var(--muted)" stroke="none"/>',
+  rain: '<g stroke="var(--rain)"><path d="M8 20l-1 2.2M12 20l-1 2.2M16 20l-1 2.2"/></g>',
+  drizzle: '<g stroke="var(--rain)"><path d="M9 20.5v1M13 20.5v1M17 20.5v1"/></g>',
+  snow: '<g fill="var(--rain)" stroke="none"><circle cx="8" cy="21" r="1"/><circle cx="12" cy="22" r="1"/><circle cx="16" cy="21" r="1"/></g>',
+  bolt: '<path d="M12.5 17l-2.5 4h3l-1.5 3" stroke="var(--sun)" fill="none"/>',
+  fog: '<g stroke="var(--cloud-edge)"><path d="M4 9h16M3 13h18M5 17h14"/></g>'
+};
+function wxIcon(c, day = 1){
+  const lbl = wxLabel(c), shift = '<g transform="translate(0,-3)">';
+  let g;
+  if (c === 0) g = day ? WXI.sun : WXI.moon;
+  else if (c === 1 || c === 2) g = (day ? WXI.sunsmall : WXI.moonsmall) + WXI.cloud;
+  else if (c === 3) g = WXI.cloud;
+  else if (c <= 48) g = WXI.fog;
+  else if (c <= 57) g = shift + WXI.cloud + '</g>' + WXI.drizzle;
+  else if (c <= 67 || (c >= 80 && c <= 82)) g = (c >= 80 ? (day ? WXI.sunsmall : '') : '') + shift + WXI.cloud + '</g>' + WXI.rain;
+  else if (c <= 77 || c === 85 || c === 86) g = shift + WXI.cloud + '</g>' + WXI.snow;
+  else g = shift + WXI.cloud + '</g>' + WXI.bolt;
+  return `<svg class="wxi" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="${lbl}"><title>${lbl}</title>${g}</svg>`;
+}
+function wxLabel(c){
+  if (c == null) return '–'; if (c === 0) return 'Clear'; if (c === 1) return 'Mostly clear'; if (c === 2) return 'Partly cloudy'; if (c === 3) return 'Overcast';
+  if (c <= 48) return 'Fog'; if (c <= 57) return 'Drizzle'; if (c <= 67) return 'Rain'; if (c <= 77) return 'Snow'; if (c <= 82) return 'Showers'; if (c <= 86) return 'Snow showers'; return 'Thunderstorms';
+}
+const ICON = [
+  '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6.5 L5 9 L10 3" fill="none" stroke="currentColor" stroke-width="2"/></svg>',
+  '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 2 V7 M6 9.2 V10" stroke="currentColor" stroke-width="2"/></svg>',
+  '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 3 L9 9 M9 3 L3 9" stroke="currentColor" stroke-width="2"/></svg>'
+];
+const pill = (level, text) => `<span class="pill lv${level}">${ICON[level]}${text}</span>`;
+const roadPill = road => road ? pill(road.level, road.state) : '';
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const mapsLink = (lat, lng) => `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+function haversine(a, b, c, d){ const R = 6371000, t = Math.PI / 180, x = Math.sin((c - a) * t / 2) ** 2 + Math.cos(a * t) * Math.cos(c * t) * Math.sin((d - b) * t / 2) ** 2; return 2 * R * Math.asin(Math.sqrt(x)); }
+
+/* ---------- ride math ---------- */
+// Moving time = distance ÷ pace. ETA at mile m = roll-out + m ÷ pace (+ stop length once past the stop).
+function rideTimes(route, rideCfg){
+  const distMi = route.distance_m / MI, movingH = distMi / rideCfg.pace;
+  const poi = rideCfg.stop ? route.pois.find(p => p.name === rideCfg.stop) : null;
+  const stopMin = poi ? rideCfg.stopMin : 0;
+  const start = hhmmToMin(rideCfg.time), k = 1 + (S.regroupPct || 0) / 100;
+  const stop = poi ? { poi, mile: poi.route_d_m / MI, eta: start + (poi.route_d_m / MI) / rideCfg.pace * 60 * k, len: stopMin } : null;
+  return { distMi, movingH, regroupMin: movingH * 60 * (k - 1), start, end: start + movingH * 60 * k + stopMin, stop, climbFt: route.elevation_gain_m * FT };
+}
+
+/* ---------- weekend dates ---------- */
+function weekendDates(){
+  const today = nyNow().date, w = dow(today);
+  let sat = addDays(today, (6 - w + 7) % 7), sun = w === 0 ? today : addDays(sat, 1);
+  const se = WX.series[SPOTS[0].id];
+  if (se && (fIdx(se, sat, 0) == null || fIdx(se, sun, 0) == null)){
+    // Sample data is stale: use the last weekend it covers.
+    const days = [...new Set(se.time.map(t => t.slice(0, 10)))];
+    sat = days.filter(d => dow(d) === 6).pop() || days[days.length - 2];
+    sun = days.find(d => dow(d) === 0 && d > sat) || addDays(sat, 1);
+  }
+  return [sat, sun].sort().map(d => ({ date: d, dow: dow(d) }));
+}
+
+/* ---------- charts ---------- */
+// Narrow viewBox on phones keeps 11px chart labels legible.
+const chartW = () => window.innerWidth < 600 ? 360 : 640;
+function elevationSVG(route, stopMile){
+  const tr = route.track, W = chartW(), H = W < 500 ? 150 : 130, P = { l: 40, r: 8, t: 8, b: 20 };
+  const maxD = tr[tr.length - 1][3] / MI, els = tr.map(p => p[2] * FT), lo = Math.min(...els), hi = Math.max(...els);
+  const span = Math.max(hi - lo, 100), y0 = lo - span * 0.08, y1 = hi + span * 0.08;
+  const x = d => P.l + (d / maxD) * (W - P.l - P.r), y = e => P.t + (1 - (e - y0) / (y1 - y0)) * (H - P.t - P.b);
+  const line = tr.map((p, i) => `${i ? 'L' : 'M'}${x(p[3] / MI).toFixed(1)},${y(p[2] * FT).toFixed(1)}`).join('');
+  const ticks = []; const step = maxD > 30 ? 10 : 5;
+  for (let d = 0; d <= maxD; d += step) if (x(d) < W - P.r - 22) ticks.push(`<text x="${x(d)}" y="${H - 5}" text-anchor="middle">${d}</text>`);
+  let stop = '';
+  if (stopMile != null){ const sx = x(stopMile); stop = `<line x1="${sx}" x2="${sx}" y1="${P.t}" y2="${H - P.b}" stroke="var(--muted)" stroke-dasharray="3 3"/><text x="${sx + 4}" y="${P.t + 10}">stop</text>`; }
+  return `<svg class="profile" viewBox="0 0 ${W} ${H}" role="img" aria-label="Elevation profile from ${r0(lo)} to ${r0(hi)} ft">
+    <path d="${line}L${x(maxD)},${H - P.b}L${P.l},${H - P.b}Z" fill="var(--chart-soft)"/>
+    <path d="${line}" fill="none" stroke="var(--chart)" stroke-width="1.6"/>
+    <text x="${P.l - 4}" y="${y(hi) + 4}" text-anchor="end">${r0(hi)}′</text><text x="${P.l - 4}" y="${y(lo) + 4}" text-anchor="end">${r0(lo)}′</text>
+    ${ticks.join('')}${stop}<text x="${W - P.r}" y="${H - 5}" text-anchor="end">mi</text></svg>`;
+}
+// Fallback map (no Leaflet / offline): equirectangular projection of the track.
+function trackSVG(route, stopPoi){
+  const tr = route.track, k = Math.cos(tr[0][0] * Math.PI / 180);
+  const xs = tr.map(p => p[1] * k), ys = tr.map(p => p[0]);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const W = 600, H = 300, s = Math.min((W - 40) / (x1 - x0), (H - 40) / (y1 - y0));
+  const ox = (W - (x1 - x0) * s) / 2, oy = (H - (y1 - y0) * s) / 2;
+  const px = (la, ln) => [(ox + (ln * k - x0) * s).toFixed(1), (oy + (y1 - la) * s).toFixed(1)];
+  const d = tr.map((p, i) => (i ? 'L' : 'M') + px(p[0], p[1]).join(',')).join('');
+  const [sx, sy] = px(tr[0][0], tr[0][1]);
+  const stop = stopPoi ? (() => { const [cx, cy] = px(stopPoi.lat, stopPoi.lng); return `<circle cx="${cx}" cy="${cy}" r="6" fill="var(--card)" stroke="var(--chart)" stroke-width="3"/>`; })() : '';
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Route outline"><path d="${d}" fill="none" stroke="var(--primary)" stroke-width="3" stroke-linejoin="round"/>
+    <circle cx="${sx}" cy="${sy}" r="7" fill="var(--primary)" stroke="#fff" stroke-width="2"/>${stop}</svg>`;
+}
+function isDark(){ return S.theme === 'dark' || (S.theme === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches); }
+function tileLayer(){
+  return isDark()
+    ? L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 18, attribution: '© OpenStreetMap © CARTO' })
+    : L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '© OpenStreetMap' });
+}
+let maps = [];
+function mountRouteMap(el, route, stopPoi){
+  if (!window.L){ el.innerHTML = trackSVG(route, stopPoi); return; }
+  const m = L.map(el, { scrollWheelZoom: false, attributionControl: true }); maps.push(m);
+  // Tiles blocked (offline or sandboxed): swap to the SVG outline.
+  tileLayer().once('tileerror', () => { try { m.remove(); } catch(e){} el.className = 'map'; el.innerHTML = trackSVG(route, stopPoi); }).addTo(m);
+  const line = L.polyline(route.track.map(p => [p[0], p[1]]), { color: '#0077D1', weight: 4 }).addTo(m);
+  L.circleMarker([route.track[0][0], route.track[0][1]], { radius: 7, color: '#fff', weight: 2, fillColor: '#0077D1', fillOpacity: 1 }).addTo(m).bindTooltip('Start');
+  if (stopPoi) L.circleMarker([stopPoi.lat, stopPoi.lng], { radius: 6, color: '#041DB2', weight: 3, fillColor: '#fff', fillOpacity: 1 }).addTo(m).bindTooltip(stopPoi.name);
+  m.fitBounds(line.getBounds(), { padding: [16, 16] });
+}
+function rainBarsSVG(se, date, startMin, endMin){
+  const fs = fIdx(se, date, startMin), fe = fIdx(se, date, endMin); if (fs == null) return '';
+  const i0 = Math.max(0, Math.floor(fs) - 12), i1 = Math.min(se.time.length - 1, Math.floor(fs) + 8);
+  const n = i1 - i0 + 1, W = chartW(), H = W < 500 ? 190 : 150, P = { l: 38, r: 8, t: 10, b: 22 }, bw = (W - P.l - P.r) / n;
+  const maxP = Math.max(0.1, ...se.p.slice(i0, i1 + 1));
+  const x = i => P.l + (i - i0) * bw, yh = H - P.t - P.b;
+  let g = '';
+  // ride window band (precip at hour i covers the hour ending at i)
+  const wx0 = x(fs) + bw, wx1 = x(fe ?? fs) + bw;
+  g += `<rect x="${wx0}" y="${P.t}" width="${Math.max(2, wx1 - wx0)}" height="${yh}" fill="var(--win)" stroke="var(--win-line)" stroke-dasharray="4 3"/>`;
+  g += `<text x="${(wx0 + wx1) / 2}" y="${P.t + 12}" text-anchor="middle" style="fill:var(--win-line);font-weight:700">ride</text>`;
+  for (let i = i0; i <= i1; i++){
+    const pp = (se.pp[i] || 0) / 100, pr = se.p[i] || 0, bx = x(i) + 2, w = bw - 4;
+    g += `<rect x="${bx}" y="${P.t + yh * (1 - pp)}" width="${w}" height="${yh * pp}" fill="var(--chart-soft)"/>`;
+    if (pr > 0) g += `<rect x="${bx + w * 0.2}" y="${P.t + yh * (1 - pr / maxP)}" width="${w * 0.6}" height="${yh * pr / maxP}" rx="1.5" fill="var(--chart)"/>`;
+    const hr = +se.time[i].slice(11, 13);
+    if (hr % 3 === 0) g += `<text x="${x(i) + bw / 2}" y="${H - 6}" text-anchor="middle">${hr % 12 || 12}${hr < 12 ? 'a' : 'p'}</text>`;
+  }
+  const now = nyNow(), fn = fIdx(se, now.date, now.min);
+  if (fn != null && fn >= i0 && fn <= i1 + 1){ const nx = x(fn) + bw / 2; g += `<line x1="${nx}" x2="${nx}" y1="${P.t}" y2="${H - P.b}" stroke="var(--text)" stroke-width="1.5"/><text x="${nx + 3}" y="${H - P.b - 4}" style="fill:var(--text)">now</text>`; }
+  g += `<line x1="${P.l}" x2="${W - P.r}" y1="${H - P.b}" y2="${H - P.b}" stroke="var(--line)"/>`;
+  g += `<text x="${P.l - 4}" y="${P.t + 8}" text-anchor="end">${maxP.toFixed(2)}"</text><text x="${P.l - 4}" y="${H - P.b}" text-anchor="end">0</text>`;
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Hourly rain from 12 hours before to 8 hours after roll-out">${g}</svg>
+    <div class="legend"><span><i style="background:var(--chart)"></i>Rain (in/hr)</span><span><i style="background:var(--chart-soft)"></i>Chance</span><span><i style="background:var(--win);outline:1px dashed var(--win-line)"></i>Ride window</span></div>`;
+}
+
+/* ---------- shared fragments ---------- */
+function hourRows(se, date, fromF, toF, winF0, winF1, pace){
+  const now = nyNow(), fn = fIdx(se, now.date, now.min);
+  let rows = '';
+  for (let i = Math.floor(fromF); i <= Math.ceil(toF); i++){
+    if (se.T[i] == null) continue;
+    const road = roadAt(se, i), feel = bikeFeel(se.T[i], se.ws[i], se.app[i], pace);
+    const inwin = i >= Math.floor(winF0) && i <= winF1, isNow = fn != null && Math.floor(fn) === i;
+    rows += `<tr class="${inwin ? 'inwin' : ''} ${isNow ? 'now' : ''}"><td>${fmtTime(+se.time[i].slice(11, 13) * 60)}</td><td class="sky">${wxIcon(se.code[i], se.day ? se.day[i] : 1)}</td><td>${r0(se.T[i])}°</td><td>${r0(se.app[i])}°</td><td><b>${r0(feel)}°</b></td>
+      <td>${arrow(se.wd[i])} ${compass(se.wd[i])} ${r0(se.ws[i])}</td><td>${r0(se.wg[i])}</td><td>${r0(se.pp[i])}%</td><td>${fmtIn(se.p[i] || 0)}</td><td>${road.level ? roadPill(road) : '<span class="muted">Dry</span>'}</td></tr>`;
+  }
+  return `<div class="tablewrap"><table><thead><tr><th>Time</th><th class="sky">Sky</th><th>Temp</th><th>Real</th><th>Bike</th><th>Wind mph</th><th>Gust</th><th>Rain</th><th>Amt</th><th>Road</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+/* ---------- views ---------- */
+const UI = { day: null, route: 0 };
+
+// Warnings: only conditions that need attention. Shared by the ride page (boxes) and the board (chips).
+function warnList(ev, se, date, startMin){
+  const st = ev.st, out = [];
+  const sr = se && sunriseMin(se, date);
+  if (sr != null && startMin != null && startMin < sr + 30) out.push({ l: 1, short: 'Low light', h: 'Low light at roll-out', d: `Sunrise ${fmtTime(sr)}; bring front and rear lights` });
+  for (const f of ev.factors){
+    if (!f.level) continue;
+    if (f.k === 'Road') out.push({ l: f.level, short: `Roads ${st.road.state.toLowerCase()}`, h: `Roads ${st.road.state.toLowerCase()} at roll-out`, d: `${fmtIn(st.road.rainIn)} of rain in the last ${S.lookback} h${st.roadEnd && st.roadEnd.state !== st.road.state ? `; ${st.roadEnd.state.toLowerCase()} by the finish` : ''}` });
+    if (f.k === 'Cold') out.push({ l: f.level, short: `Cold ${r0(st.feelMin)}°`, h: `Cold: bike feel down to ${r0(st.feelMin)}°`, d: 'Dress for the start; see What to wear' });
+    if (f.k === 'Heat') out.push({ l: f.level, short: `Hot ${r0(st.appMax)}°`, h: `Hot: real feel up to ${r0(st.appMax)}°`, d: 'Bring extra water' });
+    if (f.k === 'Wind') out.push({ l: f.level, short: `Wind ${r0(st.wsMax)}/${r0(st.wgMax)}`, h: `Windy: ${r0(st.wsMax)} mph, gusts ${r0(st.wgMax)}`, d: `From the ${compass(st.dir)}` });
+    if (f.k === 'Rain') out.push(st.thunder ? { l: 2, short: 'Thunder', h: 'Thunderstorms possible', d: `${fmtIn(st.rain)} expected` } : { l: f.level, short: `Rain ${r0(st.ppMax)}%`, h: `Rain: ${r0(st.ppMax)}% chance`, d: `${fmtIn(st.rain)} expected during the ride` });
+  }
+  return out.sort((a, b) => b.l - a.l);
+}
+const warnBoxes = list => list.length ? `<section class="warns" aria-label="Warnings">${list.map(w => `<div class="warn lv${w.l}">${ICON[w.l]}<div><b>${w.h}</b><span>${w.d}</span></div></div>`).join('')}</section>` : '';
+const warnChips = list => list.map(w => `<span class="pill lv${w.l}">${ICON[w.l]}${w.short}</span>`).join(' ');
+
+// Panels: the collapsed header is the briefing; expanding shows detail. Open state is remembered per viewer.
+// opts.title: show the label as a title (for long names such as spots or settings groups) instead of a small caps tag.
+const PANEL_DEFAULT = () => window.innerWidth >= 960;
+function panelOpen(k, dflt){ const v = store.get('bbt.panels', {})[k]; return v == null ? (dflt ?? PANEL_DEFAULT()) : v; }
+function panel(k, label, summary, body, opts = {}){
+  const open = opts.open ?? panelOpen(k, opts.collapsed ? false : undefined);
+  return `<section class="panel${opts.title ? ' titled' : ''}" data-panel="${k}"><div class="panel-h" data-toggle="${k}">
+      <button type="button" class="panel-t" data-toggle="${k}" aria-expanded="${open}" aria-controls="pb-${k}">${label}</button>
+      <div class="panel-s">${summary}</div>
+      <svg class="chev" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5 6 7.5 9 4.5" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></div>
+    <div class="panel-b" id="pb-${k}"${open ? '' : ' hidden'}>${body}</div></section>`;
+}
+// A non-collapsing panel for forms.
+const section = (label, body) => `<section class="panel"><div class="sec-h">${label}</div><div class="sec-b">${body}</div></section>`;
+const mapDiv = (route, stopName) => `<div class="map" data-map-route="${route.id}" data-map-stop="${esc(stopName || '')}"></div>`;
+const wxSummary = st => `<b>${r0(st.tMin)}–${r0(st.tMax)}°</b> · feels ${r0(st.appMin)}–${r0(st.appMax)}° · wind ${r0(st.wsMax)} · rain ${r0(st.ppMax)}%`;
+function wxAppRow(spot, extra = ''){
+  const app = store.get('bbt.wxApp', 'nws');
+  return `<div class="btnrow" style="margin-top:10px;align-items:center"><a class="btn btn-outline btn-sm" href="${WX_APPS[app].url(spot)}" target="_blank" rel="noopener">Full-day forecast in ${WX_APPS[app].name}</a>${extra}
+    <label class="tiny muted" style="display:flex;align-items:center;gap:6px">Open in<select data-wx-app style="min-height:32px;padding:4px 8px;width:auto">${Object.entries(WX_APPS).map(([k, v]) => `<option value="${k}" ${k === app ? 'selected' : ''}>${v.name}</option>`).join('')}</select></label></div>`;
+}
+const hourRange = (se, date, ev) => hourRows(se, date, Math.max(0, Math.floor(ev.f0) - 1), Math.ceil(ev.f1) + 3, ev.f0, ev.f1, S.pace);
+const roadNote = st => `roads ${st.road.state.toLowerCase()} (${st.road.sinceRain == null ? `no rain in ${S.lookback} h` : `${fmtIn(st.road.rainIn)} in last ${S.lookback} h`})`;
+
+const WX_APPS = {
+  nws: { name: 'NWS', url: s => `https://forecast.weather.gov/MapClick.php?lat=${s.lat}&lon=${s.lng}&FcstType=graphical` },
+  weathercom: { name: 'Weather.com', url: s => `https://weather.com/weather/hourbyhour/l/${s.lat.toFixed(3)},${s.lng.toFixed(3)}` },
+  windy: { name: 'Windy', url: s => `https://www.windy.com/${s.lat.toFixed(3)}/${s.lng.toFixed(3)}?${s.lat.toFixed(3)},${s.lng.toFixed(3)},11` },
+  google: { name: 'Google', url: s => `https://www.google.com/search?q=${encodeURIComponent('hourly weather ' + s.name + ' NY')}` }
+};
+const calStamp = (date, min) => `${date.replace(/-/g, '')}T${pad(Math.floor(min / 60))}${pad(Math.round(min % 60))}00`;
+function gcalLink(c){ return 'https://calendar.google.com/calendar/render?' + new URLSearchParams({ action: 'TEMPLATE', text: c.title, dates: `${calStamp(c.date, c.start)}/${calStamp(c.date, c.end)}`, ctz: TZ, location: c.location, details: c.details }); }
+function icsText(c){
+  const e = v => String(v).replace(/[\\,;]/g, m => '\\' + m).replace(/\n/g, '\\n');
+  return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//BBT//Ride//EN', 'BEGIN:VEVENT', `UID:bbt-${c.date}@ride.bbt.team`, `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').slice(0, 15)}Z`,
+    `DTSTART;TZID=${TZ}:${calStamp(c.date, c.start)}`, `DTEND;TZID=${TZ}:${calStamp(c.date, c.end)}`, `SUMMARY:${e(c.title)}`, `LOCATION:${e(c.location)}`, `DESCRIPTION:${e(c.details)}`, 'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
+}
+function outlookLink(c, host){
+  const iso = m => `${c.date}T${pad(Math.floor(m / 60))}:${pad(Math.round(m % 60))}:00`;
+  return `https://${host}/calendar/0/deeplink/compose?` + new URLSearchParams({ path: '/calendar/action/compose', rru: 'addevent', subject: c.title, startdt: iso(c.start), enddt: iso(c.end), location: c.location, body: c.details });
+}
+function showCalSheet(c){
+  const d = document.createElement('div'); d.className = 'sheet'; d.setAttribute('role', 'dialog'); d.setAttribute('aria-label', 'Add to calendar');
+  d.innerHTML = `<div class="sheet-card"><h2>Add to calendar</h2><p class="small muted" style="margin:4px 0 10px">${fmtTime(c.start)}–${fmtTime(c.end)} · ${esc(c.title)}</p>
+    <div class="choices"><a href="${gcalLink(c)}" target="_blank" rel="noopener" data-close>Google Calendar</a><button type="button" data-ics>Apple Calendar <span>.ics file</span></button>
+    <a href="${outlookLink(c, 'outlook.live.com')}" target="_blank" rel="noopener" data-close>Outlook.com</a><a href="${outlookLink(c, 'outlook.office.com')}" target="_blank" rel="noopener" data-close>Outlook (work or school)</a>
+    <button type="button" data-ics>Other <span>.ics file</span></button></div>
+    <div class="btnrow" style="margin-top:10px"><button type="button" class="btn btn-outline" data-close>Cancel</button></div></div>`;
+  document.body.appendChild(d); d.querySelector('.choices a').focus();
+}
+function showShareSheet(text){
+  const d = document.createElement('div'); d.className = 'sheet'; d.setAttribute('role', 'dialog'); d.setAttribute('aria-label', 'Share ride');
+  d.innerHTML = `<div class="sheet-card"><h2>Share ride</h2><p class="small muted" style="margin:4px 0 8px">Copy and paste into any app.</p><textarea id="share-text" rows="9" readonly>${esc(text)}</textarea>
+    <div class="btnrow" style="margin-top:10px"><button type="button" class="btn btn-primary" data-copy>Copy</button><button type="button" class="btn btn-outline" data-close>Close</button></div></div>`;
+  document.body.appendChild(d); d.querySelector('textarea').select();
+}
+function sunriseMin(se, date){ const d = se.daily, i = d && d.time.indexOf(date); return i >= 0 && d.sunrise ? hhmmToMin(d.sunrise[i].slice(11, 16)) : null; }
+
+function dayTabsHTML(days, selDate, hrefOf, attrOf){
+  return `<div class="daytabs" role="tablist">${days.map(d => hrefOf
+    ? `<a class="tab" role="tab" href="${hrefOf(d)}" aria-selected="${d === selDate}">${dayLabel(d)}</a>`
+    : `<button class="tab" type="button" role="tab" ${attrOf(d)} aria-selected="${d === selDate}">${dayLabel(d)}</button>`).join('')}</div>`;
+}
+
+// RSVP + team messages. Prototype keeps them in memory per ride date (sample riders are examples);
+// the live app stores rsvps and messages in D1 and refreshes while the page is open.
+const RSVP = {};
+function rsvpFor(date, ride){
+  if (RSVP[date]) return RSVP[date];
+  const sat = dow(date) === 6, lbl = ride.routes.length > 1;
+  const people = sat ? [['Alex', 'in', lbl ? 'Full' : ''], ['Maria', 'in', lbl ? 'Short' : ''], ['Dmitri', 'in', lbl ? 'Full' : ''], ['Sam', 'in', lbl ? 'Full' : ''], ['Chris', 'out', '']]
+                     : [['Alex', 'in', ''], ['Jordan', 'in', ''], ['Maria', 'out', '']];
+  const msgs = sat ? [
+      { id: 1, name: 'Maria', at: '6:40 PM', text: 'Anyone driving from White Plains? Happy to chip in for gas.', replies: [{ name: 'Dmitri', at: '7:05 PM', text: 'I can take one more, leaving 7:55.' }] },
+      { id: 2, name: 'Chris', at: '8:12 PM', text: 'Out this week, family thing. Have a good one!', replies: [] }]
+    : [{ id: 1, name: 'Jordan', at: '5:20 PM', text: 'If it rains by noon, do we still stop at BreadsNBakes?', replies: [] }];
+  return RSVP[date] = { me: null, myRoute: '', people: people.map(([name, status, route]) => ({ name, status, route })), msgs, nextId: 10, replyTo: null };
+}
+function ridersPanel(ride, date){
+  const R = rsvpFor(date, ride), all = R.people.concat(R.me ? [{ name: 'You', status: R.me, route: R.myRoute, me: true }] : []);
+  const ins = all.filter(p => p.status === 'in'), outs = all.filter(p => p.status === 'out');
+  const nMsg = R.msgs.reduce((n, m) => n + 1 + m.replies.length, 0);
+  const btns = `<div class="seg rsvp" role="group" aria-label="Your RSVP"><button type="button" data-rsvp="in" aria-pressed="${R.me === 'in'}">In</button><button type="button" data-rsvp="out" aria-pressed="${R.me === 'out'}">Out</button></div>`;
+  const routePick = R.me === 'in' && ride.routes.length > 1 ? `<div class="seg" role="group" aria-label="Your route" style="margin-top:6px">${ride.routes.map(r => `<button type="button" data-rsvp-route="${esc(r.label)}" aria-pressed="${R.myRoute === r.label}">${esc(r.label)}</button>`).join('')}</div>` : '';
+  const alt = ride.routes.length > 1, person = p => `<span class="person${p.me ? ' me' : ''}">${esc(p.name)}${alt && p.status === 'in' && p.route ? ` <span class="muted">· ${esc(p.route)}</span>` : ''}</span>`;
+  const msg = (m, isReply) => `<div class="msg${isReply ? ' reply' : ''}${m.sys ? ' sys' : ''}"><div class="meta"><b>${esc(m.name)}</b> <span class="muted">${m.at}</span></div><p>${esc(m.text)}</p>
+      ${isReply ? '' : `<button type="button" class="linkbtn" data-reply="${m.id}">Reply</button>`}
+      ${!isReply && m.replies.length ? `<div class="replies">${m.replies.map(r => msg(r, true)).join('')}</div>` : ''}
+      ${!isReply && R.replyTo === m.id ? `<div class="compose"><textarea id="reply-${m.id}" aria-label="Reply to ${esc(m.name)}" placeholder="Reply to ${esc(m.name)}"></textarea><div class="btnrow"><button type="button" class="btn btn-primary btn-sm" data-send="${m.id}">Send</button><button type="button" class="btn btn-outline btn-sm" data-reply="0">Cancel</button></div></div>` : ''}</div>`;
+  return panel('riders', 'Riders',
+    `<b>${ins.length} in</b> · ${outs.length} out · ${nMsg} message${nMsg === 1 ? '' : 's'}<div class="sw">${btns}${routePick}</div>`,
+    `<div class="people"><div><div class="sub-h">In (${ins.length})</div><div class="plist">${ins.map(person).join('') || '<span class="muted small">No one yet</span>'}</div></div>
+       ${outs.length ? `<div><div class="sub-h">Out (${outs.length})</div><div class="plist">${outs.map(person).join('')}</div></div>` : ''}</div>
+     <div class="sub"><div class="sub-h">Messages</div>${R.msgs.map(m => msg(m)).join('') || '<p class="muted small">No messages yet.</p>'}
+       <div class="compose"><textarea id="msg-new" aria-label="Message the team" placeholder="Message the team"></textarea><div class="btnrow"><button type="button" class="btn btn-primary btn-sm" data-send="new">Send</button></div></div></div>`);
+}
+
+// Ride body: warnings + Meet / Route / Weather / Notes panels. Used by the ride page and the editor preview.
+function rideBody(ride, date, opts = {}){
+  const kp = opts.preview ? 'pv-' : '';
+  const ri = Math.min(UI.route, ride.routes.length - 1), rt = ride.routes[opts.preview ? 0 : ri], route = routeById(rt.id), spot = spotById(ride.spot);
+  const pace = ride.pace || S.pace;
+  const t = rideTimes(route, { time: ride.time, pace, stop: rt.stop, stopMin: S.stopMin }), poi = poiFor(rt);
+  const se = WX.series[spot.id], ev = se && evaluate(se, date, t.start, t.end - t.start, pace), st = ev && ev.st;
+  const cal = { date, start: t.start, end: t.end, title: `BBT ride: ${route.name}`, location: `${spot.name} (${spot.maps_url})`,
+    details: `${ride.routes.map(r => `${r.label}: ${routeById(r.id).name} — ${routeById(r.id).url}`).join('\n')}\nParking: ${spot.note}${ride.notes ? `\n\n${ride.notes}` : ''}` };
+
+  const meet = panel(kp + 'meet', 'Meet',
+    `<b>${fmtTime(t.start)}</b> · <a href="${spot.maps_url}" target="_blank" rel="noopener">${esc(spot.name)}</a>`,
+    `<dl class="kvlist"><div><dt>Back</dt><dd><b>≈ ${fmtTime(t.end)}</b><span>${fmtDur(t.movingH)} moving + ${r0(t.regroupMin)} min regroups${t.stop ? ` + ${t.stop.len} min coffee · ≈ ${fmtTime(t.end - t.stop.len)} without the stop` : ''}</span></dd></div>
+      <div><dt>Parking</dt><dd>${esc(spot.note)}</dd></div></dl>
+     <div class="btnrow"><a class="btn btn-outline btn-sm" href="${spot.maps_url}" target="_blank" rel="noopener">Open in Google Maps</a>${opts.preview ? '' : '<button type="button" class="btn btn-outline btn-sm" data-cal>+ Calendar</button>'}</div>`);
+
+  const switcher = !opts.preview && ride.routes.length > 1 ? `<div class="seg" role="group" aria-label="Route">${ride.routes.map((r, i) => `<button type="button" data-route="${i}" aria-pressed="${i === ri}">${esc(r.label)} · ${r0(routeById(r.id).distance_m / MI)} mi</button>`).join('')}</div>` : '';
+  let stopHTML = '';
+  if (poi){
+    const ps = WX.series[poiKey(poi)], f = ps && fIdx(ps, date, t.stop.eta);
+    const w = f != null ? { T: at(ps.T, f), app: at(ps.app, f), ws: at(ps.ws, f), pp: near(ps.pp, f), code: near(ps.code, f) } : null;
+    stopHTML = `<div class="sub"><div class="sub-h">Coffee stop <span class="tag">optional</span></div>
+      <p><a href="${mapsLink(poi.lat, poi.lng)}" target="_blank" rel="noopener"><b>${esc(poi.name)}</b></a> · mile ${t.stop.mile.toFixed(1)} · ≈ ${fmtTime(t.stop.eta)} · ${t.stop.len} min</p>
+      ${w ? `<p class="small muted">${r0(w.T)}° there, ${wxLabel(w.code).toLowerCase()}, ${r0(w.pp)}% rain · bike feel ${r0(bikeFeel(w.T, w.ws, w.app, pace))}° rolling out</p>` : ''}</div>`;
+  }
+  const routeP = panel(kp + 'route', 'Route',
+    `<a href="${route.url}" target="_blank" rel="noopener"><b>${esc(route.name)}</b></a> · ${t.distMi.toFixed(1)} mi · ${r0(t.climbFt).toLocaleString()} ft${switcher ? `<div class="sw">${switcher}</div>` : ''}`,
+    `${mapDiv(route, rt.stop)}${elevationSVG(route, t.stop ? t.stop.mile : null)}${stopHTML}
+     <div class="btnrow" style="margin-top:12px"><a class="btn btn-primary btn-sm" href="${route.url}" target="_blank" rel="noopener">Open in RWGPS</a></div>`);
+
+  let weather;
+  if (ev){
+    const k = kitAdvice(st), cur = store.get('bbt.kitOffset', 'avg');
+    weather = panel(kp + 'weather', 'Weather',
+      `${wxSummary(st)}<div class="tiny muted">Wear: ${k.start.name.toLowerCase()} kit${k.add.length ? ' + ' + k.add.map(a => a[2]).join(', ') : ''}</div>`,
+      `<p class="small" style="margin:0">Ride ${fmtTime(t.start)}–${fmtTime(t.end)} · bike feel ${r0(st.feelMin)}–${r0(st.feelMax)}° · gusts ${r0(st.wgMax)} mph from ${compass(st.dir)} · ${fmtIn(st.rain)} rain · ${roadNote(st)}</p>
+       ${hourRange(se, date, ev)}${wxAppRow(spot)}
+       <div class="sub"><div class="sub-h">What to wear
+         <div class="seg" role="group" aria-label="I usually run">${['cold', 'avg', 'hot'].map(o => `<button type="button" data-offset="${o}" aria-pressed="${cur === o}">${o === 'avg' ? 'Avg' : o === 'cold' ? 'Run cold' : 'Run hot'}</button>`).join('')}</div></div>
+         <div class="muted small">${k.start.name} · bike feel ${r0(st.feelMin)}°${k.off ? ` (feels like ${r0(st.feelMin + k.off)}° to you)` : ''}</div>
+         <ul class="wear-list">${k.start.items.map(i => `<li>${i}</li>`).join('')}</ul>
+         ${k.shed ? `<div class="addon">${k.shed}</div>` : ''}${k.add.map(([a, why]) => `<div class="addon"><b>+ ${a}</b> <span class="muted">— ${why}</span></div>`).join('')}</div>`);
+  } else weather = `<section class="panel"><div class="panel-h"><span class="panel-t">Weather</span><div class="panel-s muted">Forecast not available for this date yet.</div></div></section>`;
+
+  const notes = ride.notes ? panel(kp + 'notes', 'Notes', `<span class="clamp">${esc(ride.notes.split('\n')[0])}</span>`, `<p class="notes">${esc(ride.notes)}</p>`) : '';
+  if (!opts.preview){
+    UI.cal = cal;
+    UI.share = { title: `BBT ride ${dayLabel(date)}`, text: [
+        `${ride.cancelled ? 'CANCELLED: ' : ''}BBT ride · ${dayLabel(date, true)}`,
+        `Meet ${fmtTime(t.start)} · ${spot.name} ${spot.maps_url}`,
+        ...ride.routes.map(r => { const rr = routeById(r.id); return `${ride.routes.length > 1 ? r.label + ': ' : 'Route: '}${rr.name} (${(rr.distance_m / MI).toFixed(1)} mi, ${r0(rr.elevation_gain_m * FT).toLocaleString()} ft) ${rr.url}`; }),
+        t.stop ? `Coffee: ${t.stop.poi.name}, mile ${t.stop.mile.toFixed(1)} ≈ ${fmtTime(t.stop.eta)} (optional)` : null,
+        `Back ≈ ${fmtTime(t.end)}`,
+        st ? `Weather: ${r0(st.tMin)}–${r0(st.tMax)}°, feels ${r0(st.appMin)}–${r0(st.appMax)}°, wind ${r0(st.wsMax)} mph, rain ${r0(st.ppMax)}%${st.road.state !== 'Dry' ? `, roads ${st.road.state.toLowerCase()}` : ''}` : null,
+        ride.notes ? `Notes: ${ride.notes.replace(/\n/g, ' ')}` : null
+      ].filter(Boolean).join('\n'), url: location.href };
+  }
+  return `<h1 class="sr">${esc(spot.name)} — ${esc(route.name)}</h1>` + (ev ? warnBoxes(warnList(ev, se, date, t.start)) : '') + `<div class="panels">${meet}${routeP}${weather}${notes}${opts.preview ? '' : ridersPanel(ride, date)}</div>`;
+}
+
+function viewRide(arg){
+  const days = weekendDates().map(w => w.date);
+  RIDES.forEach(r => { if (r.date && !days.includes(r.date)) days.push(r.date); });
+  days.sort();
+  const date = days.includes(arg) ? arg : days.includes(UI.day) ? UI.day : days[0];
+  UI.day = date;
+  const ride = rideOn(date);
+  const shareBtn = ride ? `<button type="button" class="iconbtn share" data-share aria-label="Share this ride" title="Share"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg></button>` : '';
+  const editBtn = ride && can.plan() ? `<button type="button" class="iconbtn share" data-edit-ride="${date}" aria-label="Edit this ride" title="Edit ride"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4"/></svg></button>` : '';
+  const head = `<div class="dayrow">${dayTabsHTML(days, date, d => `#ride/${d}`)}${editBtn}${shareBtn}</div>`;
+  if (!ride) return head + `<h1 class="sr">No ride</h1><section class="panel empty"><p><b>No ride posted for ${dayLabel(date, true)}.</b></p>${can.plan() ? `<a class="btn btn-primary btn-sm" href="#plan" data-plan-date="${date}">Plan a ride</a>` : '<p class="muted small">Check back later.</p>'}</section>`;
+  const last = ride.updates && ride.updates[ride.updates.length - 1];
+  const banner = ride.cancelled ? `<div class="warn lv2 big">${ICON[2]}<div><b>Ride cancelled</b><span>Check the Riders panel for messages.</span></div></div>`
+    : last ? `<div class="notice"><b>Updated ${last.at}</b> · ${esc(last.text)}</div>` : '';
+  return head + banner + rideBody(ride, date);
+}
+
+// Start-spot picker (Plan → Meet): one compact row per spot to compare at a glance; the chosen spot gets a detail panel.
+function spotRow(sp, date, startMin, durMin){
+  const se = WX.series[sp.id], ev = se && evaluate(se, date, startMin, durMin, P.pace || S.pace), chosen = P.spot === sp.id;
+  const body = ev ? `${wxSummary(ev.st)}${(c => c ? `<span class="chips">${c}</span>` : '')(warnChips(warnList(ev, se, date, startMin)))}` : '<span class="muted">No forecast for this date yet.</span>';
+  return `<button type="button" class="spotrow" role="radio" aria-checked="${chosen}" data-pick-spot="${sp.id}"><span class="radio-dot" aria-hidden="true"></span><span class="spotrow-b"><b>${esc(sp.name)}</b><span class="small">${body}</span></span></button>`;
+}
+function spotDetail(sp, date, startMin, durMin){
+  const se = WX.series[sp.id], ev = se && evaluate(se, date, startMin, durMin, P.pace || S.pace);
+  const radar = `https://www.rainviewer.com/map.html?loc=${sp.lat},${sp.lng},9&oFa=0&oC=1&oU=0&oCS=1&oF=0&oAP=1&c=3&o=83&lm=1&layer=radar&sm=1&sn=1`;
+  const wx = ev ? `<p class="small" style="margin:0 0 8px">Bike feel ${r0(ev.st.feelMin)}–${r0(ev.st.feelMax)}° · gusts ${r0(ev.st.wgMax)} mph from ${compass(ev.st.dir)} · ${fmtIn(ev.st.rain)} rain · ${roadNote(ev.st)}</p>
+     <div class="sub-h" style="margin-top:4px">Rain −12 h → +8 h</div>${rainBarsSVG(se, date, startMin, startMin + durMin)}${hourRange(se, date, ev)}` : '';
+  return panel('spotdetail', 'Details', `${esc(sp.name)} · weather, parking`,
+    `${wx}${wxAppRow(sp, `<a class="btn btn-outline btn-sm" href="${radar}" target="_blank" rel="noopener">Radar</a>`)}
+     <div class="sub"><div class="sub-h">Parking</div><p>${esc(sp.note || 'No notes yet.')}</p><div class="btnrow"><a class="btn btn-outline btn-sm" href="${sp.maps_url}" target="_blank" rel="noopener">Open in Google Maps</a></div></div>`,
+    { collapsed: true });
+}
+// New spot: name + Google Maps link (or "lat, lng") + parking notes. The live app resolves short links server-side.
+function parseLatLng(v){
+  const m = String(v).match(/@(-?\d+\.\d+),(-?\d+\.\d+)/) || String(v).match(/[?&](?:q|query|ll|destination)=(-?\d+\.\d+)(?:,|%2C)\s*(-?\d+\.\d+)/i) || String(v).trim().match(/^(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)$/);
+  return m ? { lat: +m[1], lng: +m[2] } : null;
+}
+function addSpotForm(){
+  const N = P.newSpot;
+  return `<div class="newspot"><div class="sub-h">New start spot</div>
+    <label class="field">Name<input id="ns-name" value="${esc(N.name)}" placeholder="e.g. Rockefeller Preserve"></label>
+    <label class="field">Google Maps link or coordinates<input id="ns-link" value="${esc(N.link)}" placeholder="Paste a Maps link, or 41.0454, -73.6973"></label>
+    <span class="tiny muted" style="margin-top:-8px">${N.msg || 'In Google Maps: drop a pin on the parking spot → Share → Copy link.'}</span>
+    <label class="field">Parking notes<textarea id="ns-note" placeholder="Where to park, restrooms, anything riders should know">${esc(N.note)}</textarea></label>
+    <div class="btnrow"><button type="button" class="btn btn-primary btn-sm" id="ns-save">Save spot</button><button type="button" class="btn btn-outline btn-sm" id="ns-cancel">Cancel</button></div></div>`;
+}
+function saveNewSpot(){
+  const N = P.newSpot, name = N.name.trim(), ll = parseLatLng(N.link);
+  if (!name){ N.msg = 'Add a name.'; return render(); }
+  if (!ll){ N.msg = /goo\.gl|maps\.app/.test(N.link) ? 'Short Maps links are resolved by the live app. In this prototype, open the link and copy the full address-bar URL, or paste coordinates.' : 'Paste a Google Maps link with a pin, or coordinates like 41.0454, -73.6973.'; return render(); }
+  const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'spot-' + Date.now();
+  SPOTS.push({ id, name, lat: ll.lat, lng: ll.lng, maps_url: /^https?:/.test(N.link) ? N.link.trim() : mapsLink(ll.lat, ll.lng), note: N.note.trim() });
+  WX.series[id] = WX.series[SPOTS[0].id]; // prototype: reuse loaded data; the live app fetches the new point
+  P.spot = id; P.newSpot = null; render(); toast(`${name} added (this session only).`);
+}
+
+/* Plan-a-ride editor: mock, nothing is persisted. */
+const P = { editing: null, date: null, time: null, spot: null, newSpot: null, route: null, alt: null, altOn: false, labelA: 'Full', labelB: 'Short', stop: null, pace: null, notes: '', q: '', qAlt: '' };
+// Draft autosave: the editor's form survives reloads (live app: saved per editor in D1). No Save draft button.
+const DRAFT_KEYS = ['editing', 'date', 'time', 'spot', 'route', 'alt', 'altOn', 'labelA', 'labelB', 'stop', 'pace', 'notes', 'q', 'qAlt'];
+const P0 = Object.fromEntries(DRAFT_KEYS.map(k => [k, P[k]]));
+Object.assign(P, store.get('bbt.draft', {}));
+const saveDraft = () => store.set('bbt.draft', Object.fromEntries(DRAFT_KEYS.map(k => [k, P[k]])));
+function clearDraft(){ Object.assign(P, P0, { newSpot: null }); store.del('bbt.draft'); }
+// Load a published ride into the editor.
+function editRide(date){
+  const r = rideOn(date); if (!r) return;
+  const main = r.routes[0], alt = r.routes[1];
+  Object.assign(P, { editing: date, date, time: r.time, spot: r.spot, route: main.id, q: routeById(main.id).name, stop: main.stop || '', pace: r.pace || S.pace, notes: r.notes || '',
+    altOn: !!alt, alt: alt ? alt.id : null, qAlt: alt ? routeById(alt.id).name : '', labelA: alt ? main.label : 'Full', labelB: alt ? alt.label : 'Short', newSpot: null });
+  if (!r.date){ const i = RIDES.indexOf(r); RIDES[i] = Object.assign({}, r, { date }); }
+  saveDraft(); location.hash = 'plan';
+}
+// What riders need to know when a published ride changes.
+function rideChanges(a, b){
+  const out = [], rn = r => r.routes.map(x => `${x.label === 'Main' ? '' : x.label + ' '}${routeById(x.id).name}`).join(' / ');
+  if (a.date !== b.date) out.push(`moved to ${dayLabel(b.date, true)}`);
+  if (a.time !== b.time) out.push(`roll-out ${fmtTime(hhmmToMin(a.time))} → ${fmtTime(hhmmToMin(b.time))}`);
+  if (a.spot !== b.spot) out.push(`start ${spotById(a.spot).name} → ${spotById(b.spot).name}`);
+  if (rn(a) !== rn(b)) out.push(`route ${rn(b)}`);
+  if ((a.routes[0].stop || '') !== (b.routes[0].stop || '')) out.push(b.routes[0].stop ? `coffee stop ${b.routes[0].stop}` : 'no coffee stop');
+  if ((a.notes || '') !== (b.notes || '')) out.push('notes updated');
+  return out;
+}
+function postSystem(date, ride, text){ const R = rsvpFor(date, ride); R.msgs.push({ id: R.nextId++, name: 'Ride update', at: fmtTime(nyNow().min), text, replies: [], sys: true }); }
+function parseRouteInput(q){ const m = String(q).match(/ridewithgps\.com\/routes\/(\d+)/) || String(q).trim().match(/^(\d{6,})$/); return m ? +m[1] : null; }
+function searchResults(q, which){
+  const id = parseRouteInput(q);
+  if (id && !routeById(id)) return `<div class="results"><div style="padding:10px" class="small muted">Route ${id} isn’t in the prototype’s seed. The live app fetches <code>/routes/${id}.json</code> (works for public routes, no key).</div></div>`;
+  const s = q.trim().toLowerCase();
+  const list = ROUTES.filter(r => !s || id === r.id || r.name.toLowerCase().includes(s) || String(r.id).includes(s)).sort((a, b) => (b.nearest_spot === P.spot) - (a.nearest_spot === P.spot));
+  if (!list.length) return `<div class="results"><div style="padding:10px" class="small muted">No match in the 4 seeded routes. Live: captain library + BBT club library.</div></div>`;
+  const cur = which === 'alt' ? P.alt : P.route;
+  return `<div class="results" role="listbox">${list.map(r => `<button type="button" role="option" data-pick="${which}" data-id="${r.id}" aria-selected="${r.id === cur}"><span><b>${esc(r.name)}</b><br><span class="tiny muted">#${r.id} · ${r.nearest_spot === P.spot ? 'starts here' : 'starts at ' + esc(spotById(r.nearest_spot).name)}</span></span><span class="small muted">${r0(r.distance_m / MI)} mi · ${r0(r.elevation_gain_m * FT).toLocaleString()} ft</span></button>`).join('')}</div>`;
+}
+function nearestSpot(route){
+  const [la, ln] = route.track[0];
+  return SPOTS.map(s => ({ s, d: haversine(la, ln, s.lat, s.lng) })).sort((a, b) => a.d - b.d)[0];
+}
+function publishBar(){
+  const orig = P.editing && rideOn(P.editing), clash = RIDES.find(r => (r.date === P.date || (!r.date && r.day === dow(P.date) && !RIDES.some(x => x.date === P.date))) && r !== orig);
+  const label = orig ? 'Update ride' : clash ? 'Replace ride' : 'Publish';
+  return `${clash ? `<p class="tiny" style="margin:12px 0 0;color:var(--cau-fg)">A ride is already posted for ${dayLabel(P.date)}. ${orig ? 'Updating' : 'Publishing'} replaces it.</p>` : ''}
+    <div class="btnrow" style="margin-top:12px"><button class="btn btn-primary" type="button" id="publish">${label}</button>${orig ? `<button class="btn btn-outline" type="button" id="cancelride">${orig.cancelled ? 'Restore ride' : 'Cancel ride'}</button>` : ''}</div>`;
+}
+function viewPlan(){
+  if (!can.plan()) return `<section class="panel empty"><p><b>Editors only.</b></p><p class="muted small">Your role is View. Ask an admin for the Edit role to plan rides.</p></section>`;
+  const weekend = weekendDates().map(w => w.date);
+  const se0 = WX.series[SPOTS[0].id], days = [...new Set(se0.time.map(t => t.slice(0, 10)))];
+  P.date = P.date || weekend.find(d => !rideOn(d)) || weekend[0]; P.time = P.time || S.rollout; P.pace = P.pace || S.pace;
+  const route = P.route && routeById(P.route);
+  if (route && !P.spot) P.spot = nearestSpot(route).s.id;
+  const pois = route ? route.pois.slice().sort((a, b) => (/coffee|food/.test(b.type) - /coffee|food/.test(a.type)) || a.route_d_m - b.route_d_m) : [];
+  if (route && P.stop === null){ const c = pois.find(p => /coffee|food/.test(p.type)); P.stop = c ? c.name : ''; }
+  const startMin = hhmmToMin(P.time), k = 1 + (S.regroupPct || 0) / 100;
+  // Weather window: the chosen route's ride time, or the default window before a route is picked.
+  const tr = route && rideTimes(route, { time: P.time, pace: P.pace, stop: P.stop || null, stopMin: S.stopMin });
+  const durMin = tr ? tr.end - tr.start : S.durationH * 60;
+  const poiRows = pois.map(p => { const mile = p.route_d_m / MI, eta = startMin + mile / P.pace * 60 * k;
+    return `<label class="radio"><input type="radio" name="stop" value="${esc(p.name)}" ${P.stop === p.name ? 'checked' : ''}><span><b>${esc(p.name)}</b> <span class="tag">${esc(p.type)}</span><br><span class="small muted">mile ${mile.toFixed(1)} · ≈ ${fmtTime(eta)}${p.off_route_m > 50 ? ` · ${r0(p.off_route_m)} m off route` : ''}</span></span></label>`; }).join('');
+  const far = route && P.spot && route.nearest_spot !== P.spot ? (() => { const sp = spotById(P.spot), d = haversine(route.track[0][0], route.track[0][1], sp.lat, sp.lng); return `<p class="tiny" style="margin:0;color:var(--cau-fg)">This route starts ${(d / MI).toFixed(1)} mi from ${esc(sp.name)}.</p>`; })() : '';
+
+  const meetS = section('Meet', `${dayTabsHTML(weekend, P.date, null, d => `data-pday="${d}"`)}
+    <div class="row"><label class="field">Date (any day)<input type="date" id="p-date" value="${P.date}" min="${days[0]}"></label><label class="field">Roll-out<input type="time" id="p-time" value="${P.time}" step="900"></label></div>
+    <div class="field" style="margin-bottom:-4px">Start spot · weather ${fmtTime(startMin)}–${fmtTime(startMin + durMin)}</div>
+    <div class="spotlist" role="radiogroup" aria-label="Start spot">${SPOTS.map(sp => spotRow(sp, P.date, startMin, durMin)).join('')}
+      ${P.newSpot ? addSpotForm() : '<button type="button" class="spotrow add" id="ns-open"><span class="radio-dot plus" aria-hidden="true">+</span><span class="spotrow-b"><b>Add a start spot</b></span></button>'}</div>
+    ${P.spot ? spotDetail(spotById(P.spot), P.date, startMin, durMin) : ''}`);
+  const routeS = section('Route', `<label class="field">${P.spot ? `Routes from ${esc(spotById(P.spot).name)}, or search / paste a RideWithGPS link` : 'Search or paste a RideWithGPS link'}<input id="p-q" type="search" placeholder="e.g. Katonah or ridewithgps.com/routes/57406828" value="${esc(P.q)}" autocomplete="off">${searchResults(P.q, 'main')}</label>${far}
+    <label class="radio" style="border:0;padding:0"><input type="checkbox" id="p-alton" ${P.altOn ? 'checked' : ''}><span><b>Add alternate route</b><br><span class="small muted">Same spot and time</span></span></label>
+    ${P.altOn ? `<div class="row"><label class="field">Main label<input id="p-la" value="${esc(P.labelA)}"></label><label class="field">Alternate label<input id="p-lb" value="${esc(P.labelB)}"></label></div>
+      <label class="field">Alternate route<input id="p-qalt" type="search" placeholder="Search or paste link" value="${esc(P.qAlt)}" autocomplete="off">${searchResults(P.qAlt, 'alt')}</label>` : ''}
+    <fieldset style="border:0;padding:0;margin:0"><legend class="field" style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px">Coffee stop</legend>
+      ${route ? `${poiRows}<label class="radio"><input type="radio" name="stop" value="" ${!P.stop ? 'checked' : ''}><span><b>No stop</b></span></label>` : '<span class="small muted">Pick a route first.</span>'}</fieldset>
+    <div class="row"><label class="field">Pace (mph)<input type="number" id="p-pace" min="10" max="25" step="0.5" value="${P.pace}"></label><span></span></div>`);
+  const notesS = section('Notes', `<textarea id="p-notes" aria-label="Notes" placeholder="Regroup points, café plan, lights…">${esc(P.notes)}</textarea>`);
+
+  let preview = `<section class="panel empty"><p><b>${P.spot ? 'Pick a route' : 'Pick a start spot and a route'} to see the preview.</b></p><p class="muted small">The preview shows the ride page as riders will see it.</p></section>`;
+  if (route && P.spot){
+    const rts = [{ label: P.altOn ? P.labelA : 'Main', id: P.route, stop: P.stop || null }];
+    if (P.altOn && P.alt) rts.push({ label: P.labelB, id: P.alt, stop: routeById(P.alt).pois.some(p => p.name === P.stop) ? P.stop : null });
+    UI.draft = { date: P.date, time: P.time, spot: P.spot, pace: P.pace, routes: rts, notes: P.notes || '' };
+    preview = rideBody(UI.draft, P.date, { preview: true }).replace(/<h1 class="sr">[^<]*<\/h1>/, '')
+      + publishBar();
+  }
+  saveDraft();
+  const orig = P.editing && rideOn(P.editing);
+  const status = orig ? `<div class="editbar${orig.cancelled ? ' lv2' : ''}"><span><b>Editing the ${dayLabel(P.editing)} ride</b>${orig.cancelled ? ' · cancelled' : ''}</span><button type="button" class="linkbtn" id="discard">Discard changes</button></div>`
+    : `<p class="tiny muted" style="margin:-4px 0 10px">Draft saves automatically. <button type="button" class="linkbtn" id="startover">Start over</button></p>`;
+  return `<h1 class="sr">Plan a ride</h1>${status}
+    <div class="plan-grid"><div class="panels">${meetS}${routeS}${notesS}</div><div><div class="kicker" style="margin:4px 0 8px">Preview · ${dayLabel(P.date, true)}</div>${preview}</div></div>`;
+}
+
+function viewSettings(){
+  const num = (k, label, step = 1, unit = '') => `<label class="field">${label}${unit ? ` (${unit})` : ''}<input type="number" data-set="${k}" value="${S[k]}" step="${step}"></label>`;
+  const invited = USERS.filter(u => u.status === 'Invited').length;
+  const users = panel('set-users', 'Users', `${USERS.length} users${invited ? ` · ${invited} invited` : ''} · sign in with Google`,
+    `<div class="tablewrap" style="margin-top:0"><table><thead><tr><th>Name</th><th style="text-align:left">Email</th><th style="text-align:left">Role</th><th>Status</th></tr></thead><tbody>
+      ${USERS.map((u, i) => `<tr><td>${esc(u.name)}</td><td style="text-align:left">${esc(u.email)}</td><td style="text-align:left">${i === 0 ? 'Admin' : `<select data-user-role="${i}" aria-label="Role for ${esc(u.email)}" style="min-height:32px;padding:4px 8px;width:auto">${ROLES.map(r => `<option value="${r}" ${u.role === r ? 'selected' : ''}>${ROLE_LABEL[r]}</option>`).join('')}</select>`}</td><td>${u.status}</td></tr>`).join('')}</tbody></table></div>
+     <div class="controls" style="margin:12px 0 0"><label class="field" style="flex:1 1 220px">Invite by email<input type="email" id="u-email" placeholder="name@gmail.com" autocomplete="off"></label>
+       <label class="field">Role<select id="u-role">${ROLES.map(r => `<option value="${r}">${ROLE_LABEL[r]}</option>`).join('')}</select></label><button class="btn btn-primary" type="button" id="invite">Invite</button></div>
+     <p class="tiny muted" style="margin:8px 0 0">View: see rides and forecasts. Edit: also plan and publish rides. Admin: also change settings and manage users.</p>`, { title: true, collapsed: true });
+  const defaults = panel('set-defaults', 'Ride defaults', `${fmtTime(hhmmToMin(S.rollout))} · ${S.durationH} h · ${S.pace} mph · coffee ${S.stopMin} min · regroups ${S.regroupPct}%`,
+    `<div class="settings-grid">${num('pace', 'Pace', 0.5, 'mph')}<label class="field">Roll-out<input type="time" data-set="rollout" value="${S.rollout}" step="900"></label>${num('durationH', 'Weather window before a route is picked', 0.5, 'h')}${num('stopMin', 'Coffee stop', 5, 'min')}${num('regroupPct', 'Regroup buffer', 1, '% of moving time')}</div>`, { title: true, collapsed: true });
+  const road = panel('set-road', 'Road wetness', `${S.lookback} h look-back · wet ≥ ${S.wetMm} mm · drying ≥ ${S.dryingMm} mm`,
+    `<div class="settings-grid">${num('lookback', 'Look-back', 1, 'hours')}${num('wetMm', 'Wet at film ≥', 0.05, 'mm')}${num('dryingMm', 'Drying at film ≥', 0.05, 'mm')}</div>
+     <p class="tiny muted" style="margin:8px 0 0">0.1" of rain ≈ 2.5 mm of water; the film is capped at 2 mm (runoff).</p>`, { title: true, collapsed: true });
+  const warn = panel('set-warn', 'Warnings', `cold < ${S.feelCaution}° · heat ≥ ${S.heatCaution}° · wind ≥ ${S.windCaution} · gusts ≥ ${S.gustCaution} · rain ≥ ${S.rainProbCaution}%`,
+    `<p class="tiny muted" style="margin:0 0 8px">A warning shows when a value crosses the first threshold (amber) and turns red at the second.</p>
+     <div class="settings-grid">${num('feelCaution', 'Cold: bike feel <', 1, '°F')}${num('feelNoGo', 'Red below', 1, '°F')}${num('heatCaution', 'Heat: real feel ≥', 1, '°F')}${num('heatNoGo', 'Red at', 1, '°F')}
+      ${num('windCaution', 'Wind ≥', 1, 'mph')}${num('windNoGo', 'Red at', 1, 'mph')}${num('gustCaution', 'Gusts ≥', 1, 'mph')}${num('gustNoGo', 'Red at', 1, 'mph')}
+      ${num('rainProbCaution', 'Rain chance ≥', 5, '%')}${num('rainProbNoGo', 'Red at', 5, '%')}${num('rainAmtCaution', 'Rain amount ≥', 0.01, 'in')}${num('rainAmtNoGo', 'Red at', 0.01, 'in')}</div>
+     <p class="tiny muted" style="margin:8px 0 0">Roads: Drying = amber, Wet = red. Thunderstorms = red. Low light: roll-out within 30 min of sunrise.</p>`, { title: true, collapsed: true });
+  const kit = panel('set-kit', 'Kit chart', `${KIT.length} bands on bike feel · rider offset ±5°`,
+    `<div class="tablewrap" style="margin-top:0"><table><thead><tr><th>Bike feel</th><th style="text-align:left">Band</th><th style="text-align:left">Kit</th></tr></thead><tbody>
+      ${KIT.map((b, i) => `<tr><td>${i === 0 ? `≥ ${b.min}°` : b.min < -50 ? `< ${KIT[i - 1].min}°` : `${b.min}–${KIT[i - 1].min - 1}°`}</td><td style="text-align:left">${b.name}</td><td style="text-align:left;white-space:normal">${b.items.join(', ')}</td></tr>`).join('')}</tbody></table></div>
+     <p class="tiny muted" style="margin:8px 0 0">Editable in the live app.</p>`, { title: true, collapsed: true });
+  return `<h1 class="sr">Settings</h1><p class="tiny muted" style="margin:-4px 0 10px">Team-wide. The live app saves to the database; this prototype keeps them in this browser.</p>
+    <div class="panels">${users}${defaults}${road}${warn}${kit}</div>
+    <div class="btnrow" style="margin-top:12px"><button class="btn btn-outline btn-sm" type="button" id="reset">Reset to defaults</button></div>`;
+}
+
+/* ---------- router + events ---------- */
+function applyTheme(){ if (S.theme === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', S.theme); }
+function render(){
+  maps.forEach(m => { try { m.remove(); } catch(e){} }); maps = [];
+  const [page, arg] = (location.hash.slice(1) || 'ride').split('/');
+  if (page === 'spot' || page === 'board'){ location.replace(can.plan() ? '#plan' : '#ride'); return; }
+  document.querySelectorAll('[data-nav]').forEach(a => a.setAttribute('aria-selected', String(a.dataset.nav === page)));
+  const app = document.getElementById('app');
+  if (WX.source === 'loading'){ app.innerHTML = `<div class="card empty muted">Loading forecast…</div>`; return; }
+  const banner = WX.source === 'fallback' ? `<div class="banner" role="status">Live forecast unavailable (${esc(WX.err || 'offline')}). Showing the saved Open-Meteo sample from ${SEED.generated} for SUNY Purchase at every spot.</div>` : '';
+  document.querySelector('[data-nav="plan"]').hidden = !can.plan();
+  document.querySelector('[data-nav="settings"]').hidden = !can.settings();
+  if ((page === 'settings' && !can.settings()) || (page === 'plan' && !can.plan())){ location.hash = 'ride'; return; }
+  const demo = `<div class="rolebar"><span class="tiny muted">Prototype · view as</span><div class="seg" role="group" aria-label="Demo role">${ROLES.map(r => `<button type="button" data-role-set="${r}" aria-pressed="${ROLE === r}">${ROLE_LABEL[r]}</button>`).join('')}</div></div>`;
+  const views = { ride: viewRide, plan: viewPlan, settings: viewSettings };
+  app.innerHTML = demo + banner + (views[page] || viewRide)(arg);
+  mount();
+}
+function mount(){
+  document.querySelectorAll('[data-map-route]').forEach(el => {
+    if (el.closest('[hidden]') || el.childElementCount) return;
+    const r = routeById(el.dataset.mapRoute); mountRouteMap(el, r, r.pois.find(p => p.name === el.dataset.mapStop));
+  });
+}
+function toast(msg){ const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 2600); }
+
+document.addEventListener('click', e => {
+  const tg = e.target.closest('[data-toggle]');
+  if (tg && !e.target.closest('a,.seg,.panel-s button')){ const k = tg.dataset.toggle, sec = document.querySelector(`[data-panel="${k}"]`), body = sec.querySelector('.panel-b'), btn = sec.querySelector('.panel-t');
+    const open = body.hidden; body.hidden = !open; btn.setAttribute('aria-expanded', String(open)); const ps = store.get('bbt.panels', {}); ps[k] = open; store.set('bbt.panels', ps); if (open) mount(); return; }
+  if (e.target.closest('[data-share]')){
+    const sh = UI.share, full = `${sh.text}\n${sh.url}`;
+    if (navigator.share) navigator.share({ title: sh.title, text: sh.text, url: sh.url }).catch(err => { if (err && err.name !== 'AbortError') showShareSheet(full); });
+    else showShareSheet(full);
+    return;
+  }
+  if (e.target.closest('[data-copy]')){ const ta = document.getElementById('share-text'); ta.select(); (navigator.clipboard ? navigator.clipboard.writeText(ta.value) : Promise.reject()).then(() => toast('Copied'), () => { try { document.execCommand('copy'); toast('Copied'); } catch(err){ toast('Select the text and copy it'); } }); return; }
+  const rs = e.target.closest('[data-rsvp],[data-rsvp-route],[data-reply],[data-send]');
+  if (rs){
+    const ride = rideOn(UI.day), R = rsvpFor(UI.day, ride), now = fmtTime(nyNow().min);
+    if (rs.dataset.rsvp){ R.me = R.me === rs.dataset.rsvp ? null : rs.dataset.rsvp; if (R.me !== 'in') R.myRoute = ''; else if (ride.routes.length > 1 && !R.myRoute) R.myRoute = ride.routes[0].label; toast(R.me === 'in' ? "You're in" : R.me === 'out' ? "You're out" : 'RSVP cleared'); }
+    else if (rs.dataset.rsvpRoute) R.myRoute = rs.dataset.rsvpRoute;
+    else if (rs.dataset.reply != null) R.replyTo = +rs.dataset.reply || null;
+    else {
+      const id = rs.dataset.send, ta = document.getElementById(id === 'new' ? 'msg-new' : `reply-${id}`), text = ta && ta.value.trim();
+      if (!text){ ta && ta.focus(); return; }
+      if (id === 'new') R.msgs.push({ id: R.nextId++, name: 'You', at: now, text, replies: [] });
+      else { R.msgs.find(m => m.id === +id).replies.push({ name: 'You', at: now, text }); R.replyTo = null; }
+    }
+    render(); if (rs.dataset.reply && R.replyTo) document.getElementById(`reply-${R.replyTo}`)?.focus(); return;
+  }
+  if (e.target.closest('[data-cal]')){ showCalSheet(UI.cal); return; }
+  if (e.target.closest('[data-close]') && e.target.closest('a')){ setTimeout(() => document.querySelector('.sheet')?.remove(), 0); return; }
+  if (e.target.closest('[data-close]') || e.target.classList.contains('sheet')){ document.querySelector('.sheet')?.remove(); return; }
+  if (e.target.closest('[data-ics]')){
+    const blob = new Blob([icsText(UI.cal)], { type: 'text/calendar' }), a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = `bbt-ride-${UI.cal.date}.ics`; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000); document.querySelector('.sheet')?.remove(); return;
+  }
+  const el = e.target.closest('[data-route],[data-offset],[data-pday],[data-pick-spot],[data-plan-date],[data-pick],[data-role-set],#publish,#cancelride,#discard,#startover,[data-edit-ride],#ns-open,#ns-save,#ns-cancel,#reset,#themebtn,#invite');
+  if (!el) return;
+  if (el.dataset.route != null){ UI.route = +el.dataset.route; render(); }
+  else if (el.dataset.offset){ store.set('bbt.kitOffset', el.dataset.offset); render(); }
+  else if (el.dataset.pday){ P.date = el.dataset.pday; render(); }
+  else if (el.dataset.pickSpot){ P.spot = el.dataset.pickSpot; render(); }
+  else if (el.dataset.planDate){ P.date = el.dataset.planDate; }
+  else if (el.dataset.pick){ const id = +el.dataset.id; if (el.dataset.pick === 'alt'){ P.alt = id; P.qAlt = routeById(id).name; } else { P.route = id; P.q = routeById(id).name; P.stop = null; } render(); }
+  else if (el.id === 'publish'){
+    if (UI.draft){
+      const orig = P.editing && rideOn(P.editing), ride = Object.assign({}, UI.draft, { updates: orig ? (orig.updates || []).slice() : [] });
+      if (orig){
+        const ch = rideChanges(orig, ride);
+        if (ch.length){ ride.updates.push({ at: fmtTime(nyNow().min), text: ch.join(' · ') }); if (orig.date !== ride.date && RSVP[orig.date]){ RSVP[ride.date] = RSVP[orig.date]; delete RSVP[orig.date]; } postSystem(ride.date, ride, 'Updated: ' + ch.join(' · ')); }
+        RIDES.splice(RIDES.indexOf(orig), 1);
+      }
+      for (let i = RIDES.length - 1; i >= 0; i--) if (rideOn(ride.date) === RIDES[i]) RIDES.splice(i, 1); // replace any ride on that date
+      RIDES.push(ride); UI.day = ride.date; UI.route = 0; clearDraft(); location.hash = 'ride/' + ride.date;
+      toast(orig ? 'Ride updated (prototype: this session only).' : 'Published (prototype: this session only).');
+    }
+  }
+  else if (el.id === 'ns-open'){ P.newSpot = { name: '', link: '', note: '', msg: '' }; render(); document.getElementById('ns-name')?.focus(); }
+  else if (el.id === 'ns-save') saveNewSpot();
+  else if (el.id === 'ns-cancel'){ P.newSpot = null; render(); }
+  else if (el.id === 'cancelride'){ const r = rideOn(P.editing); r.cancelled = !r.cancelled; postSystem(P.editing, r, r.cancelled ? 'Ride cancelled.' : 'Ride is back on.'); UI.day = P.editing; clearDraft(); location.hash = 'ride/' + UI.day; toast(r.cancelled ? 'Ride cancelled' : 'Ride restored'); }
+  else if (el.id === 'discard' || el.id === 'startover'){ clearDraft(); render(); }
+  else if (el.dataset.editRide){ editRide(el.dataset.editRide); }
+  else if (el.dataset.roleSet){ ROLE = el.dataset.roleSet; store.set('bbt.role', ROLE); render(); }
+  else if (el.id === 'invite'){ const em = document.getElementById('u-email'), rl = document.getElementById('u-role');
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em.value)){ toast('Enter a valid email address.'); return; }
+    USERS.push({ name: '—', email: em.value.trim().toLowerCase(), role: rl.value, status: 'Invited' }); render(); toast('Invited (prototype: no email sent).'); }
+  else if (el.id === 'reset'){ S = Object.assign({}, DEFAULTS); store.del('bbt.settings'); applyTheme(); render(); toast('Settings reset'); }
+  else if (el.id === 'themebtn'){ S.theme = isDark() ? 'light' : 'dark'; saveSettings(); applyTheme(); render(); }
+});
+// Text inputs re-render on change (not every keystroke) except search boxes, which keep focus.
+document.addEventListener('input', e => {
+  const t = e.target;
+  if (t.id === 'p-q' || t.id === 'p-qalt'){
+    const which = t.id === 'p-q' ? 'main' : 'alt'; if (which === 'main') P.q = t.value; else P.qAlt = t.value;
+    const id = parseRouteInput(t.value);
+    if (id && routeById(id)){ if (which === 'main'){ P.route = id; P.stop = null; } else P.alt = id; render(); const n = document.getElementById(t.id); if (n){ n.focus(); n.setSelectionRange(n.value.length, n.value.length); } return; }
+    const box = t.parentElement.querySelector('.results'); if (box) box.outerHTML = searchResults(t.value, which);
+  }
+  if (t.id === 'p-notes') P.notes = t.value;
+  if (P.newSpot && t.id === 'ns-name') P.newSpot.name = t.value;
+  if (P.newSpot && t.id === 'ns-link') P.newSpot.link = t.value;
+  if (P.newSpot && t.id === 'ns-note') P.newSpot.note = t.value;
+});
+document.addEventListener('change', e => {
+  const t = e.target;
+  if (t.dataset.wxApp != null){ store.set('bbt.wxApp', t.value); render(); return; }
+  if (t.dataset.userRole != null){ USERS[+t.dataset.userRole].role = t.value; render(); toast('Role updated (prototype).'); return; }
+  if (t.dataset.set){ const k = t.dataset.set; S[k] = k === 'rollout' ? t.value : (isNaN(parseFloat(t.value)) ? DEFAULTS[k] : parseFloat(t.value)); saveSettings(); render(); return; }
+  switch (t.id){
+    case 'p-date': P.date = t.value; break;
+    case 'p-time': P.time = t.value || S.rollout; break;
+    case 'p-alton': P.altOn = t.checked; break;
+    case 'p-la': P.labelA = t.value; break;
+    case 'p-lb': P.labelB = t.value; break;
+    case 'p-pace': P.pace = parseFloat(t.value) || S.pace; break;
+    case 'p-notes': P.notes = t.value; break;
+    default: if (t.name === 'stop') P.stop = t.value; else return;
+  }
+  render();
+});
+let lastW = chartW();
+window.addEventListener('resize', () => { if (chartW() !== lastW){ lastW = chartW(); render(); } });
+window.addEventListener('hashchange', () => { render(); window.scrollTo(0, 0); });
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (S.theme === 'auto') render(); });
+applyTheme(); render(); loadForecast();
+</script>
+</body>
+</html>
