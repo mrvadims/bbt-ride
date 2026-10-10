@@ -13,6 +13,7 @@
   --chart:#041DB2; --chart-soft:rgba(4,29,178,.12); --win:rgba(0,119,209,.10); --win-line:#0077D1;
   --go-bg:#E2F5E9; --go-fg:#126B3B; --cau-bg:#FFF1D1; --cau-fg:#875400; --no-bg:#FCE3E3; --no-fg:#A11C1C;
   --shadow:0 1px 2px rgba(3,20,77,.06),0 2px 8px rgba(3,20,77,.05);
+  --sun:#F2A900; --cloud:#E4E9F2; --cloud-edge:#8C98B8; --rain:#0077D1;
   color-scheme:light;
 }
 @media (prefers-color-scheme: dark){
@@ -21,7 +22,7 @@
     --primary:#0077D1; --primary-hover:#1A88DB; --link:#4DA3FF;
     --chart:#7FB2FF; --chart-soft:rgba(127,178,255,.18); --win:rgba(77,163,255,.14); --win-line:#4DA3FF;
     --go-bg:rgba(52,199,120,.16); --go-fg:#7FE0A8; --cau-bg:rgba(255,190,40,.16); --cau-fg:#FFD27A; --no-bg:rgba(255,90,90,.18); --no-fg:#FFA3A3;
-    --shadow:none; color-scheme:dark;
+    --shadow:none; --sun:#FFC53D; --cloud:#3A4C86; --cloud-edge:#A9B6DA; --rain:#4DA3FF; color-scheme:dark;
   }
 }
 :root[data-theme="dark"]{
@@ -29,7 +30,7 @@
   --primary:#0077D1; --primary-hover:#1A88DB; --link:#4DA3FF;
   --chart:#7FB2FF; --chart-soft:rgba(127,178,255,.18); --win:rgba(77,163,255,.14); --win-line:#4DA3FF;
   --go-bg:rgba(52,199,120,.16); --go-fg:#7FE0A8; --cau-bg:rgba(255,190,40,.16); --cau-fg:#FFD27A; --no-bg:rgba(255,90,90,.18); --no-fg:#FFA3A3;
-  --shadow:none; color-scheme:dark;
+  --shadow:none; --sun:#FFC53D; --cloud:#3A4C86; --cloud-edge:#A9B6DA; --rain:#4DA3FF; color-scheme:dark;
 }
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
@@ -194,6 +195,8 @@ textarea{min-height:80px;resize:vertical}
 .linkbtn{appearance:none;background:none;border:0;padding:0;font:inherit;font-size:13px;color:var(--link);cursor:pointer}
 .compose{display:grid;gap:8px;margin-top:10px}
 .compose textarea{min-height:64px}
+.wxi{width:22px;height:22px;display:block;margin:0 auto}
+th.sky,td.sky{text-align:center}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 @media (min-width:760px){
   .map{height:280px}
@@ -465,6 +468,32 @@ const fmtIn = v => (v < 0.005 ? '0' : v < 0.1 ? v.toFixed(2) : v.toFixed(1)) + '
 const COMPASS = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
 const compass = d => COMPASS[Math.round(((d % 360) + 360) % 360 / 22.5) % 16];
 const arrow = d => `<svg class="arrow" viewBox="0 0 12 12" aria-hidden="true" style="transform:rotate(${(d + 180) % 360}deg)"><path d="M6 1 L10 10 L6 8 L2 10 Z" fill="currentColor"/></svg>`;
+// Sky icons (24px grid, stroked). Clear and mostly clear switch to a moon at night.
+const WXI = {
+  sun: '<circle cx="12" cy="12" r="4.2" fill="var(--sun)" stroke="none"/><g stroke="var(--sun)"><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></g>',
+  moon: '<path d="M19 14.5A7.5 7.5 0 0 1 9.5 5a7.5 7.5 0 1 0 9.5 9.5z" fill="var(--muted)" stroke="none"/>',
+  cloud: '<path d="M7 18h10.5a4 4 0 0 0 .4-8 5.5 5.5 0 0 0-10.6 1.2A3.4 3.4 0 0 0 7 18z" fill="var(--cloud)" stroke="var(--cloud-edge)"/>',
+  sunsmall: '<circle cx="8" cy="8" r="3.2" fill="var(--sun)" stroke="none"/><g stroke="var(--sun)"><path d="M8 1.8v1.4M2 8h1.4M3.6 3.6l1 1M12.4 3.6l-1 1"/></g>',
+  moonsmall: '<path d="M12 9.5A5 5 0 0 1 6.5 4a5 5 0 1 0 5.5 5.5z" fill="var(--muted)" stroke="none"/>',
+  rain: '<g stroke="var(--rain)"><path d="M8 20l-1 2.2M12 20l-1 2.2M16 20l-1 2.2"/></g>',
+  drizzle: '<g stroke="var(--rain)"><path d="M9 20.5v1M13 20.5v1M17 20.5v1"/></g>',
+  snow: '<g fill="var(--rain)" stroke="none"><circle cx="8" cy="21" r="1"/><circle cx="12" cy="22" r="1"/><circle cx="16" cy="21" r="1"/></g>',
+  bolt: '<path d="M12.5 17l-2.5 4h3l-1.5 3" stroke="var(--sun)" fill="none"/>',
+  fog: '<g stroke="var(--cloud-edge)"><path d="M4 9h16M3 13h18M5 17h14"/></g>'
+};
+function wxIcon(c, day = 1){
+  const lbl = wxLabel(c), shift = '<g transform="translate(0,-3)">';
+  let g;
+  if (c === 0) g = day ? WXI.sun : WXI.moon;
+  else if (c === 1 || c === 2) g = (day ? WXI.sunsmall : WXI.moonsmall) + WXI.cloud;
+  else if (c === 3) g = WXI.cloud;
+  else if (c <= 48) g = WXI.fog;
+  else if (c <= 57) g = shift + WXI.cloud + '</g>' + WXI.drizzle;
+  else if (c <= 67 || (c >= 80 && c <= 82)) g = (c >= 80 ? (day ? WXI.sunsmall : '') : '') + shift + WXI.cloud + '</g>' + WXI.rain;
+  else if (c <= 77 || c === 85 || c === 86) g = shift + WXI.cloud + '</g>' + WXI.snow;
+  else g = shift + WXI.cloud + '</g>' + WXI.bolt;
+  return `<svg class="wxi" viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="${lbl}"><title>${lbl}</title>${g}</svg>`;
+}
 function wxLabel(c){
   if (c == null) return '–'; if (c === 0) return 'Clear'; if (c === 1) return 'Mostly clear'; if (c === 2) return 'Partly cloudy'; if (c === 3) return 'Overcast';
   if (c <= 48) return 'Fog'; if (c <= 57) return 'Drizzle'; if (c <= 67) return 'Rain'; if (c <= 77) return 'Snow'; if (c <= 82) return 'Showers'; if (c <= 86) return 'Snow showers'; return 'Thunderstorms';
@@ -589,10 +618,10 @@ function hourRows(se, date, fromF, toF, winF0, winF1, pace){
     if (se.T[i] == null) continue;
     const road = roadAt(se, i), feel = bikeFeel(se.T[i], se.ws[i], se.app[i], pace);
     const inwin = i >= Math.floor(winF0) && i <= winF1, isNow = fn != null && Math.floor(fn) === i;
-    rows += `<tr class="${inwin ? 'inwin' : ''} ${isNow ? 'now' : ''}"><td>${fmtTime(+se.time[i].slice(11, 13) * 60)}</td><td>${wxLabel(se.code[i])}</td><td>${r0(se.T[i])}°</td><td>${r0(se.app[i])}°</td><td><b>${r0(feel)}°</b></td>
+    rows += `<tr class="${inwin ? 'inwin' : ''} ${isNow ? 'now' : ''}"><td>${fmtTime(+se.time[i].slice(11, 13) * 60)}</td><td class="sky">${wxIcon(se.code[i], se.day ? se.day[i] : 1)}</td><td>${r0(se.T[i])}°</td><td>${r0(se.app[i])}°</td><td><b>${r0(feel)}°</b></td>
       <td>${arrow(se.wd[i])} ${compass(se.wd[i])} ${r0(se.ws[i])}</td><td>${r0(se.wg[i])}</td><td>${r0(se.pp[i])}%</td><td>${fmtIn(se.p[i] || 0)}</td><td>${road.level ? roadPill(road) : '<span class="muted">Dry</span>'}</td></tr>`;
   }
-  return `<div class="tablewrap"><table><thead><tr><th>Time</th><th>Sky</th><th>Temp</th><th>Real</th><th>Bike</th><th>Wind mph</th><th>Gust</th><th>Rain</th><th>Amt</th><th>Road</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  return `<div class="tablewrap"><table><thead><tr><th>Time</th><th class="sky">Sky</th><th>Temp</th><th>Real</th><th>Bike</th><th>Wind mph</th><th>Gust</th><th>Rain</th><th>Amt</th><th>Road</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 /* ---------- views ---------- */
 const UI = { day: null, route: 0 };
