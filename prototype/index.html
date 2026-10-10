@@ -175,6 +175,11 @@ textarea{min-height:80px;resize:vertical}
 .iconbtn.share:hover{background:var(--win)}
 .sheet{position:fixed;inset:0;background:rgba(2,12,43,.45);display:grid;place-items:end center;z-index:2500;padding:16px}
 .sheet-card{background:var(--card);color:var(--text);border-radius:16px;padding:16px;width:min(520px,100%);box-shadow:0 10px 40px rgba(0,0,0,.3)}
+.choices{display:grid;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.choices a,.choices button{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:12px 14px;background:none;border:0;border-bottom:1px solid var(--line);font:inherit;font-weight:600;color:var(--text);text-align:left;text-decoration:none;cursor:pointer}
+.choices>:last-child{border-bottom:0}
+.choices a:hover,.choices button:hover,.choices a:focus-visible,.choices button:focus-visible{background:var(--win);outline:none}
+.choices span{font-size:12px;font-weight:400;color:var(--muted)}
 .sheet textarea{font-size:13px;min-height:180px}
 @media (min-width:760px){.sheet{place-items:center}}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
@@ -654,6 +659,19 @@ function icsText(c){
   return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//BBT//Ride//EN', 'BEGIN:VEVENT', `UID:bbt-${c.date}@ride.bbt.team`, `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').slice(0, 15)}Z`,
     `DTSTART;TZID=${TZ}:${calStamp(c.date, c.start)}`, `DTEND;TZID=${TZ}:${calStamp(c.date, c.end)}`, `SUMMARY:${e(c.title)}`, `LOCATION:${e(c.location)}`, `DESCRIPTION:${e(c.details)}`, 'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
 }
+function outlookLink(c, host){
+  const iso = m => `${c.date}T${pad(Math.floor(m / 60))}:${pad(Math.round(m % 60))}:00`;
+  return `https://${host}/calendar/0/deeplink/compose?` + new URLSearchParams({ path: '/calendar/action/compose', rru: 'addevent', subject: c.title, startdt: iso(c.start), enddt: iso(c.end), location: c.location, body: c.details });
+}
+function showCalSheet(c){
+  const d = document.createElement('div'); d.className = 'sheet'; d.setAttribute('role', 'dialog'); d.setAttribute('aria-label', 'Add to calendar');
+  d.innerHTML = `<div class="sheet-card"><h2>Add to calendar</h2><p class="small muted" style="margin:4px 0 10px">${fmtTime(c.start)}–${fmtTime(c.end)} · ${esc(c.title)}</p>
+    <div class="choices"><a href="${gcalLink(c)}" target="_blank" rel="noopener" data-close>Google Calendar</a><button type="button" data-ics>Apple Calendar <span>.ics file</span></button>
+    <a href="${outlookLink(c, 'outlook.live.com')}" target="_blank" rel="noopener" data-close>Outlook.com</a><a href="${outlookLink(c, 'outlook.office.com')}" target="_blank" rel="noopener" data-close>Outlook (work or school)</a>
+    <button type="button" data-ics>Other <span>.ics file</span></button></div>
+    <div class="btnrow" style="margin-top:10px"><button type="button" class="btn btn-outline" data-close>Cancel</button></div></div>`;
+  document.body.appendChild(d); d.querySelector('.choices a').focus();
+}
 function showShareSheet(text){
   const d = document.createElement('div'); d.className = 'sheet'; d.setAttribute('role', 'dialog'); d.setAttribute('aria-label', 'Share ride');
   d.innerHTML = `<div class="sheet-card"><h2>Share ride</h2><p class="small muted" style="margin:4px 0 8px">Copy and paste into any app.</p><textarea id="share-text" rows="9" readonly>${esc(text)}</textarea>
@@ -682,8 +700,7 @@ function viewRide(arg){
     `<dl class="kvlist"><div><dt>Back</dt><dd><b>≈ ${fmtTime(t.end)}</b><span>${fmtDur(t.movingH)} moving + ${r0(t.regroupMin)} min regroups${t.stop ? ` + ${t.stop.len} min coffee · ≈ ${fmtTime(t.end - t.stop.len)} without the stop` : ''}</span></dd></div>
       <div><dt>Parking</dt><dd>${esc(spot.note)}</dd></div></dl>
      <div class="btnrow"><a class="btn btn-outline btn-sm" href="${spot.maps_url}" target="_blank" rel="noopener">Open in Google Maps</a>
-       <a class="btn btn-outline btn-sm" href="${gcalLink(cal)}" target="_blank" rel="noopener">+ Google Calendar</a>
-       <button type="button" class="btn btn-outline btn-sm" data-ics>+ Apple / Outlook</button></div>`);
+       <button type="button" class="btn btn-outline btn-sm" data-cal>+ Calendar</button></div>`);
 
   const switcher = ride.routes.length > 1 ? `<div class="seg" role="group" aria-label="Route">${ride.routes.map((r, i) => `<button type="button" data-route="${i}" aria-pressed="${i === ri}">${r.label} · ${r0(routeById(r.id).distance_m / MI)} mi</button>`).join('')}</div>` : '';
   let stopHTML = '';
@@ -906,11 +923,13 @@ document.addEventListener('click', e => {
     return;
   }
   if (e.target.closest('[data-copy]')){ const ta = document.getElementById('share-text'); ta.select(); (navigator.clipboard ? navigator.clipboard.writeText(ta.value) : Promise.reject()).then(() => toast('Copied'), () => { try { document.execCommand('copy'); toast('Copied'); } catch(err){ toast('Select the text and copy it'); } }); return; }
+  if (e.target.closest('[data-cal]')){ showCalSheet(UI.cal); return; }
+  if (e.target.closest('[data-close]') && e.target.closest('a')){ setTimeout(() => document.querySelector('.sheet')?.remove(), 0); return; }
   if (e.target.closest('[data-close]') || e.target.classList.contains('sheet')){ document.querySelector('.sheet')?.remove(); return; }
   if (e.target.closest('[data-ics]')){
     const blob = new Blob([icsText(UI.cal)], { type: 'text/calendar' }), a = document.createElement('a');
     a.href = URL.createObjectURL(blob); a.download = `bbt-ride-${UI.cal.date}.ics`; document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(a.href), 2000); return;
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000); document.querySelector('.sheet')?.remove(); return;
   }
   const el = e.target.closest('[data-route],[data-offset],[data-bday],[data-spot],[data-pick],[data-theme-set],[data-role-set],#publish,#savedraft,#reset,#themebtn,#p-spotauto,#invite');
   if (!el) return;
