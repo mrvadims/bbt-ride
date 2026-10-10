@@ -43,7 +43,6 @@ h1{font-size:20px} h2{font-size:16px} h3{font-size:14px}
 .topbar-inner{max-width:1200px;margin:0 auto;height:56px;display:flex;align-items:center;gap:10px;padding:0 16px}
 .topbar .logo{height:32px;width:auto;color:#fff;display:block}
 .brandlink{display:flex;align-items:center;gap:10px;color:#fff;text-decoration:none}
-.brandname{font-weight:700;font-size:16px;letter-spacing:.2px}
 .topbar .spacer{flex:1}
 .datachip{font-size:12px;background:rgba(255,255,255,.18);border-radius:999px;padding:3px 9px;white-space:nowrap}
 .iconbtn{background:transparent;border:0;color:#fff;width:36px;height:36px;border-radius:8px;display:grid;place-items:center;cursor:pointer}
@@ -182,6 +181,19 @@ textarea{min-height:80px;resize:vertical}
 .sec-b{padding:10px 14px 14px;display:grid;gap:12px}
 .panel.empty{padding:16px 14px}
 .panel.empty p{margin:0 0 6px}
+.people{display:grid;gap:10px}
+.plist{display:flex;flex-wrap:wrap;gap:6px}
+.person{border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:13px;background:var(--card2)}
+.person.me{border-color:var(--primary);font-weight:600}
+.msg{padding:8px 0;border-bottom:1px solid var(--line)}
+.msg:last-of-type{border-bottom:0}
+.msg .meta{font-size:13px}
+.msg p{margin:2px 0 4px;white-space:pre-wrap}
+.msg.reply{padding:6px 0 6px 12px;border-bottom:0;border-left:2px solid var(--line);margin-top:4px}
+.replies{margin-left:4px}
+.linkbtn{appearance:none;background:none;border:0;padding:0;font:inherit;font-size:13px;color:var(--link);cursor:pointer}
+.compose{display:grid;gap:8px;margin-top:10px}
+.compose textarea{min-height:64px}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 @media (min-width:760px){
   .map{height:280px}
@@ -217,7 +229,7 @@ textarea{min-height:80px;resize:vertical}
 <body>
 <header class="topbar">
   <div class="topbar-inner">
-    <a class="brandlink" href="#ride" aria-label="BBT Ride home"><svg class="logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1731.65 912.40" fill="currentColor" role="img" aria-label="BBT"><title>BBT</title><path d="m 681.95,696.57 c -6.46,0 -12.95,-2.21 -18.24,-6.74 c -11.79,-10.08 -13.19,-27.81 -3.1,-39.61 l 359,-420.07 l -486.76,0 c -15.52,0 -28.09,-12.58 -28.09,-28.09 c 0,-15.52 12.58,-28.09 28.09,-28.09 l 547.72,0 c 10.96,0 20.93,6.38 25.51,16.33 c 4.59,9.96 2.96,21.67 -4.16,30.01 L 703.32,686.73 C 697.76,693.23 689.88,696.57 681.95,696.57"/><path d="m 555.06,111.16 l -151.23,0 c -15.52,0 -28.09,-12.58 -28.09,-28.09 c 0,-15.51 12.58,-28.09 28.09,-28.09 L 555.06,54.98 c 15.52,0 28.09,12.58 28.09,28.09 C 583.15,98.59 570.58,111.16 555.06,111.16"/><path d="m 309.85,348.89 c -139.87,0 -253.66,113.79 -253.66,253.66 c 0,139.87 113.79,253.67 253.66,253.67 c 139.87,0 253.67,-113.79 253.67,-253.67 C 563.51,462.68 449.72,348.89 309.85,348.89 m 0,563.51 c -170.85,0 -309.85,-139 -309.85,-309.85 c 0,-170.85 139,-309.85 309.85,-309.85 c 170.85,0 309.85,139 309.85,309.85 c 0,170.85 -139,309.85 -309.85,309.85"/><path d="m 1237.21,348.89 c -139.87,0 -253.67,113.79 -253.67,253.66 c 0,139.87 113.79,253.67 253.67,253.67 c 139.87,0 253.66,-113.79 253.66,-253.67 C 1490.87,462.68 1377.08,348.89 1237.21,348.89 m 0,563.51 c -170.85,0 -309.85,-139 -309.85,-309.85 c 0,-170.85 139,-309.85 309.85,-309.85 c 170.85,0 309.85,139 309.85,309.85 c 0,170.85 -139,309.85 -309.85,309.85"/><path d="m 1306.88,537.97 c 14.57,0 26.38,-11.81 26.38,-26.38 c 0,-14.57 -11.81,-26.38 -26.38,-26.38 c -14.57,0 -26.38,11.81 -26.38,26.38 C 1280.5,526.15 1292.31,537.97 1306.88,537.97"/><path d="m 1352.6,530.74 c -5.89,-5.04 -14.76,-4.35 -19.8,1.54 l -22.71,26.54 l -31.58,-28.82 l 0,0 l -0.04,-0.04 c -0.43,-0.39 -0.88,-0.74 -1.35,-1.07 c -0.11,-0.08 -0.24,-0.16 -0.35,-0.24 c -0.4,-0.27 -0.82,-0.52 -1.24,-0.74 c -0.1,-0.05 -0.21,-0.11 -0.31,-0.16 c -0.54,-0.27 -1.09,-0.5 -1.65,-0.69 c -0.05,-0.02 -0.09,-0.03 -0.14,-0.04 c -0.52,-0.17 -1.05,-0.31 -1.58,-0.42 c -0.13,-0.02 -0.26,-0.05 -0.39,-0.07 c -0.59,-0.11 -1.19,-0.18 -1.78,-0.21 c -0.01,0 -0.01,0 -0.02,0 L 1218.43,523.93 c -4.33,-0.2 -8.46,1.59 -11.27,4.85 l -34.23,39.61 c -5.07,5.87 -4.43,14.74 1.44,19.81 c 5.87,5.07 14.74,4.43 19.81,-1.44 l 29.77,-34.45 l 15.47,0.71 l -66.22,76.5 l -54.39,0 c -7.76,0 -14.05,6.29 -14.05,14.05 c 0,7.76 6.29,14.05 14.05,14.05 l 60.81,0 c 4.08,0 7.95,-1.77 10.62,-4.85 l 30.74,-35.51 l 29.9,27.09 l -19.49,65.55 c -2.21,7.44 2.03,15.25 9.46,17.47 c 1.34,0.4 2.68,0.59 4.01,0.59 c 6.06,0 11.65,-3.95 13.46,-10.05 l 22.01,-74.03 c 1.54,-5.18 -0.03,-10.78 -4.03,-14.41 l -17.6,-15.94 l 30.66,-35.57 l 12.49,11.4 c 2.59,2.37 5.98,3.67 9.47,3.67 c 0.29,0 0.57,-0.01 0.86,-0.03 c 3.8,-0.23 7.33,-2 9.81,-4.89 L 1354.13,550.54 C 1359.18,544.65 1358.49,535.78 1352.6,530.74"/><path d="m 337.86,583.91 l -63.07,-28.33 c -3.39,-1.52 -7.25,-1.64 -10.72,-0.32 l -57.59,21.78 c -7.26,2.74 -10.91,10.85 -8.17,18.1 c 2.75,7.26 10.85,10.92 18.11,8.17 l 52.16,-19.73 l 23.94,10.76 l -26.12,9.88 c 25.85,0.46 44.72,6.65 59.97,11.67 c 11.59,3.81 20.74,6.82 30.84,6.82 c 17.98,0 33.07,-11.75 35.78,-13.98 L 338.72,584.35 C 338.44,584.2 338.16,584.04 337.86,583.91"/><path d="m 391.73,545.37 c -14.57,0 -26.38,11.81 -26.38,26.38 c 0,14.57 11.81,26.38 26.38,26.38 c 14.57,0 26.38,-11.81 26.38,-26.38 C 418.11,557.18 406.3,545.37 391.73,545.37"/><path d="m 196.71,668.48 c -3.67,0 -7.34,-1.44 -10.11,-4.29 c -5.4,-5.57 -5.22,-14.5 0.35,-19.9 c 1.14,-1.1 28.43,-27.01 76.4,-27.01 c 25.34,0 43.18,5.87 58.92,11.05 c 12.2,4.01 22.74,7.48 34.93,7.48 c 25.2,0 44.78,-17.52 44.97,-17.7 c 5.73,-5.2 14.6,-4.81 19.82,0.88 c 5.23,5.7 4.89,14.53 -0.79,19.78 C 420.11,639.81 393.63,663.91 357.21,663.91 C 340.51,663.91 326.78,659.39 313.5,655.02 C 299.09,650.28 284.19,645.37 263.36,645.37 C 227.24,645.37 207.26,663.76 206.43,664.54 C 203.71,667.17 200.21,668.48 196.71,668.48"/><path d="m 1677.94,159.47 c 0,6.99 -1.33,13.64 -3.99,19.94 c -2.66,6.29 -6.29,11.75 -10.91,16.37 c -4.61,4.61 -10.07,8.25 -16.37,10.91 c -6.29,2.65 -12.94,3.99 -19.93,3.99 c -7,0 -13.64,-1.33 -19.93,-3.99 c -6.3,-2.65 -11.75,-6.3 -16.37,-10.91 c -4.62,-4.62 -8.26,-10.08 -10.91,-16.37 c -2.67,-6.3 -3.99,-12.95 -3.99,-19.94 l 0,-51.2 l 120.51,0 l 0,-53.71 l -120.51,0 L 1575.54,0 L 1521.82,0 L 1521.82,159.47 c 0,14.55 2.73,28.19 8.19,40.91 c 5.45,12.74 12.93,23.86 22.45,33.37 c 9.51,9.51 20.63,17 33.36,22.45 c 12.73,5.45 26.37,8.18 40.92,8.18 c 14.55,0 28.19,-2.73 40.92,-8.18 c 12.73,-5.46 23.85,-12.94 33.36,-22.45 c 9.51,-9.51 16.99,-20.63 22.45,-33.37 c 5.45,-12.72 8.18,-26.36 8.18,-40.91 z"/><path d="M 1396.65,54.98 L 1343.84,54.98 L 1343.84,0 L 1290.13,0 L 1290.13,54.98 L 1290.13,111.16 L 1396.65,111.16 c 26.96,0 48.9,21.94 48.9,48.9 C 1445.55,187.02 1423.62,208.96 1396.65,208.96 L 1378.54,208.96 L 1378.54,265.14 L 1396.65,265.14 c 57.94,0 105.08,-47.14 105.08,-105.08 C 1501.73,102.12 1454.6,54.98 1396.65,54.98"/><path d="M 1166.73,54.98 L 1113.92,54.98 L 1113.92,0 L 1060.21,0 L 1060.21,54.98 L 1060.21,111.16 L 1166.73,111.16 c 26.96,0 48.9,21.94 48.9,48.9 C 1215.63,187.02 1193.7,208.96 1166.73,208.96 L 1148.62,208.96 L 1148.62,265.14 L 1166.73,265.14 c 57.94,0 105.08,-47.14 105.08,-105.08 C 1271.81,102.12 1224.68,54.98 1166.73,54.98"/></svg><span class="brandname">Ride</span></a>
+    <a class="brandlink" href="#ride" aria-label="BBT Ride home"><svg class="logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1731.65 912.40" fill="currentColor" role="img" aria-label="BBT"><title>BBT</title><path d="m 681.95,696.57 c -6.46,0 -12.95,-2.21 -18.24,-6.74 c -11.79,-10.08 -13.19,-27.81 -3.1,-39.61 l 359,-420.07 l -486.76,0 c -15.52,0 -28.09,-12.58 -28.09,-28.09 c 0,-15.52 12.58,-28.09 28.09,-28.09 l 547.72,0 c 10.96,0 20.93,6.38 25.51,16.33 c 4.59,9.96 2.96,21.67 -4.16,30.01 L 703.32,686.73 C 697.76,693.23 689.88,696.57 681.95,696.57"/><path d="m 555.06,111.16 l -151.23,0 c -15.52,0 -28.09,-12.58 -28.09,-28.09 c 0,-15.51 12.58,-28.09 28.09,-28.09 L 555.06,54.98 c 15.52,0 28.09,12.58 28.09,28.09 C 583.15,98.59 570.58,111.16 555.06,111.16"/><path d="m 309.85,348.89 c -139.87,0 -253.66,113.79 -253.66,253.66 c 0,139.87 113.79,253.67 253.66,253.67 c 139.87,0 253.67,-113.79 253.67,-253.67 C 563.51,462.68 449.72,348.89 309.85,348.89 m 0,563.51 c -170.85,0 -309.85,-139 -309.85,-309.85 c 0,-170.85 139,-309.85 309.85,-309.85 c 170.85,0 309.85,139 309.85,309.85 c 0,170.85 -139,309.85 -309.85,309.85"/><path d="m 1237.21,348.89 c -139.87,0 -253.67,113.79 -253.67,253.66 c 0,139.87 113.79,253.67 253.67,253.67 c 139.87,0 253.66,-113.79 253.66,-253.67 C 1490.87,462.68 1377.08,348.89 1237.21,348.89 m 0,563.51 c -170.85,0 -309.85,-139 -309.85,-309.85 c 0,-170.85 139,-309.85 309.85,-309.85 c 170.85,0 309.85,139 309.85,309.85 c 0,170.85 -139,309.85 -309.85,309.85"/><path d="m 1306.88,537.97 c 14.57,0 26.38,-11.81 26.38,-26.38 c 0,-14.57 -11.81,-26.38 -26.38,-26.38 c -14.57,0 -26.38,11.81 -26.38,26.38 C 1280.5,526.15 1292.31,537.97 1306.88,537.97"/><path d="m 1352.6,530.74 c -5.89,-5.04 -14.76,-4.35 -19.8,1.54 l -22.71,26.54 l -31.58,-28.82 l 0,0 l -0.04,-0.04 c -0.43,-0.39 -0.88,-0.74 -1.35,-1.07 c -0.11,-0.08 -0.24,-0.16 -0.35,-0.24 c -0.4,-0.27 -0.82,-0.52 -1.24,-0.74 c -0.1,-0.05 -0.21,-0.11 -0.31,-0.16 c -0.54,-0.27 -1.09,-0.5 -1.65,-0.69 c -0.05,-0.02 -0.09,-0.03 -0.14,-0.04 c -0.52,-0.17 -1.05,-0.31 -1.58,-0.42 c -0.13,-0.02 -0.26,-0.05 -0.39,-0.07 c -0.59,-0.11 -1.19,-0.18 -1.78,-0.21 c -0.01,0 -0.01,0 -0.02,0 L 1218.43,523.93 c -4.33,-0.2 -8.46,1.59 -11.27,4.85 l -34.23,39.61 c -5.07,5.87 -4.43,14.74 1.44,19.81 c 5.87,5.07 14.74,4.43 19.81,-1.44 l 29.77,-34.45 l 15.47,0.71 l -66.22,76.5 l -54.39,0 c -7.76,0 -14.05,6.29 -14.05,14.05 c 0,7.76 6.29,14.05 14.05,14.05 l 60.81,0 c 4.08,0 7.95,-1.77 10.62,-4.85 l 30.74,-35.51 l 29.9,27.09 l -19.49,65.55 c -2.21,7.44 2.03,15.25 9.46,17.47 c 1.34,0.4 2.68,0.59 4.01,0.59 c 6.06,0 11.65,-3.95 13.46,-10.05 l 22.01,-74.03 c 1.54,-5.18 -0.03,-10.78 -4.03,-14.41 l -17.6,-15.94 l 30.66,-35.57 l 12.49,11.4 c 2.59,2.37 5.98,3.67 9.47,3.67 c 0.29,0 0.57,-0.01 0.86,-0.03 c 3.8,-0.23 7.33,-2 9.81,-4.89 L 1354.13,550.54 C 1359.18,544.65 1358.49,535.78 1352.6,530.74"/><path d="m 337.86,583.91 l -63.07,-28.33 c -3.39,-1.52 -7.25,-1.64 -10.72,-0.32 l -57.59,21.78 c -7.26,2.74 -10.91,10.85 -8.17,18.1 c 2.75,7.26 10.85,10.92 18.11,8.17 l 52.16,-19.73 l 23.94,10.76 l -26.12,9.88 c 25.85,0.46 44.72,6.65 59.97,11.67 c 11.59,3.81 20.74,6.82 30.84,6.82 c 17.98,0 33.07,-11.75 35.78,-13.98 L 338.72,584.35 C 338.44,584.2 338.16,584.04 337.86,583.91"/><path d="m 391.73,545.37 c -14.57,0 -26.38,11.81 -26.38,26.38 c 0,14.57 11.81,26.38 26.38,26.38 c 14.57,0 26.38,-11.81 26.38,-26.38 C 418.11,557.18 406.3,545.37 391.73,545.37"/><path d="m 196.71,668.48 c -3.67,0 -7.34,-1.44 -10.11,-4.29 c -5.4,-5.57 -5.22,-14.5 0.35,-19.9 c 1.14,-1.1 28.43,-27.01 76.4,-27.01 c 25.34,0 43.18,5.87 58.92,11.05 c 12.2,4.01 22.74,7.48 34.93,7.48 c 25.2,0 44.78,-17.52 44.97,-17.7 c 5.73,-5.2 14.6,-4.81 19.82,0.88 c 5.23,5.7 4.89,14.53 -0.79,19.78 C 420.11,639.81 393.63,663.91 357.21,663.91 C 340.51,663.91 326.78,659.39 313.5,655.02 C 299.09,650.28 284.19,645.37 263.36,645.37 C 227.24,645.37 207.26,663.76 206.43,664.54 C 203.71,667.17 200.21,668.48 196.71,668.48"/><path d="m 1677.94,159.47 c 0,6.99 -1.33,13.64 -3.99,19.94 c -2.66,6.29 -6.29,11.75 -10.91,16.37 c -4.61,4.61 -10.07,8.25 -16.37,10.91 c -6.29,2.65 -12.94,3.99 -19.93,3.99 c -7,0 -13.64,-1.33 -19.93,-3.99 c -6.3,-2.65 -11.75,-6.3 -16.37,-10.91 c -4.62,-4.62 -8.26,-10.08 -10.91,-16.37 c -2.67,-6.3 -3.99,-12.95 -3.99,-19.94 l 0,-51.2 l 120.51,0 l 0,-53.71 l -120.51,0 L 1575.54,0 L 1521.82,0 L 1521.82,159.47 c 0,14.55 2.73,28.19 8.19,40.91 c 5.45,12.74 12.93,23.86 22.45,33.37 c 9.51,9.51 20.63,17 33.36,22.45 c 12.73,5.45 26.37,8.18 40.92,8.18 c 14.55,0 28.19,-2.73 40.92,-8.18 c 12.73,-5.46 23.85,-12.94 33.36,-22.45 c 9.51,-9.51 16.99,-20.63 22.45,-33.37 c 5.45,-12.72 8.18,-26.36 8.18,-40.91 z"/><path d="M 1396.65,54.98 L 1343.84,54.98 L 1343.84,0 L 1290.13,0 L 1290.13,54.98 L 1290.13,111.16 L 1396.65,111.16 c 26.96,0 48.9,21.94 48.9,48.9 C 1445.55,187.02 1423.62,208.96 1396.65,208.96 L 1378.54,208.96 L 1378.54,265.14 L 1396.65,265.14 c 57.94,0 105.08,-47.14 105.08,-105.08 C 1501.73,102.12 1454.6,54.98 1396.65,54.98"/><path d="M 1166.73,54.98 L 1113.92,54.98 L 1113.92,0 L 1060.21,0 L 1060.21,54.98 L 1060.21,111.16 L 1166.73,111.16 c 26.96,0 48.9,21.94 48.9,48.9 C 1215.63,187.02 1193.7,208.96 1166.73,208.96 L 1148.62,208.96 L 1148.62,265.14 L 1166.73,265.14 c 57.94,0 105.08,-47.14 105.08,-105.08 C 1271.81,102.12 1224.68,54.98 1166.73,54.98"/></svg></a>
     <span class="spacer"></span>
     <span class="datachip" id="datachip">Loading…</span>
     <button class="iconbtn" id="themebtn" type="button" aria-label="Toggle dark mode" title="Toggle dark mode">
@@ -667,6 +679,39 @@ function dayTabsHTML(days, selDate, hrefOf, attrOf){
     : `<button class="tab" type="button" role="tab" ${attrOf(d)} aria-selected="${d === selDate}">${dayLabel(d)}</button>`).join('')}</div>`;
 }
 
+// RSVP + team messages. Prototype keeps them in memory per ride date (sample riders are examples);
+// the live app stores rsvps and messages in D1 and refreshes while the page is open.
+const RSVP = {};
+function rsvpFor(date, ride){
+  if (RSVP[date]) return RSVP[date];
+  const sat = dow(date) === 6, lbl = ride.routes.length > 1;
+  const people = sat ? [['Alex', 'in', lbl ? 'Full' : ''], ['Maria', 'in', lbl ? 'Short' : ''], ['Dmitri', 'in', lbl ? 'Full' : ''], ['Sam', 'in', lbl ? 'Full' : ''], ['Chris', 'out', '']]
+                     : [['Alex', 'in', ''], ['Jordan', 'in', ''], ['Maria', 'out', '']];
+  const msgs = sat ? [
+      { id: 1, name: 'Maria', at: '6:40 PM', text: 'Anyone driving from White Plains? Happy to chip in for gas.', replies: [{ name: 'Dmitri', at: '7:05 PM', text: 'I can take one more, leaving 7:55.' }] },
+      { id: 2, name: 'Chris', at: '8:12 PM', text: 'Out this week, family thing. Have a good one!', replies: [] }]
+    : [{ id: 1, name: 'Jordan', at: '5:20 PM', text: 'If it rains by noon, do we still stop at BreadsNBakes?', replies: [] }];
+  return RSVP[date] = { me: null, myRoute: '', people: people.map(([name, status, route]) => ({ name, status, route })), msgs, nextId: 10, replyTo: null };
+}
+function ridersPanel(ride, date){
+  const R = rsvpFor(date, ride), all = R.people.concat(R.me ? [{ name: 'You', status: R.me, route: R.myRoute, me: true }] : []);
+  const ins = all.filter(p => p.status === 'in'), outs = all.filter(p => p.status === 'out');
+  const nMsg = R.msgs.reduce((n, m) => n + 1 + m.replies.length, 0);
+  const btns = `<div class="seg rsvp" role="group" aria-label="Your RSVP"><button type="button" data-rsvp="in" aria-pressed="${R.me === 'in'}">In</button><button type="button" data-rsvp="out" aria-pressed="${R.me === 'out'}">Out</button></div>`;
+  const routePick = R.me === 'in' && ride.routes.length > 1 ? `<div class="seg" role="group" aria-label="Your route" style="margin-top:6px">${ride.routes.map(r => `<button type="button" data-rsvp-route="${esc(r.label)}" aria-pressed="${R.myRoute === r.label}">${esc(r.label)}</button>`).join('')}</div>` : '';
+  const person = p => `<span class="person${p.me ? ' me' : ''}">${esc(p.name)}${p.route ? ` <span class="muted">· ${esc(p.route)}</span>` : ''}</span>`;
+  const msg = (m, isReply) => `<div class="msg${isReply ? ' reply' : ''}"><div class="meta"><b>${esc(m.name)}</b> <span class="muted">${m.at}</span></div><p>${esc(m.text)}</p>
+      ${isReply ? '' : `<button type="button" class="linkbtn" data-reply="${m.id}">Reply</button>`}
+      ${!isReply && m.replies.length ? `<div class="replies">${m.replies.map(r => msg(r, true)).join('')}</div>` : ''}
+      ${!isReply && R.replyTo === m.id ? `<div class="compose"><textarea id="reply-${m.id}" aria-label="Reply to ${esc(m.name)}" placeholder="Reply to ${esc(m.name)}"></textarea><div class="btnrow"><button type="button" class="btn btn-primary btn-sm" data-send="${m.id}">Send</button><button type="button" class="btn btn-outline btn-sm" data-reply="0">Cancel</button></div></div>` : ''}</div>`;
+  return panel('riders', 'Riders',
+    `<b>${ins.length} in</b> · ${outs.length} out · ${nMsg} message${nMsg === 1 ? '' : 's'}<div class="sw">${btns}${routePick}</div>`,
+    `<div class="people"><div><div class="sub-h">In (${ins.length})</div><div class="plist">${ins.map(person).join('') || '<span class="muted small">No one yet</span>'}</div></div>
+       ${outs.length ? `<div><div class="sub-h">Out (${outs.length})</div><div class="plist">${outs.map(person).join('')}</div></div>` : ''}</div>
+     <div class="sub"><div class="sub-h">Messages</div>${R.msgs.map(m => msg(m)).join('') || '<p class="muted small">No messages yet.</p>'}
+       <div class="compose"><textarea id="msg-new" aria-label="Message the team" placeholder="Message the team"></textarea><div class="btnrow"><button type="button" class="btn btn-primary btn-sm" data-send="new">Send</button></div></div></div>`);
+}
+
 // Ride body: warnings + Meet / Route / Weather / Notes panels. Used by the ride page and the editor preview.
 function rideBody(ride, date, opts = {}){
   const kp = opts.preview ? 'pv-' : '';
@@ -724,7 +769,7 @@ function rideBody(ride, date, opts = {}){
         ride.notes ? `Notes: ${ride.notes.replace(/\n/g, ' ')}` : null
       ].filter(Boolean).join('\n'), url: location.href };
   }
-  return `<h1 class="sr">${esc(spot.name)} — ${esc(route.name)}</h1>` + (ev ? warnBoxes(warnList(ev, se, date, t.start)) : '') + `<div class="panels">${meet}${routeP}${weather}${notes}</div>`;
+  return `<h1 class="sr">${esc(spot.name)} — ${esc(route.name)}</h1>` + (ev ? warnBoxes(warnList(ev, se, date, t.start)) : '') + `<div class="panels">${meet}${routeP}${weather}${notes}${opts.preview ? '' : ridersPanel(ride, date)}</div>`;
 }
 
 function viewRide(arg){
@@ -906,6 +951,20 @@ document.addEventListener('click', e => {
     return;
   }
   if (e.target.closest('[data-copy]')){ const ta = document.getElementById('share-text'); ta.select(); (navigator.clipboard ? navigator.clipboard.writeText(ta.value) : Promise.reject()).then(() => toast('Copied'), () => { try { document.execCommand('copy'); toast('Copied'); } catch(err){ toast('Select the text and copy it'); } }); return; }
+  const rs = e.target.closest('[data-rsvp],[data-rsvp-route],[data-reply],[data-send]');
+  if (rs){
+    const ride = rideOn(UI.day), R = rsvpFor(UI.day, ride), now = fmtTime(nyNow().min);
+    if (rs.dataset.rsvp){ R.me = R.me === rs.dataset.rsvp ? null : rs.dataset.rsvp; if (R.me === 'in' && ride.routes.length > 1 && !R.myRoute) R.myRoute = ride.routes[0].label; toast(R.me === 'in' ? "You're in" : R.me === 'out' ? "You're out" : 'RSVP cleared'); }
+    else if (rs.dataset.rsvpRoute) R.myRoute = rs.dataset.rsvpRoute;
+    else if (rs.dataset.reply != null) R.replyTo = +rs.dataset.reply || null;
+    else {
+      const id = rs.dataset.send, ta = document.getElementById(id === 'new' ? 'msg-new' : `reply-${id}`), text = ta && ta.value.trim();
+      if (!text){ ta && ta.focus(); return; }
+      if (id === 'new') R.msgs.push({ id: R.nextId++, name: 'You', at: now, text, replies: [] });
+      else { R.msgs.find(m => m.id === +id).replies.push({ name: 'You', at: now, text }); R.replyTo = null; }
+    }
+    render(); if (rs.dataset.reply && R.replyTo) document.getElementById(`reply-${R.replyTo}`)?.focus(); return;
+  }
   if (e.target.closest('[data-cal]')){ showCalSheet(UI.cal); return; }
   if (e.target.closest('[data-close]') && e.target.closest('a')){ setTimeout(() => document.querySelector('.sheet')?.remove(), 0); return; }
   if (e.target.closest('[data-close]') || e.target.classList.contains('sheet')){ document.querySelector('.sheet')?.remove(); return; }

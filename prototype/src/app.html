@@ -43,7 +43,6 @@ h1{font-size:20px} h2{font-size:16px} h3{font-size:14px}
 .topbar-inner{max-width:1200px;margin:0 auto;height:56px;display:flex;align-items:center;gap:10px;padding:0 16px}
 .topbar .logo{height:32px;width:auto;color:#fff;display:block}
 .brandlink{display:flex;align-items:center;gap:10px;color:#fff;text-decoration:none}
-.brandname{font-weight:700;font-size:16px;letter-spacing:.2px}
 .topbar .spacer{flex:1}
 .datachip{font-size:12px;background:rgba(255,255,255,.18);border-radius:999px;padding:3px 9px;white-space:nowrap}
 .iconbtn{background:transparent;border:0;color:#fff;width:36px;height:36px;border-radius:8px;display:grid;place-items:center;cursor:pointer}
@@ -182,6 +181,19 @@ textarea{min-height:80px;resize:vertical}
 .sec-b{padding:10px 14px 14px;display:grid;gap:12px}
 .panel.empty{padding:16px 14px}
 .panel.empty p{margin:0 0 6px}
+.people{display:grid;gap:10px}
+.plist{display:flex;flex-wrap:wrap;gap:6px}
+.person{border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:13px;background:var(--card2)}
+.person.me{border-color:var(--primary);font-weight:600}
+.msg{padding:8px 0;border-bottom:1px solid var(--line)}
+.msg:last-of-type{border-bottom:0}
+.msg .meta{font-size:13px}
+.msg p{margin:2px 0 4px;white-space:pre-wrap}
+.msg.reply{padding:6px 0 6px 12px;border-bottom:0;border-left:2px solid var(--line);margin-top:4px}
+.replies{margin-left:4px}
+.linkbtn{appearance:none;background:none;border:0;padding:0;font:inherit;font-size:13px;color:var(--link);cursor:pointer}
+.compose{display:grid;gap:8px;margin-top:10px}
+.compose textarea{min-height:64px}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 @media (min-width:760px){
   .map{height:280px}
@@ -217,7 +229,7 @@ textarea{min-height:80px;resize:vertical}
 <body>
 <header class="topbar">
   <div class="topbar-inner">
-    <a class="brandlink" href="#ride" aria-label="BBT Ride home"><!--BBT_LOGO--><span class="brandname">Ride</span></a>
+    <a class="brandlink" href="#ride" aria-label="BBT Ride home"><!--BBT_LOGO--></a>
     <span class="spacer"></span>
     <span class="datachip" id="datachip">Loading…</span>
     <button class="iconbtn" id="themebtn" type="button" aria-label="Toggle dark mode" title="Toggle dark mode">
@@ -667,6 +679,39 @@ function dayTabsHTML(days, selDate, hrefOf, attrOf){
     : `<button class="tab" type="button" role="tab" ${attrOf(d)} aria-selected="${d === selDate}">${dayLabel(d)}</button>`).join('')}</div>`;
 }
 
+// RSVP + team messages. Prototype keeps them in memory per ride date (sample riders are examples);
+// the live app stores rsvps and messages in D1 and refreshes while the page is open.
+const RSVP = {};
+function rsvpFor(date, ride){
+  if (RSVP[date]) return RSVP[date];
+  const sat = dow(date) === 6, lbl = ride.routes.length > 1;
+  const people = sat ? [['Alex', 'in', lbl ? 'Full' : ''], ['Maria', 'in', lbl ? 'Short' : ''], ['Dmitri', 'in', lbl ? 'Full' : ''], ['Sam', 'in', lbl ? 'Full' : ''], ['Chris', 'out', '']]
+                     : [['Alex', 'in', ''], ['Jordan', 'in', ''], ['Maria', 'out', '']];
+  const msgs = sat ? [
+      { id: 1, name: 'Maria', at: '6:40 PM', text: 'Anyone driving from White Plains? Happy to chip in for gas.', replies: [{ name: 'Dmitri', at: '7:05 PM', text: 'I can take one more, leaving 7:55.' }] },
+      { id: 2, name: 'Chris', at: '8:12 PM', text: 'Out this week, family thing. Have a good one!', replies: [] }]
+    : [{ id: 1, name: 'Jordan', at: '5:20 PM', text: 'If it rains by noon, do we still stop at BreadsNBakes?', replies: [] }];
+  return RSVP[date] = { me: null, myRoute: '', people: people.map(([name, status, route]) => ({ name, status, route })), msgs, nextId: 10, replyTo: null };
+}
+function ridersPanel(ride, date){
+  const R = rsvpFor(date, ride), all = R.people.concat(R.me ? [{ name: 'You', status: R.me, route: R.myRoute, me: true }] : []);
+  const ins = all.filter(p => p.status === 'in'), outs = all.filter(p => p.status === 'out');
+  const nMsg = R.msgs.reduce((n, m) => n + 1 + m.replies.length, 0);
+  const btns = `<div class="seg rsvp" role="group" aria-label="Your RSVP"><button type="button" data-rsvp="in" aria-pressed="${R.me === 'in'}">In</button><button type="button" data-rsvp="out" aria-pressed="${R.me === 'out'}">Out</button></div>`;
+  const routePick = R.me === 'in' && ride.routes.length > 1 ? `<div class="seg" role="group" aria-label="Your route" style="margin-top:6px">${ride.routes.map(r => `<button type="button" data-rsvp-route="${esc(r.label)}" aria-pressed="${R.myRoute === r.label}">${esc(r.label)}</button>`).join('')}</div>` : '';
+  const person = p => `<span class="person${p.me ? ' me' : ''}">${esc(p.name)}${p.route ? ` <span class="muted">· ${esc(p.route)}</span>` : ''}</span>`;
+  const msg = (m, isReply) => `<div class="msg${isReply ? ' reply' : ''}"><div class="meta"><b>${esc(m.name)}</b> <span class="muted">${m.at}</span></div><p>${esc(m.text)}</p>
+      ${isReply ? '' : `<button type="button" class="linkbtn" data-reply="${m.id}">Reply</button>`}
+      ${!isReply && m.replies.length ? `<div class="replies">${m.replies.map(r => msg(r, true)).join('')}</div>` : ''}
+      ${!isReply && R.replyTo === m.id ? `<div class="compose"><textarea id="reply-${m.id}" aria-label="Reply to ${esc(m.name)}" placeholder="Reply to ${esc(m.name)}"></textarea><div class="btnrow"><button type="button" class="btn btn-primary btn-sm" data-send="${m.id}">Send</button><button type="button" class="btn btn-outline btn-sm" data-reply="0">Cancel</button></div></div>` : ''}</div>`;
+  return panel('riders', 'Riders',
+    `<b>${ins.length} in</b> · ${outs.length} out · ${nMsg} message${nMsg === 1 ? '' : 's'}<div class="sw">${btns}${routePick}</div>`,
+    `<div class="people"><div><div class="sub-h">In (${ins.length})</div><div class="plist">${ins.map(person).join('') || '<span class="muted small">No one yet</span>'}</div></div>
+       ${outs.length ? `<div><div class="sub-h">Out (${outs.length})</div><div class="plist">${outs.map(person).join('')}</div></div>` : ''}</div>
+     <div class="sub"><div class="sub-h">Messages</div>${R.msgs.map(m => msg(m)).join('') || '<p class="muted small">No messages yet.</p>'}
+       <div class="compose"><textarea id="msg-new" aria-label="Message the team" placeholder="Message the team"></textarea><div class="btnrow"><button type="button" class="btn btn-primary btn-sm" data-send="new">Send</button></div></div></div>`);
+}
+
 // Ride body: warnings + Meet / Route / Weather / Notes panels. Used by the ride page and the editor preview.
 function rideBody(ride, date, opts = {}){
   const kp = opts.preview ? 'pv-' : '';
@@ -724,7 +769,7 @@ function rideBody(ride, date, opts = {}){
         ride.notes ? `Notes: ${ride.notes.replace(/\n/g, ' ')}` : null
       ].filter(Boolean).join('\n'), url: location.href };
   }
-  return `<h1 class="sr">${esc(spot.name)} — ${esc(route.name)}</h1>` + (ev ? warnBoxes(warnList(ev, se, date, t.start)) : '') + `<div class="panels">${meet}${routeP}${weather}${notes}</div>`;
+  return `<h1 class="sr">${esc(spot.name)} — ${esc(route.name)}</h1>` + (ev ? warnBoxes(warnList(ev, se, date, t.start)) : '') + `<div class="panels">${meet}${routeP}${weather}${notes}${opts.preview ? '' : ridersPanel(ride, date)}</div>`;
 }
 
 function viewRide(arg){
@@ -906,6 +951,20 @@ document.addEventListener('click', e => {
     return;
   }
   if (e.target.closest('[data-copy]')){ const ta = document.getElementById('share-text'); ta.select(); (navigator.clipboard ? navigator.clipboard.writeText(ta.value) : Promise.reject()).then(() => toast('Copied'), () => { try { document.execCommand('copy'); toast('Copied'); } catch(err){ toast('Select the text and copy it'); } }); return; }
+  const rs = e.target.closest('[data-rsvp],[data-rsvp-route],[data-reply],[data-send]');
+  if (rs){
+    const ride = rideOn(UI.day), R = rsvpFor(UI.day, ride), now = fmtTime(nyNow().min);
+    if (rs.dataset.rsvp){ R.me = R.me === rs.dataset.rsvp ? null : rs.dataset.rsvp; if (R.me === 'in' && ride.routes.length > 1 && !R.myRoute) R.myRoute = ride.routes[0].label; toast(R.me === 'in' ? "You're in" : R.me === 'out' ? "You're out" : 'RSVP cleared'); }
+    else if (rs.dataset.rsvpRoute) R.myRoute = rs.dataset.rsvpRoute;
+    else if (rs.dataset.reply != null) R.replyTo = +rs.dataset.reply || null;
+    else {
+      const id = rs.dataset.send, ta = document.getElementById(id === 'new' ? 'msg-new' : `reply-${id}`), text = ta && ta.value.trim();
+      if (!text){ ta && ta.focus(); return; }
+      if (id === 'new') R.msgs.push({ id: R.nextId++, name: 'You', at: now, text, replies: [] });
+      else { R.msgs.find(m => m.id === +id).replies.push({ name: 'You', at: now, text }); R.replyTo = null; }
+    }
+    render(); if (rs.dataset.reply && R.replyTo) document.getElementById(`reply-${R.replyTo}`)?.focus(); return;
+  }
   if (e.target.closest('[data-cal]')){ showCalSheet(UI.cal); return; }
   if (e.target.closest('[data-close]') && e.target.closest('a')){ setTimeout(() => document.querySelector('.sheet')?.remove(), 0); return; }
   if (e.target.closest('[data-close]') || e.target.classList.contains('sheet')){ document.querySelector('.sheet')?.remove(); return; }

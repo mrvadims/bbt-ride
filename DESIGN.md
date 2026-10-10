@@ -38,6 +38,8 @@ spots(id, name, lat, lng, maps_url, note, archived)
 rides(id, date, rollout, spot_id, pace_mph, stop_min, notes, status CHECK(status IN ('draft','published','archived')), created_by, updated_by, updated_at)
 ride_routes(ride_id, sort, label, rwgps_route_id, stop_poi_json)
 route_cache(rwgps_route_id PRIMARY KEY, json, fetched_at)
+rsvps(ride_id, user_id, status CHECK(status IN ('in','out')), route_label NULL, updated_at, PRIMARY KEY(ride_id, user_id))
+messages(id, ride_id, user_id, parent_id NULL, body, created_at, edited_at NULL, deleted_at NULL)  -- parent_id = reply to
 audit_log(id, user_id, action, entity, entity_id, diff_json, at)
 ```
 
@@ -52,6 +54,7 @@ audit_log(id, user_id, action, entity, entity_id, diff_json, at)
   - **Route** — collapsed: route name (opens RWGPS) · distance · climbing, plus the Full/Short switcher. Expanded: map, elevation profile, coffee stop (name links to Maps, mile, ETA, length, weather there; labeled optional), "Open in RWGPS".
   - **Weather** — collapsed: temp range · real feel range · wind · rain chance, a warning count if any, and a one-line kit hint. Expanded: ride-window summary (bike feel, gusts, rain total, roads), hourly table from 1 h before roll-out to 3 h after the estimated return (ride window shaded), a "Full-day forecast" button that opens the rider's chosen weather source (NWS, Weather.com, Windy or Google; choice saved in their browser), then What to wear (Run cold / Avg / Run hot).
   - **Notes** — only if the ride has notes; collapsed shows the first line.
+  - **Riders** — collapsed: "5 in · 1 out · 3 messages" plus **In / Out** buttons, so riders answer without opening the panel; when a ride has alternates, In also asks Full or Short. Expanded: who's in (with their route) and out, and a message thread for the ride: anyone can post, reply to a message (one level), and see everyone's messages. All signed-in roles can RSVP and post. Authors can edit or delete their own messages; Edit and Admin can delete any (moderation). The page refreshes RSVPs and messages every 30 s while open.
   - **Share** icon next to the day tabs: uses the phone's share sheet (Web Share API) with a text brief (date, meet time and Maps link, routes with RWGPS links, coffee stop, time back, weather, notes) plus the ride link; falls back to a copy-to-clipboard sheet. The ride link requires sign-in.
   - Warnings: wet/drying roads, cold, heat, wind, rain, thunder, and low light (roll-out within 30 min of sunrise). No Go badge.
 - Route picker: search RWGPS routes from the captain's personal library **and** the BBT club library, or paste a RWGPS link. Suggest start spot by nearest saved spot to route start.
@@ -238,7 +241,7 @@ Never in the repo, the built assets, or any response to the browser. All third-p
 1. **RWGPS route weather** (phase 2) — forecast at each point by ETA; head/tail/crosswind per segment.
 2. **Shareable ride brief** — public link + copyable text.
 3. **WhatsApp integration** (or other messenger) — post ride brief to group chat.
-4. **Morning-of push alert** — PWA push N hours before ride.
+4. **Morning-of push alert** — PWA push N hours before ride; also optional pushes for new messages and replies to you.
 5. **Model comparison** — HRRR vs NBM vs ECMWF agreement/confidence.
 
 ## Seed data

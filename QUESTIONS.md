@@ -46,3 +46,5 @@ Each has a recommended default. Reply with the number and "ok" or your change. T
 20. **Public ride link.** Sign-in is now required for everything. Should a published ride page also have an optional public share link (no login), e.g. for guests joining one ride?
     **Default:** no public pages in v1; revisit with the "shareable ride brief" backlog item.
 21. **Uninvited Google sign-ins.** **Default:** show "Not invited — ask a team admin" and don't create a row. Option: auto-create as Read with status `pending` for an Admin to approve.
+22. **RSVP deadline and reminders.** **Default:** no deadline; RSVPs stay open until roll-out. Option: remind riders who haven't answered by Friday 6 PM (needs push or email).
+23. **Message notifications.** **Default:** no notifications in v1; riders check the Riders panel. Option: push for new messages and replies once the PWA push backlog item lands.
