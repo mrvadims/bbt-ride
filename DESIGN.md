@@ -65,11 +65,10 @@ audit_log(id, user_id, action, entity, entity_id, diff_json, at)
 - Name, Google Maps parking pin link (coordinates parsed from link; short links resolved server-side), notes (parking, restrooms).
 - Add via Maps link, search, map tap, or current location. One-off spots allowed.
 
-### Weekend board (planning view; visible to all roles)
-- Sat / Sun tabs plus an "Other day" date picker (any day in the forecast range). Card per spot for selected day + start time + duration: road status (Dry / Drying / Wet), temp range, real feel / bike feel, wind + gusts + direction, rain chance/amount, Go / Caution / No-go verdict (worst factor wins).
-
-### Spot detail
-- Rain bars −12h → +8h with ride window highlighted, hourly (15-min where available) table, radar loop.
+### Weekend (planning view; all roles)
+- Same panel pattern as the ride page. Sat / Sun tabs, an "Other day" date picker (any day in the forecast range), roll-out time and window length.
+- One collapsible panel per spot (collapsed by default so spots compare at a glance): spot name, temp · real feel · wind · rain, and warning chips only when something needs attention (same rules and colors as the ride page warnings; no Go badge).
+- Expanded = spot detail (replaces the separate spot page): bike feel, gusts, rain total and road state; rain bars −12 h → +8 h with the window highlighted; hourly table (1 h before → 3 h after); Full-day forecast (rider's weather source) and Radar (RainViewer) buttons; parking notes, Google Maps, and "Plan a ride here" for editors (pre-fills spot, date and time).
 
 ### What to wear
 - Default team kit chart keyed on **bike feel** + wind + rain + road wetness; editors can tune.
@@ -77,15 +76,19 @@ audit_log(id, user_id, action, entity, entity_id, diff_json, at)
 - Shedding hints when temp rises during the ride; fenders when roads damp.
 
 ### Settings (Admin only, stored in D1)
-Every setting lives in the `settings` table and is edited on the Settings tab; nothing is hard-coded except first-run defaults.
-- Ride defaults: roll-out **8:30**, board duration 3 h, pace 17 mph, coffee stop **20 min** (typical 15–20), regroup buffer **5 %** of moving time.
-- Road wetness: look-back hours, Wet / Drying film thresholds.
-- Verdict thresholds: cold, heat, wind, gusts, rain chance, rain amount.
-- Kit chart bands and items (`kit_bands`).
-- Units (°F/mph for v1).
-- Users (invite, change role, disable).
+Every setting lives in the `settings` table and is edited on the Settings tab; nothing is hard-coded except first-run defaults. Collapsible panels, each with a one-line summary of the current values:
+- **Users:** invite by email with a role, change roles, disable.
+- **Ride defaults:** roll-out **8:30**, Weekend window 3 h, pace 17 mph, coffee stop **20 min** (typical 15–20), regroup buffer **5 %** of moving time.
+- **Road wetness:** look-back hours, Wet / Drying film thresholds.
+- **Warnings:** amber and red thresholds for cold (bike feel), heat (real feel), wind, gusts, rain chance, rain amount.
+- **Kit chart:** bands and items (`kit_bands`).
+- Units: °F/mph for v1.
 
-Per-rider preferences (theme, cold/avg/hot offset) stay in the rider's browser.
+Per-rider preferences stay in the rider's browser: theme (header toggle), Run cold / Avg / Run hot, weather source, which panels are open.
+
+### Plan a ride (Edit and Admin)
+- Form in the same panel style, mirroring the ride page: **Meet** (date (any day), roll-out, start spot suggested from the route's first point), **Route** (search or paste a RWGPS link, optional alternate with labels, coffee stop picked from route POIs, pace), **Notes**.
+- **Preview** shows the actual ride-page panels for the draft, so the editor sees exactly what riders will see. Publish / Save draft.
 
 ### Metrics
 - **Real feel** — standard apparent temperature.
@@ -136,13 +139,13 @@ For each hour *i* in the window, oldest first:
    Sanity anchors: sunny 68 °F, 14 °F spread, 8 mph, 600 W/m² → ~0.7 mm/h (1 mm gone in ~1.5 h). Calm overcast night 46 °F, 3 °F spread → ~0.08 mm/h (wet roads stay wet till morning).
 
 Output:
-| State | Rule | Verdict level |
+| State | Rule | Warning |
 |---|---|---|
-| **Wet** | rain ≥ 0.01" in the current hour, or `W ≥ 0.5 mm` | No-go |
-| **Drying** | `0.1 ≤ W < 0.5 mm` | Caution |
-| **Dry** | `W < 0.1 mm` | Go |
+| **Wet** | rain ≥ 0.01" in the current hour, or `W ≥ 0.5 mm` | Red |
+| **Drying** | `0.1 ≤ W < 0.5 mm` | Amber |
+| **Dry** | `W < 0.1 mm` | none |
 
-Also shown: rain total in the look-back window and hours since the last measurable rain (≥ 0.005"). The verdict uses the state at roll-out; the ride page also notes if the state changes by the finish. Coefficients are a first guess to be tuned against real Saturdays (see QUESTIONS.md).
+Also shown: rain total in the look-back window and hours since the last measurable rain (≥ 0.005"). The warning uses the state at roll-out; the ride page also notes if the state changes by the finish. Coefficients are a first guess to be tuned against real Saturdays (see QUESTIONS.md).
 
 ### Bike feel
 Wind chill using the relative airflow a rider feels. Over a loop the rider meets the wind from every angle, so the average airflow is approximated as `V = √(pace² + wind²)` (17 mph pace + 10 mph wind → 19.7 mph).
@@ -158,10 +161,10 @@ The NWS formula is only defined for T ≤ 50 °F. Above that we take the chill d
 
 Display: range over the ride window (min–max), next to temp and real feel.
 
-### Verdict (Go / Caution / No-go)
-Evaluated on 15-minute samples across the ride window. Each factor gets a level; **the worst factor wins**. Defaults (editable in Settings):
+### Warnings (amber / red)
+Evaluated on 15-minute samples across the ride window. Each factor gets a level: none, amber (caution) or red (no-go). Only factors with a level are shown, as warnings on the ride page and chips on the Weekend page; there is no overall Go badge. Defaults (editable in Settings):
 
-| Factor | Measure | Caution | No-go |
+| Factor | Measure | Amber | Red |
 |---|---|---|---|
 | Road | state at roll-out | Drying | Wet |
 | Cold | min bike feel | < 40 °F | < 32 °F |
@@ -202,7 +205,7 @@ Mile markers come from the POI's distance along the RWGPS track (nearest track p
 ## Prototype
 `prototype/index.html` — one self-contained file (inline CSS/JS, Leaflet 1.9.4 from cdnjs). Built from `prototype/src/app.html` by `python3 prototype/build.py`, which inlines `data/seed.json`, the fallback forecast `data/raw/om_purchase.json`, and the logo.
 - Fetches Open-Meteo live in the browser for the 3 spots + coffee-stop POIs (one multi-location request, `past_days=2`). On failure it uses the embedded sample and shows a banner.
-- Screens: Ride (Sat/Sun, Full/Short), Weekend board, Spot detail (rain −12 h → +8 h, hourly, RainViewer radar), Plan a ride (mock), Settings (stored in this browser).
+- Screens: Ride (date tabs, Meet / Route / Weather / Notes panels, share, calendar), Weekend (spot panels with inline detail), Plan a ride (mock; preview reuses the ride panels), Settings (panels; stored in this browser). A View / Edit / Admin switcher demonstrates roles.
 - Without Leaflet (offline/CDN blocked) maps fall back to an SVG route outline.
 
 ## Data sources

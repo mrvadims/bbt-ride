@@ -61,11 +61,7 @@ main{max-width:1200px;margin:0 auto;padding:16px 16px 48px}
 .daytabs .tab{padding:10px 12px 8px}
 .banner{border-radius:10px;padding:10px 12px;margin:0 0 14px;font-size:13px;background:var(--cau-bg);color:var(--cau-fg)}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;box-shadow:var(--shadow);margin-bottom:14px;min-width:0}
-.card-h{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
-.card-h h2{display:flex;align-items:center;gap:8px}
 .kicker{font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--muted)}
-.ride-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:10px;margin-bottom:14px}
-.ride-head h1{font-size:22px}
 .btn{appearance:none;display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:10px;border:1px solid transparent;padding:9px 14px;font:inherit;font-weight:600;cursor:pointer;text-decoration:none;min-height:40px}
 .btn-primary{background:var(--primary);color:var(--on-primary)}
 .btn-primary:hover{background:var(--primary-hover)}
@@ -76,21 +72,12 @@ main{max-width:1200px;margin:0 auto;padding:16px 16px 48px}
 .seg{display:inline-flex;background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:3px;gap:2px}
 .seg button{appearance:none;border:0;background:transparent;color:var(--muted);font:inherit;font-weight:600;font-size:13px;padding:6px 12px;border-radius:7px;cursor:pointer}
 .seg button[aria-pressed="true"]{background:var(--primary);color:#fff}
-.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0}
-.stat{background:var(--card2);border-radius:10px;padding:8px 10px}
-.stat b{display:block;font-size:18px}
-.stat span{font-size:12px;color:var(--muted)}
 .map{height:220px;border-radius:10px;overflow:hidden;background:var(--card2);position:relative}
 .map svg{width:100%;height:100%;display:block}
 .profile{width:100%;height:auto;display:block;margin-top:8px}
 .pill{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:3px 10px;font-size:13px;font-weight:700;white-space:nowrap}
 .pill svg{width:12px;height:12px}
 .lv0{background:var(--go-bg);color:var(--go-fg)} .lv1{background:var(--cau-bg);color:var(--cau-fg)} .lv2{background:var(--no-bg);color:var(--no-fg)}
-.kv{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
-.kv>div{background:var(--card2);border-radius:10px;padding:8px 10px;min-width:0}
-.kv .k{font-size:12px;color:var(--muted)}
-.kv .v{font-size:16px;font-weight:700}
-.kv .s{font-size:12px;color:var(--muted)}
 .tablewrap{overflow-x:auto;margin:10px -14px -4px;padding:0 14px}
 table{border-collapse:collapse;width:100%;font-size:13px}
 th,td{padding:6px 6px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line)}
@@ -102,23 +89,14 @@ tr.now td:first-child{box-shadow:inset 3px 0 0 var(--win-line)}
 .list{list-style:none;margin:0;padding:0}
 .list li{display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)}
 .list li:last-child{border-bottom:0}
-.dot{width:8px;height:8px;border-radius:50%;background:var(--chart);margin-top:7px;flex:none}
 .tag{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border:1px solid var(--line);color:var(--muted);border-radius:6px;padding:1px 6px}
 .notes{white-space:pre-wrap;margin:0}
 .grid{display:grid;gap:14px}
-.board{display:grid;gap:14px}
-.spotcard{cursor:pointer}
-.spotcard:hover{border-color:var(--primary)}
-.factors{display:grid;gap:4px;margin-top:10px}
-.factor{display:flex;justify-content:space-between;gap:8px;font-size:13px}
-.factor .why{color:var(--muted);text-align:right}
 .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:14px}
 label.field{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;color:var(--muted);min-width:0}
 input,select,textarea{font:inherit;color:var(--text);background:var(--card);border:1px solid var(--line);border-radius:9px;padding:8px 10px;min-height:40px;width:100%}
 input:focus,select:focus,textarea:focus{outline:2px solid var(--primary);outline-offset:-1px;border-color:transparent}
 textarea{min-height:80px;resize:vertical}
-.form{display:grid;gap:12px}
-.form .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .results{border:1px solid var(--line);border-radius:10px;margin-top:6px;max-height:220px;overflow:auto}
 .results button{display:flex;width:100%;justify-content:space-between;gap:8px;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);padding:9px 10px;font:inherit;color:var(--text);cursor:pointer}
 .results button:last-child{border-bottom:0}
@@ -126,7 +104,7 @@ textarea{min-height:80px;resize:vertical}
 .radio{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--line);cursor:pointer}
 .radio:last-child{border-bottom:0}
 .radio input{width:18px;min-height:18px;margin-top:2px;flex:none}
-.settings-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.settings-grid,.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:600;z-index:3000;box-shadow:0 4px 18px rgba(0,0,0,.25);max-width:calc(100% - 32px)}
 .chart{width:100%;height:auto;display:block}
 .chart text{fill:var(--muted);font-size:11px}
@@ -142,7 +120,6 @@ textarea{min-height:80px;resize:vertical}
 .warn svg{width:14px;height:14px;flex:none;margin-top:3px}
 .warn b{display:block}
 .warn span{font-size:13px;opacity:.85}
-.kv.kv4{grid-template-columns:repeat(2,1fr)}
 @media (min-width:760px){.kv.kv4{grid-template-columns:repeat(4,1fr)}}
 .panels{display:grid;gap:10px}
 .panel{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);min-width:0}
@@ -168,7 +145,7 @@ textarea{min-height:80px;resize:vertical}
 .sub p{margin:0 0 4px}
 .clamp{display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
 .panel-b .tablewrap{margin:8px -14px 0}
-@media (min-width:960px){.panels{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}}
+@media (min-width:960px){.panels{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}.plan-grid .panels{grid-template-columns:minmax(0,1fr)}}
 .dayrow{display:flex;align-items:flex-end;gap:8px;border-bottom:1px solid var(--line);margin:-4px 0 14px}
 .dayrow .daytabs{border-bottom:0;margin:0;flex:1}
 .iconbtn.share{color:var(--link);margin-bottom:4px}
@@ -182,15 +159,21 @@ textarea{min-height:80px;resize:vertical}
 .choices span{font-size:12px;font-weight:400;color:var(--muted)}
 .sheet textarea{font-size:13px;min-height:180px}
 @media (min-width:760px){.sheet{place-items:center}}
+.panel.titled .panel-h{grid-template-columns:minmax(0,1fr) 16px}
+.panel.titled .panel-t{grid-column:1;font-size:15px;font-weight:700;letter-spacing:0;text-transform:none;color:var(--text);padding:0}
+.panel.titled .panel-s{grid-column:1;grid-row:2;margin-top:2px}
+.panel.titled .chev{grid-column:2;grid-row:1}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.chips .pill{font-size:12px;padding:1px 8px}
+.sec-h{padding:13px 14px 0;font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--muted)}
+.sec-b{padding:10px 14px 14px;display:grid;gap:12px}
+.panel.empty{padding:16px 14px}
+.panel.empty p{margin:0 0 6px}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 @media (min-width:760px){
-  .board{grid-template-columns:repeat(3,1fr)}
-  .kv{grid-template-columns:repeat(3,1fr)}
   .map{height:280px}
 }
 @media (min-width:960px){
-  .ride-grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:16px;align-items:start}
-  .spot-grid{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:16px;align-items:start}
   .plan-grid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:16px;align-items:start}
   .settings-grid{grid-template-columns:repeat(4,1fr)}
 }
@@ -444,10 +427,10 @@ function kitAdvice(st){
   const off = OFFSETS[store.get('bbt.kitOffset', 'avg')] ?? 0;
   const start = kitBand(st.feelMin + off), end = kitBand(st.feelMax + off);
   const add = [];
-  if (st.ppMax >= S.rainProbCaution || st.rain >= S.rainAmtCaution) add.push(['Packable rain jacket', `${r0(st.ppMax)}% chance of rain, ${fmtIn(st.rain)} expected`]);
-  if (st.road.state !== 'Dry') add.push(['Clip-on fenders + shoe covers', `roads ${st.road.state.toLowerCase()} at roll-out`]);
-  if (st.wsMax >= 12 && !start.items.includes('Wind vest')) add.push(['Wind vest', `wind up to ${r0(st.wsMax)} mph`]);
-  if (st.thunder) add.push(['Rethink the ride', 'thunderstorms in the window']);
+  if (st.ppMax >= S.rainProbCaution || st.rain >= S.rainAmtCaution) add.push(['Packable rain jacket', `${r0(st.ppMax)}% chance of rain, ${fmtIn(st.rain)} expected`, 'rain jacket']);
+  if (st.road.state !== 'Dry') add.push(['Clip-on fenders + shoe covers', `roads ${st.road.state.toLowerCase()} at roll-out`, 'fenders']);
+  if (st.wsMax >= 12 && !start.items.includes('Wind vest')) add.push(['Wind vest', `wind up to ${r0(st.wsMax)} mph`, 'wind vest']);
+  if (st.thunder) add.push(['Rethink the ride', 'thunderstorms in the window', 'thunder']);
   const shed = start !== end && st.feelMax - st.feelMin >= 8 ? `Warms up ${r0(st.feelMax - st.feelMin)}° — dress for ${start.name.toLowerCase()} and pack layers to shed down to ${end.name.toLowerCase()}.` : null;
   return { start, end, add, shed, off };
 }
@@ -462,13 +445,12 @@ function wxLabel(c){
   if (c == null) return '–'; if (c === 0) return 'Clear'; if (c === 1) return 'Mostly clear'; if (c === 2) return 'Partly cloudy'; if (c === 3) return 'Overcast';
   if (c <= 48) return 'Fog'; if (c <= 57) return 'Drizzle'; if (c <= 67) return 'Rain'; if (c <= 77) return 'Snow'; if (c <= 82) return 'Showers'; if (c <= 86) return 'Snow showers'; return 'Thunderstorms';
 }
-const VERDICT = ['Go', 'Caution', 'No-go'];
 const ICON = [
   '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6.5 L5 9 L10 3" fill="none" stroke="currentColor" stroke-width="2"/></svg>',
   '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 2 V7 M6 9.2 V10" stroke="currentColor" stroke-width="2"/></svg>',
   '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 3 L9 9 M9 3 L3 9" stroke="currentColor" stroke-width="2"/></svg>'
 ];
-const pill = (level, text) => `<span class="pill lv${level}">${ICON[level]}${text ?? VERDICT[level]}</span>`;
+const pill = (level, text) => `<span class="pill lv${level}">${ICON[level]}${text}</span>`;
 const roadPill = road => road ? pill(road.level, road.state) : '';
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const mapsLink = (lat, lng) => `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
@@ -549,21 +531,6 @@ function mountRouteMap(el, route, stopPoi){
   if (stopPoi) L.circleMarker([stopPoi.lat, stopPoi.lng], { radius: 6, color: '#041DB2', weight: 3, fillColor: '#fff', fillOpacity: 1 }).addTo(m).bindTooltip(stopPoi.name);
   m.fitBounds(line.getBounds(), { padding: [16, 16] });
 }
-async function mountRadar(el, spot){
-  if (!window.L){ el.innerHTML = `<div class="empty muted small">Map library unavailable offline. Use the radar link below.</div>`; return; }
-  const m = L.map(el, { scrollWheelZoom: false }).setView([spot.lat, spot.lng], 8); maps.push(m);
-  tileLayer().addTo(m);
-  L.circleMarker([spot.lat, spot.lng], { radius: 6, color: '#fff', weight: 2, fillColor: '#0077D1', fillOpacity: 1 }).addTo(m);
-  try {
-    const j = await (await fetch('https://api.rainviewer.com/public/weather-maps.json')).json();
-    const fr = j.radar.past[j.radar.past.length - 1];
-    L.tileLayer(`${j.host}${fr.path}/256/{z}/{x}/{y}/2/1_1.png`, { opacity: 0.7, attribution: 'Radar © RainViewer' }).addTo(m);
-    const t = new Date(fr.time * 1000).toLocaleTimeString('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit' });
-    el.insertAdjacentHTML('afterend', `<div class="tiny muted" style="margin-top:6px">Latest radar frame ${t}</div>`);
-  } catch (e) {
-    el.insertAdjacentHTML('afterend', `<div class="tiny muted" style="margin-top:6px">Radar tiles unavailable — use the link below.</div>`);
-  }
-}
 function rainBarsSVG(se, date, startMin, endMin){
   const fs = fIdx(se, date, startMin), fe = fIdx(se, date, endMin); if (fs == null) return '';
   const i0 = Math.max(0, Math.floor(fs) - 12), i1 = Math.min(se.time.length - 1, Math.floor(fs) + 8);
@@ -599,53 +566,55 @@ function hourRows(se, date, fromF, toF, winF0, winF1, pace){
     const road = roadAt(se, i), feel = bikeFeel(se.T[i], se.ws[i], se.app[i], pace);
     const inwin = i >= Math.floor(winF0) && i <= winF1, isNow = fn != null && Math.floor(fn) === i;
     rows += `<tr class="${inwin ? 'inwin' : ''} ${isNow ? 'now' : ''}"><td>${fmtTime(+se.time[i].slice(11, 13) * 60)}</td><td>${wxLabel(se.code[i])}</td><td>${r0(se.T[i])}°</td><td>${r0(se.app[i])}°</td><td><b>${r0(feel)}°</b></td>
-      <td>${arrow(se.wd[i])} ${compass(se.wd[i])} ${r0(se.ws[i])}</td><td>${r0(se.wg[i])}</td><td>${r0(se.pp[i])}%</td><td>${fmtIn(se.p[i] || 0)}</td><td>${roadPill(road)}</td></tr>`;
+      <td>${arrow(se.wd[i])} ${compass(se.wd[i])} ${r0(se.ws[i])}</td><td>${r0(se.wg[i])}</td><td>${r0(se.pp[i])}%</td><td>${fmtIn(se.p[i] || 0)}</td><td>${road.level ? roadPill(road) : '<span class="muted">Dry</span>'}</td></tr>`;
   }
   return `<div class="tablewrap"><table><thead><tr><th>Time</th><th>Sky</th><th>Temp</th><th>Real</th><th>Bike</th><th>Wind mph</th><th>Gust</th><th>Rain</th><th>Amt</th><th>Road</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
-function conditionsKV(st){
-  return `<div class="kv">
-    <div><div class="k">Road at roll-out</div><div class="v">${roadPill(st.road)}</div><div class="s">${st.road.sinceRain == null ? `No rain in ${S.lookback}h` : `${fmtIn(st.road.rainIn)} in ${S.lookback}h · last ${r0(st.road.sinceRain)}h ago`}${st.roadEnd && st.roadEnd.state !== st.road.state ? ` · ${st.roadEnd.state.toLowerCase()} by finish` : ''}</div></div>
-    <div><div class="k">Temp</div><div class="v">${r0(st.tMin)}–${r0(st.tMax)}°</div><div class="s">${wxLabel(st.code)}</div></div>
-    <div><div class="k">Real feel</div><div class="v">${r0(st.appMin)}–${r0(st.appMax)}°</div><div class="s">apparent temperature</div></div>
-    <div><div class="k">Bike feel</div><div class="v">${r0(st.feelMin)}–${r0(st.feelMax)}°</div><div class="s">wind chill at ${S.pace} mph + wind</div></div>
-    <div><div class="k">Wind</div><div class="v">${arrow(st.dir)} ${r0(st.wsMax)} mph</div><div class="s">gusts ${r0(st.wgMax)} · from ${compass(st.dir)}</div></div>
-    <div><div class="k">Rain</div><div class="v">${r0(st.ppMax)}%</div><div class="s">${fmtIn(st.rain)} total in window</div></div>
-  </div>`;
-}
-function verdictBlock(ev){
-  return `<div class="factors">${ev.factors.map(f => `<div class="factor"><span>${pill(f.level, f.k)}</span><span class="why"><b style="color:var(--text)">${f.val}</b><br>${f.why}</span></div>`).join('')}</div>`;
-}
-
 /* ---------- views ---------- */
 const UI = { day: null, route: 0, board: null };
-// Only conditions that need attention are shown; a clean forecast shows nothing.
-function warnings(ev, se, date, t){
+
+// Warnings: only conditions that need attention. Shared by the ride page (boxes) and the board (chips).
+function warnList(ev, se, date, startMin){
   const st = ev.st, out = [];
   const sr = se && sunriseMin(se, date);
-  if (sr != null && t && t.start < sr + 30) out.push([1, 'Low light at roll-out', `Sunrise ${fmtTime(sr)}; bring front and rear lights`]);
+  if (sr != null && startMin != null && startMin < sr + 30) out.push({ l: 1, short: 'Low light', h: 'Low light at roll-out', d: `Sunrise ${fmtTime(sr)}; bring front and rear lights` });
   for (const f of ev.factors){
     if (!f.level) continue;
-    if (f.k === 'Road') out.push([f.level, `Roads ${st.road.state.toLowerCase()} at roll-out`, `${fmtIn(st.road.rainIn)} of rain in the last ${S.lookback} h${st.roadEnd && st.roadEnd.state !== st.road.state ? `; ${st.roadEnd.state.toLowerCase()} by the finish` : ''}`]);
-    if (f.k === 'Cold') out.push([f.level, `Cold: bike feel down to ${r0(st.feelMin)}°`, 'Dress for the start; see What to wear']);
-    if (f.k === 'Heat') out.push([f.level, `Hot: real feel up to ${r0(st.appMax)}°`, 'Bring extra water']);
-    if (f.k === 'Wind') out.push([f.level, `Windy: ${r0(st.wsMax)} mph, gusts ${r0(st.wgMax)}`, `From the ${compass(st.dir)}`]);
-    if (f.k === 'Rain') out.push([f.level, st.thunder ? 'Thunderstorms possible' : `Rain: ${r0(st.ppMax)}% chance`, `${fmtIn(st.rain)} expected during the ride`]);
+    if (f.k === 'Road') out.push({ l: f.level, short: `Roads ${st.road.state.toLowerCase()}`, h: `Roads ${st.road.state.toLowerCase()} at roll-out`, d: `${fmtIn(st.road.rainIn)} of rain in the last ${S.lookback} h${st.roadEnd && st.roadEnd.state !== st.road.state ? `; ${st.roadEnd.state.toLowerCase()} by the finish` : ''}` });
+    if (f.k === 'Cold') out.push({ l: f.level, short: `Cold ${r0(st.feelMin)}°`, h: `Cold: bike feel down to ${r0(st.feelMin)}°`, d: 'Dress for the start; see What to wear' });
+    if (f.k === 'Heat') out.push({ l: f.level, short: `Hot ${r0(st.appMax)}°`, h: `Hot: real feel up to ${r0(st.appMax)}°`, d: 'Bring extra water' });
+    if (f.k === 'Wind') out.push({ l: f.level, short: `Wind ${r0(st.wsMax)}/${r0(st.wgMax)}`, h: `Windy: ${r0(st.wsMax)} mph, gusts ${r0(st.wgMax)}`, d: `From the ${compass(st.dir)}` });
+    if (f.k === 'Rain') out.push(st.thunder ? { l: 2, short: 'Thunder', h: 'Thunderstorms possible', d: `${fmtIn(st.rain)} expected` } : { l: f.level, short: `Rain ${r0(st.ppMax)}%`, h: `Rain: ${r0(st.ppMax)}% chance`, d: `${fmtIn(st.rain)} expected during the ride` });
   }
-  out.sort((a, b) => b[0] - a[0]);
-  return out.length ? `<section class="warns" aria-label="Warnings">${out.map(([l, h, d]) => `<div class="warn lv${l}">${ICON[l]}<div><b>${h}</b><span>${d}</span></div></div>`).join('')}</section>` : '';
+  return out.sort((a, b) => b.l - a.l);
 }
+const warnBoxes = list => list.length ? `<section class="warns" aria-label="Warnings">${list.map(w => `<div class="warn lv${w.l}">${ICON[w.l]}<div><b>${w.h}</b><span>${w.d}</span></div></div>`).join('')}</section>` : '';
+const warnChips = list => list.map(w => `<span class="pill lv${w.l}">${ICON[w.l]}${w.short}</span>`).join(' ');
+
 // Panels: the collapsed header is the briefing; expanding shows detail. Open state is remembered per viewer.
+// opts.title: show the label as a title (for long names such as spots or settings groups) instead of a small caps tag.
 const PANEL_DEFAULT = () => window.innerWidth >= 960;
-function panelOpen(k){ const v = store.get('bbt.panels', {})[k]; return v == null ? PANEL_DEFAULT() : v; }
-function panel(k, label, summary, body){
-  const open = panelOpen(k);
-  return `<section class="panel" data-panel="${k}"><div class="panel-h" data-toggle="${k}">
+function panelOpen(k, dflt){ const v = store.get('bbt.panels', {})[k]; return v == null ? (dflt ?? PANEL_DEFAULT()) : v; }
+function panel(k, label, summary, body, opts = {}){
+  const open = opts.open ?? panelOpen(k, opts.collapsed ? false : undefined);
+  return `<section class="panel${opts.title ? ' titled' : ''}" data-panel="${k}"><div class="panel-h" data-toggle="${k}">
       <button type="button" class="panel-t" data-toggle="${k}" aria-expanded="${open}" aria-controls="pb-${k}">${label}</button>
       <div class="panel-s">${summary}</div>
       <svg class="chev" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5 6 7.5 9 4.5" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></div>
     <div class="panel-b" id="pb-${k}"${open ? '' : ' hidden'}>${body}</div></section>`;
 }
+// A non-collapsing panel for forms.
+const section = (label, body) => `<section class="panel"><div class="sec-h">${label}</div><div class="sec-b">${body}</div></section>`;
+const mapDiv = (route, stopName) => `<div class="map" data-map-route="${route.id}" data-map-stop="${esc(stopName || '')}"></div>`;
+const wxSummary = st => `<b>${r0(st.tMin)}–${r0(st.tMax)}°</b> · feels ${r0(st.appMin)}–${r0(st.appMax)}° · wind ${r0(st.wsMax)} · rain ${r0(st.ppMax)}%`;
+function wxAppRow(spot, extra = ''){
+  const app = store.get('bbt.wxApp', 'nws');
+  return `<div class="btnrow" style="margin-top:10px;align-items:center"><a class="btn btn-outline btn-sm" href="${WX_APPS[app].url(spot)}" target="_blank" rel="noopener">Full-day forecast in ${WX_APPS[app].name}</a>${extra}
+    <label class="tiny muted" style="display:flex;align-items:center;gap:6px">Open in<select data-wx-app style="min-height:32px;padding:4px 8px;width:auto">${Object.entries(WX_APPS).map(([k, v]) => `<option value="${k}" ${k === app ? 'selected' : ''}>${v.name}</option>`).join('')}</select></label></div>`;
+}
+const hourRange = (se, date, ev) => hourRows(se, date, Math.max(0, Math.floor(ev.f0) - 1), Math.ceil(ev.f1) + 3, ev.f0, ev.f1, S.pace);
+const roadNote = st => `roads ${st.road.state.toLowerCase()} (${st.road.sinceRain == null ? `no rain in ${S.lookback} h` : `${fmtIn(st.road.rainIn)} in last ${S.lookback} h`})`;
+
 const WX_APPS = {
   nws: { name: 'NWS', url: s => `https://forecast.weather.gov/MapClick.php?lat=${s.lat}&lon=${s.lng}&FcstType=graphical` },
   weathercom: { name: 'Weather.com', url: s => `https://weather.com/weather/hourbyhour/l/${s.lat.toFixed(3)},${s.lng.toFixed(3)}` },
@@ -679,55 +648,50 @@ function showShareSheet(text){
   document.body.appendChild(d); d.querySelector('textarea').select();
 }
 function sunriseMin(se, date){ const d = se.daily, i = d && d.time.indexOf(date); return i >= 0 && d.sunrise ? hhmmToMin(d.sunrise[i].slice(11, 16)) : null; }
-function viewRide(arg){
-  const weekend = weekendDates();
-  RIDES.filter(r => r.date && !weekend.some(w => w.date === r.date)).forEach(r => weekend.push({ date: r.date, dow: dow(r.date) }));
-  weekend.sort((a, b) => a.date < b.date ? -1 : 1);
-  const sel = weekend.find(w => w.date === arg) || weekend.find(w => w.date === UI.day) || weekend[0];
-  UI.day = sel.date;
-  const dayTabs = `<div class="daytabs" role="tablist">${weekend.map(w => `<a class="tab" role="tab" href="#ride/${w.date}" aria-selected="${w.date === sel.date}">${dayLabel(w.date)}</a>`).join('')}</div>`;
-  const ride = rideOn(sel.date);
-  if (!ride) return dayTabs + `<div class="card empty"><h2>No ride posted for ${dayLabel(sel.date, true)}</h2><p class="muted">Check the weekend board for conditions at each spot.</p><a class="btn btn-primary" href="#board">Weekend board</a></div>`;
-  const ri = Math.min(UI.route, ride.routes.length - 1), rt = ride.routes[ri], route = routeById(rt.id), spot = spotById(ride.spot);
-  const t = rideTimes(route, { time: ride.time, pace: S.pace, stop: rt.stop, stopMin: S.stopMin }), poi = poiFor(rt);
-  const se = WX.series[spot.id], ev = se && evaluate(se, sel.date, t.start, t.end - t.start, S.pace), st = ev && ev.st;
 
-  const cal = { date: sel.date, start: t.start, end: t.end, title: `BBT ride: ${route.name}`, location: `${spot.name} (${spot.maps_url})`,
+function dayTabsHTML(days, selDate, hrefOf, attrOf){
+  return `<div class="daytabs" role="tablist">${days.map(d => hrefOf
+    ? `<a class="tab" role="tab" href="${hrefOf(d)}" aria-selected="${d === selDate}">${dayLabel(d)}</a>`
+    : `<button class="tab" type="button" role="tab" ${attrOf(d)} aria-selected="${d === selDate}">${dayLabel(d)}</button>`).join('')}</div>`;
+}
+
+// Ride body: warnings + Meet / Route / Weather / Notes panels. Used by the ride page and the editor preview.
+function rideBody(ride, date, opts = {}){
+  const kp = opts.preview ? 'pv-' : '';
+  const ri = Math.min(UI.route, ride.routes.length - 1), rt = ride.routes[opts.preview ? 0 : ri], route = routeById(rt.id), spot = spotById(ride.spot);
+  const pace = ride.pace || S.pace;
+  const t = rideTimes(route, { time: ride.time, pace, stop: rt.stop, stopMin: S.stopMin }), poi = poiFor(rt);
+  const se = WX.series[spot.id], ev = se && evaluate(se, date, t.start, t.end - t.start, pace), st = ev && ev.st;
+  const cal = { date, start: t.start, end: t.end, title: `BBT ride: ${route.name}`, location: `${spot.name} (${spot.maps_url})`,
     details: `${ride.routes.map(r => `${r.label}: ${routeById(r.id).name} — ${routeById(r.id).url}`).join('\n')}\nParking: ${spot.note}${ride.notes ? `\n\n${ride.notes}` : ''}` };
-  UI.cal = cal;
-  const meet = panel('meet', 'Meet',
+
+  const meet = panel(kp + 'meet', 'Meet',
     `<b>${fmtTime(t.start)}</b> · <a href="${spot.maps_url}" target="_blank" rel="noopener">${esc(spot.name)}</a>`,
     `<dl class="kvlist"><div><dt>Back</dt><dd><b>≈ ${fmtTime(t.end)}</b><span>${fmtDur(t.movingH)} moving + ${r0(t.regroupMin)} min regroups${t.stop ? ` + ${t.stop.len} min coffee · ≈ ${fmtTime(t.end - t.stop.len)} without the stop` : ''}</span></dd></div>
       <div><dt>Parking</dt><dd>${esc(spot.note)}</dd></div></dl>
-     <div class="btnrow"><a class="btn btn-outline btn-sm" href="${spot.maps_url}" target="_blank" rel="noopener">Open in Google Maps</a>
-       <button type="button" class="btn btn-outline btn-sm" data-cal>+ Calendar</button></div>`);
+     <div class="btnrow"><a class="btn btn-outline btn-sm" href="${spot.maps_url}" target="_blank" rel="noopener">Open in Google Maps</a>${opts.preview ? '' : '<button type="button" class="btn btn-outline btn-sm" data-cal>+ Calendar</button>'}</div>`);
 
-  const switcher = ride.routes.length > 1 ? `<div class="seg" role="group" aria-label="Route">${ride.routes.map((r, i) => `<button type="button" data-route="${i}" aria-pressed="${i === ri}">${r.label} · ${r0(routeById(r.id).distance_m / MI)} mi</button>`).join('')}</div>` : '';
+  const switcher = !opts.preview && ride.routes.length > 1 ? `<div class="seg" role="group" aria-label="Route">${ride.routes.map((r, i) => `<button type="button" data-route="${i}" aria-pressed="${i === ri}">${esc(r.label)} · ${r0(routeById(r.id).distance_m / MI)} mi</button>`).join('')}</div>` : '';
   let stopHTML = '';
   if (poi){
-    const ps = WX.series[poiKey(poi)], f = ps && fIdx(ps, sel.date, t.stop.eta);
+    const ps = WX.series[poiKey(poi)], f = ps && fIdx(ps, date, t.stop.eta);
     const w = f != null ? { T: at(ps.T, f), app: at(ps.app, f), ws: at(ps.ws, f), pp: near(ps.pp, f), code: near(ps.code, f) } : null;
     stopHTML = `<div class="sub"><div class="sub-h">Coffee stop <span class="tag">optional</span></div>
       <p><a href="${mapsLink(poi.lat, poi.lng)}" target="_blank" rel="noopener"><b>${esc(poi.name)}</b></a> · mile ${t.stop.mile.toFixed(1)} · ≈ ${fmtTime(t.stop.eta)} · ${t.stop.len} min</p>
-      ${w ? `<p class="small muted">${r0(w.T)}° there, ${wxLabel(w.code).toLowerCase()}, ${r0(w.pp)}% rain · bike feel ${r0(bikeFeel(w.T, w.ws, w.app, S.pace))}° rolling out</p>` : ''}</div>`;
+      ${w ? `<p class="small muted">${r0(w.T)}° there, ${wxLabel(w.code).toLowerCase()}, ${r0(w.pp)}% rain · bike feel ${r0(bikeFeel(w.T, w.ws, w.app, pace))}° rolling out</p>` : ''}</div>`;
   }
-  const routeP = panel('route', 'Route',
+  const routeP = panel(kp + 'route', 'Route',
     `<a href="${route.url}" target="_blank" rel="noopener"><b>${esc(route.name)}</b></a> · ${t.distMi.toFixed(1)} mi · ${r0(t.climbFt).toLocaleString()} ft${switcher ? `<div class="sw">${switcher}</div>` : ''}`,
-    `<div class="map" id="routemap"></div>${elevationSVG(route, t.stop ? t.stop.mile : null)}${stopHTML}
+    `${mapDiv(route, rt.stop)}${elevationSVG(route, t.stop ? t.stop.mile : null)}${stopHTML}
      <div class="btnrow" style="margin-top:12px"><a class="btn btn-primary btn-sm" href="${route.url}" target="_blank" rel="noopener">Open in RWGPS</a></div>`);
 
-  let weather = '';
+  let weather;
   if (ev){
     const k = kitAdvice(st), cur = store.get('bbt.kitOffset', 'avg');
-    const warnCount = ev.factors.filter(f => f.level).length;
-    const fa = Math.max(0, Math.floor(ev.f0) - 1), fb = Math.ceil(ev.f1) + 3;
-    const app = store.get('bbt.wxApp', 'nws');
-    weather = panel('weather', 'Weather',
-      `<b>${r0(st.tMin)}–${r0(st.tMax)}°</b> · feels ${r0(st.appMin)}–${r0(st.appMax)}° · wind ${r0(st.wsMax)} · rain ${r0(st.ppMax)}%${warnCount ? ` <span class="pill lv${ev.level}">${ICON[ev.level]}${warnCount} warning${warnCount > 1 ? 's' : ''}</span>` : ''}<div class="tiny muted">Wear: ${k.start.name.toLowerCase()} kit${k.add.length ? ' + ' + k.add.map(a => a[0].split(' ')[0].toLowerCase() === 'packable' ? 'rain jacket' : a[0].toLowerCase()).join(', ') : ''}</div>`,
-      `<p class="small" style="margin:0">Ride ${fmtTime(t.start)}–${fmtTime(t.end)} · bike feel ${r0(st.feelMin)}–${r0(st.feelMax)}° · gusts ${r0(st.wgMax)} mph from ${compass(st.dir)} · ${fmtIn(st.rain)} rain · roads ${st.road.state.toLowerCase()} (${st.road.sinceRain == null ? `no rain in ${S.lookback} h` : `${fmtIn(st.road.rainIn)} in last ${S.lookback} h`})</p>
-       ${hourRows(se, sel.date, fa, fb, ev.f0, ev.f1, S.pace)}
-       <div class="btnrow" style="margin-top:10px;align-items:center"><a class="btn btn-outline btn-sm" href="${WX_APPS[app].url(spot)}" target="_blank" rel="noopener">Full-day forecast in ${WX_APPS[app].name}</a>
-         <label class="tiny muted" style="display:flex;align-items:center;gap:6px">Open in<select id="wx-app" style="min-height:32px;padding:4px 8px;width:auto">${Object.entries(WX_APPS).map(([k2, v]) => `<option value="${k2}" ${k2 === app ? 'selected' : ''}>${v.name}</option>`).join('')}</select></label></div>
+    weather = panel(kp + 'weather', 'Weather',
+      `${wxSummary(st)}<div class="tiny muted">Wear: ${k.start.name.toLowerCase()} kit${k.add.length ? ' + ' + k.add.map(a => a[2]).join(', ') : ''}</div>`,
+      `<p class="small" style="margin:0">Ride ${fmtTime(t.start)}–${fmtTime(t.end)} · bike feel ${r0(st.feelMin)}–${r0(st.feelMax)}° · gusts ${r0(st.wgMax)} mph from ${compass(st.dir)} · ${fmtIn(st.rain)} rain · ${roadNote(st)}</p>
+       ${hourRange(se, date, ev)}${wxAppRow(spot)}
        <div class="sub"><div class="sub-h">What to wear
          <div class="seg" role="group" aria-label="I usually run">${['cold', 'avg', 'hot'].map(o => `<button type="button" data-offset="${o}" aria-pressed="${cur === o}">${o === 'avg' ? 'Avg' : o === 'cold' ? 'Run cold' : 'Run hot'}</button>`).join('')}</div></div>
          <div class="muted small">${k.start.name} · bike feel ${r0(st.feelMin)}°${k.off ? ` (feels like ${r0(st.feelMin + k.off)}° to you)` : ''}</div>
@@ -735,69 +699,60 @@ function viewRide(arg){
          ${k.shed ? `<div class="addon">${k.shed}</div>` : ''}${k.add.map(([a, why]) => `<div class="addon"><b>+ ${a}</b> <span class="muted">— ${why}</span></div>`).join('')}</div>`);
   } else weather = `<section class="panel"><div class="panel-h"><span class="panel-t">Weather</span><div class="panel-s muted">Forecast not available for this date yet.</div></div></section>`;
 
-  const notes = ride.notes ? panel('notes', 'Notes', `<span class="clamp">${esc(ride.notes.split('\n')[0])}</span>`, `<p class="notes">${esc(ride.notes)}</p>`) : '';
-  UI.share = { title: `BBT ride ${dayLabel(sel.date)}`, text: [
-      `BBT ride · ${dayLabel(sel.date, true)}`,
-      `Meet ${fmtTime(t.start)} · ${spot.name} ${spot.maps_url}`,
-      ...ride.routes.map(r => { const rr = routeById(r.id); return `${ride.routes.length > 1 ? r.label + ': ' : 'Route: '}${rr.name} (${(rr.distance_m / MI).toFixed(1)} mi, ${r0(rr.elevation_gain_m * FT).toLocaleString()} ft) ${rr.url}`; }),
-      t.stop ? `Coffee: ${t.stop.poi.name}, mile ${t.stop.mile.toFixed(1)} ≈ ${fmtTime(t.stop.eta)} (optional)` : null,
-      `Back ≈ ${fmtTime(t.end)}`,
-      st ? `Weather: ${r0(st.tMin)}–${r0(st.tMax)}°, feels ${r0(st.appMin)}–${r0(st.appMax)}°, wind ${r0(st.wsMax)} mph, rain ${r0(st.ppMax)}%${st.road.state !== 'Dry' ? `, roads ${st.road.state.toLowerCase()}` : ''}` : null,
-      ride.notes ? `Notes: ${ride.notes.replace(/\n/g, ' ')}` : null
-    ].filter(Boolean).join('\n'), url: location.href };
-  const shareBtn = `<button type="button" class="iconbtn share" data-share aria-label="Share this ride" title="Share"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg></button>`;
-  return `<div class="dayrow">${dayTabs}${shareBtn}</div>` + `<h1 class="sr">${esc(spot.name)} — ${esc(route.name)}</h1>` + (ev ? warnings(ev, se, sel.date, t) : '') + `<div class="panels">${meet}${routeP}${weather}${notes}</div>`;
+  const notes = ride.notes ? panel(kp + 'notes', 'Notes', `<span class="clamp">${esc(ride.notes.split('\n')[0])}</span>`, `<p class="notes">${esc(ride.notes)}</p>`) : '';
+  if (!opts.preview){
+    UI.cal = cal;
+    UI.share = { title: `BBT ride ${dayLabel(date)}`, text: [
+        `BBT ride · ${dayLabel(date, true)}`,
+        `Meet ${fmtTime(t.start)} · ${spot.name} ${spot.maps_url}`,
+        ...ride.routes.map(r => { const rr = routeById(r.id); return `${ride.routes.length > 1 ? r.label + ': ' : 'Route: '}${rr.name} (${(rr.distance_m / MI).toFixed(1)} mi, ${r0(rr.elevation_gain_m * FT).toLocaleString()} ft) ${rr.url}`; }),
+        t.stop ? `Coffee: ${t.stop.poi.name}, mile ${t.stop.mile.toFixed(1)} ≈ ${fmtTime(t.stop.eta)} (optional)` : null,
+        `Back ≈ ${fmtTime(t.end)}`,
+        st ? `Weather: ${r0(st.tMin)}–${r0(st.tMax)}°, feels ${r0(st.appMin)}–${r0(st.appMax)}°, wind ${r0(st.wsMax)} mph, rain ${r0(st.ppMax)}%${st.road.state !== 'Dry' ? `, roads ${st.road.state.toLowerCase()}` : ''}` : null,
+        ride.notes ? `Notes: ${ride.notes.replace(/\n/g, ' ')}` : null
+      ].filter(Boolean).join('\n'), url: location.href };
+  }
+  return `<h1 class="sr">${esc(spot.name)} — ${esc(route.name)}</h1>` + (ev ? warnBoxes(warnList(ev, se, date, t.start)) : '') + `<div class="panels">${meet}${routeP}${weather}${notes}</div>`;
 }
 
-function viewBoard(){
-  const weekend = weekendDates();
-  const b = UI.board = UI.board || { date: weekend[0].date, time: S.rollout, dur: S.durationH };
+function viewRide(arg){
+  const days = weekendDates().map(w => w.date);
+  RIDES.forEach(r => { if (r.date && !days.includes(r.date)) days.push(r.date); });
+  days.sort();
+  const date = days.includes(arg) ? arg : days.includes(UI.day) ? UI.day : days[0];
+  UI.day = date;
+  const ride = rideOn(date);
+  const shareBtn = ride ? `<button type="button" class="iconbtn share" data-share aria-label="Share this ride" title="Share"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg></button>` : '';
+  const head = `<div class="dayrow">${dayTabsHTML(days, date, d => `#ride/${d}`)}${shareBtn}</div>`;
+  if (!ride) return head + `<h1 class="sr">No ride</h1><section class="panel empty"><p><b>No ride posted for ${dayLabel(date, true)}.</b></p><p class="muted small">See conditions at each spot on the Weekend tab.</p><a class="btn btn-primary btn-sm" href="#board">Weekend</a></section>`;
+  return head + rideBody(ride, date);
+}
+
+// Weekend: one panel per spot for the chosen day and window. Expanding shows the spot detail inline.
+function viewBoard(arg){
+  const weekend = weekendDates().map(w => w.date);
+  const b = UI.board = UI.board || { date: weekend[0], time: S.rollout, dur: S.durationH };
   const se0 = WX.series[SPOTS[0].id], days = [...new Set(se0.time.map(t => t.slice(0, 10)))];
-  if (!days.includes(b.date)) b.date = weekend[0].date;
+  if (!days.includes(b.date)) b.date = weekend[0];
   const startMin = hhmmToMin(b.time), durMin = b.dur * 60;
-  const cards = SPOTS.map(s => {
+  const panels = SPOTS.map(s => {
     const se = WX.series[s.id], ev = se && evaluate(se, b.date, startMin, durMin, S.pace);
-    if (!ev) return `<article class="card"><h2>${esc(s.name)}</h2><p class="muted">No forecast for this window.</p></article>`;
-    const st = ev.st;
-    return `<article class="card spotcard" data-spot="${s.id}" tabindex="0" aria-label="${esc(s.name)}: ${VERDICT[ev.level]}">
-      <div class="card-h"><h2>${esc(s.name)}</h2>${pill(ev.level)}</div>
-      <div class="kv" style="grid-template-columns:repeat(2,1fr)">
-        <div><div class="k">Road</div><div class="v">${roadPill(st.road)}</div></div>
-        <div><div class="k">Temp</div><div class="v">${r0(st.tMin)}–${r0(st.tMax)}°</div></div>
-        <div><div class="k">Real / bike feel</div><div class="v">${r0(st.appMin)}° / ${r0(st.feelMin)}°</div></div>
-        <div><div class="k">Wind</div><div class="v">${arrow(st.dir)} ${r0(st.wsMax)}<span class="small muted"> g${r0(st.wgMax)}</span></div></div>
-        <div><div class="k">Rain</div><div class="v">${r0(st.ppMax)}%</div><div class="s">${fmtIn(st.rain)}</div></div>
-        <div><div class="k">Sky</div><div class="v" style="font-size:14px">${wxLabel(st.code)}</div></div>
-      </div>${verdictBlock(ev)}
-      <div style="margin-top:10px" class="small"><a href="#spot/${s.id}">Rain timeline & hourly →</a></div></article>`;
+    if (!ev) return `<section class="panel"><div class="panel-h"><span class="panel-t">${esc(s.name)}</span><div class="panel-s muted">No forecast for this window.</div></div></section>`;
+    const st = ev.st, chips = warnChips(warnList(ev, se, b.date, startMin));
+    const radar = `https://www.rainviewer.com/map.html?loc=${s.lat},${s.lng},9&oFa=0&oC=1&oU=0&oCS=1&oF=0&oAP=1&c=3&o=83&lm=1&layer=radar&sm=1&sn=1`;
+    return panel('spot-' + s.id, esc(s.name), `${wxSummary(st)}${chips ? `<div class="chips">${chips}</div>` : ''}`,
+      `<p class="small" style="margin:0 0 8px">Bike feel ${r0(st.feelMin)}–${r0(st.feelMax)}° · gusts ${r0(st.wgMax)} mph from ${compass(st.dir)} · ${fmtIn(st.rain)} rain · ${roadNote(st)}</p>
+       <div class="sub-h" style="margin-top:4px">Rain −12 h → +8 h</div>${rainBarsSVG(se, b.date, startMin, startMin + durMin)}
+       ${hourRange(se, b.date, ev)}${wxAppRow(s, `<a class="btn btn-outline btn-sm" href="${radar}" target="_blank" rel="noopener">Radar</a>`)}
+       <div class="sub"><div class="sub-h">Parking</div><p>${esc(s.note)}</p>
+         <div class="btnrow"><a class="btn btn-outline btn-sm" href="${s.maps_url}" target="_blank" rel="noopener">Open in Google Maps</a>${can.plan() ? `<button type="button" class="btn btn-primary btn-sm" data-plan-here="${s.id}">Plan a ride here</button>` : ''}</div></div>`,
+      { title: true, collapsed: true, open: arg === s.id ? true : undefined });
   }).join('');
   const opts = [2, 2.5, 3, 3.5, 4, 5].map(h => `<option value="${h}" ${h === b.dur ? 'selected' : ''}>${h} h</option>`).join('');
-  return `<div class="ride-head"><div><div class="kicker">Planning</div><h1>Weekend board</h1></div></div>
-    <div class="daytabs" role="tablist">${weekend.map(w => `<button class="tab" type="button" role="tab" data-bday="${w.date}" aria-selected="${w.date === b.date}">${dayLabel(w.date)}</button>`).join('')}</div>
+  return `<h1 class="sr">Weekend</h1>${dayTabsHTML(weekend, b.date, null, d => `data-bday="${d}"`)}
     <div class="controls"><label class="field">Other day<input type="date" id="b-date" value="${b.date}" min="${days[0]}" max="${days[days.length - 1]}"></label><label class="field">Roll-out<input type="time" id="b-time" value="${b.time}" step="900"></label><label class="field">Duration<select id="b-dur">${opts}</select></label>
-      <span class="small muted" style="padding-bottom:10px">${fmtTime(startMin)}–${fmtTime(startMin + durMin)} · worst factor wins</span></div>
-    <div class="board">${cards}</div>`;
-}
-
-function viewSpot(id){
-  const spot = spotById(id); if (!spot) return `<div class="card empty">Unknown spot.</div>`;
-  const weekend = weekendDates();
-  const b = UI.board || { date: weekend[0].date, time: S.rollout, dur: S.durationH };
-  const se = WX.series[spot.id], startMin = hhmmToMin(b.time), endMin = startMin + b.dur * 60;
-  const ev = se && evaluate(se, b.date, startMin, endMin - startMin, S.pace);
-  const fs = se && fIdx(se, b.date, startMin);
-  const radarUrl = `https://www.rainviewer.com/map.html?loc=${spot.lat},${spot.lng},9&oFa=0&oC=1&oU=0&oCS=1&oF=0&oAP=1&c=3&o=83&lm=1&layer=radar&sm=1&sn=1`;
-  return `<div class="ride-head"><div><a class="small" href="#board">← Weekend board</a><div class="kicker" style="margin-top:6px">${dayLabel(b.date, true)} · ${fmtTime(startMin)}–${fmtTime(endMin)}</div><h1>${esc(spot.name)}</h1></div>${ev ? pill(ev.level) : ''}</div>
-    <div class="spot-grid"><div>
-      <section class="card"><div class="card-h"><h2>Rain −12h → +8h</h2>${ev ? roadPill(ev.st.road) : ''}</div>${se && fs != null ? rainBarsSVG(se, b.date, startMin, endMin) : '<p class="muted">No data.</p>'}
-        ${ev ? `<p class="small muted" style="margin:8px 0 0">${fmtIn(ev.st.road.rainIn)} fell in the ${S.lookback}h before roll-out. Road model: ${ev.st.road.state} (water film ${ev.st.road.W.toFixed(2)} mm).</p>` : ''}</section>
-      <section class="card"><div class="card-h"><h2>Hourly</h2><span class="tiny muted">shaded = ride window</span></div>${fs != null ? hourRows(se, b.date, Math.max(0, fs - 3), fs + 8, fs, fIdx(se, b.date, endMin) ?? fs, S.pace) : ''}</section>
-    </div><div>
-      ${ev ? `<section class="card"><div class="card-h"><h2>Verdict</h2>${pill(ev.level)}</div>${conditionsKV(ev.st)}${verdictBlock(ev)}</section>` : ''}
-      <section class="card"><div class="card-h"><h2>Radar</h2></div><div class="map" id="radarmap"></div>
-        <div class="btnrow" style="margin-top:10px"><a class="btn btn-outline btn-sm" href="${radarUrl}" target="_blank" rel="noopener">RainViewer loop</a><a class="btn btn-outline btn-sm" href="https://radar.weather.gov/station/KOKX/standard" target="_blank" rel="noopener">NWS radar (OKX)</a></div></section>
-      <section class="card"><h2>Parking</h2><p class="muted" style="margin:6px 0 10px">${esc(spot.note)}</p><a class="btn btn-outline" href="${spot.maps_url}" target="_blank" rel="noopener">Open in Google Maps</a></section>
-    </div></div>`;
+      <span class="small muted" style="padding-bottom:10px">${fmtTime(startMin)}–${fmtTime(startMin + durMin)}</span></div>
+    <div class="panels">${panels}</div>`;
 }
 
 /* Plan-a-ride editor: mock, nothing is persisted. */
@@ -817,72 +772,69 @@ function nearestSpot(route){
   return SPOTS.map(s => ({ s, d: haversine(la, ln, s.lat, s.lng) })).sort((a, b) => a.d - b.d)[0];
 }
 function viewPlan(){
-  if (!can.plan()) return `<div class="card empty"><h2>Editors only</h2><p class="muted">Your role is View. Ask an admin for the Edit role to plan rides.</p></div>`;
+  if (!can.plan()) return `<section class="panel empty"><p><b>Editors only.</b></p><p class="muted small">Your role is View. Ask an admin for the Edit role to plan rides.</p></section>`;
   const weekend = weekendDates();
   P.date = P.date || weekend[0].date; P.time = P.time || S.rollout; P.pace = P.pace || S.pace;
-  const route = P.route && routeById(P.route), alt = P.altOn && P.alt && routeById(P.alt);
+  const route = P.route && routeById(P.route);
   let suggestion = '';
   if (route){ const n = nearestSpot(route); if (P.spotAuto) P.spot = n.s.id; suggestion = `Suggested: ${esc(n.s.name)} (${r0(n.d)} m from route start)`; }
+  P.spot = P.spot || SPOTS[0].id;
   const pois = route ? route.pois.slice().sort((a, b) => (/coffee|food/.test(b.type) - /coffee|food/.test(a.type)) || a.route_d_m - b.route_d_m) : [];
   if (route && P.stop === null){ const c = pois.find(p => /coffee|food/.test(p.type)); P.stop = c ? c.name : ''; }
-  const startMin = hhmmToMin(P.time);
-  const poiRows = pois.map(p => { const mile = p.route_d_m / MI, eta = startMin + mile / P.pace * 60;
-    return `<label class="radio"><input type="radio" name="stop" value="${esc(p.name)}" ${P.stop === p.name ? 'checked' : ''}><span><b>${esc(p.name)}</b> <span class="tag">${esc(p.type)}</span><br><span class="small muted">mile ${mile.toFixed(1)} · ETA ${fmtTime(eta)}${p.off_route_m > 50 ? ` · ${r0(p.off_route_m)} m off route` : ''}</span></span></label>`; }).join('');
-  const t = route && rideTimes(route, { time: P.time, pace: P.pace, stop: P.stop || null, stopMin: S.stopMin });
-  const ta = alt && rideTimes(alt, { time: P.time, pace: P.pace, stop: alt.pois.some(p => p.name === P.stop) ? P.stop : null, stopMin: S.stopMin });
-  const preview = route ? `<section class="card"><div class="card-h"><h2>Preview</h2><span class="tag">draft</span></div>
-      <p style="margin:0 0 8px"><b>${dayLabel(P.date, true)}</b> · roll-out ${fmtTime(startMin)} from <b>${esc(spotById(P.spot).name)}</b></p>
-      <ul class="list">
-        <li><span class="dot"></span><span><b>${esc(P.altOn ? P.labelA : route.name)}</b> — ${t.distMi.toFixed(1)} mi, ${r0(t.climbFt).toLocaleString()} ft, ${fmtDur(t.movingH)} moving${t.stop ? `; ${esc(t.stop.poi.name)} at mile ${t.stop.mile.toFixed(1)} ≈ ${fmtTime(t.stop.eta)}` : ''}; back ≈ ${fmtTime(t.end)}</span></li>
-        ${ta ? `<li><span class="dot"></span><span><b>${esc(P.labelB)}</b> — ${ta.distMi.toFixed(1)} mi, ${r0(ta.climbFt).toLocaleString()} ft, ${fmtDur(ta.movingH)} moving${ta.stop ? `; stop ≈ ${fmtTime(ta.stop.eta)}` : ''}; back ≈ ${fmtTime(ta.end)}</span></li>` : ''}
-      </ul>
-      <div class="map" id="planmap" style="margin-top:10px;height:200px"></div>
-      ${P.notes ? `<p class="notes small" style="margin-top:10px">${esc(P.notes)}</p>` : ''}
-      <div class="btnrow" style="margin-top:12px"><button class="btn btn-primary" type="button" id="publish">Publish</button><button class="btn btn-outline" type="button" id="savedraft">Save draft</button></div></section>`
-    : `<section class="card empty"><h2>Pick a route</h2><p class="muted small">Search by name or paste a RideWithGPS link. The start spot is suggested from the route’s first point.</p></section>`;
-  return `<div class="ride-head"><div><div class="kicker">Editor · mock, not saved</div><h1>Plan a ride</h1></div></div>
-  <div class="plan-grid"><section class="card"><div class="form">
-    <div class="row"><label class="field">Date (any day)<input type="date" id="p-date" value="${P.date}"></label><label class="field">Roll-out<input type="time" id="p-time" value="${P.time}" step="900"></label></div>
-    <label class="field">Route — search or paste RWGPS link<input id="p-q" type="search" placeholder="e.g. Katonah or ridewithgps.com/routes/57406828" value="${esc(P.q)}" autocomplete="off">${searchResults(P.q, 'main')}</label>
-    <label class="field">Start spot<select id="p-spot">${SPOTS.map(s => `<option value="${s.id}" ${P.spot === s.id ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select><span class="tiny muted" style="font-weight:400">${suggestion || 'Auto-suggested once a route is picked'}${route && !P.spotAuto ? ' · <a href="#" id="p-spotauto">use suggestion</a>' : ''}</span></label>
-    <label class="radio" style="border:0;padding:0"><input type="checkbox" id="p-alton" ${P.altOn ? 'checked' : ''}><span><b>Add alternate route</b><br><span class="small muted">Same spot and time, e.g. Full / Short</span></span></label>
+  const startMin = hhmmToMin(P.time), k = 1 + (S.regroupPct || 0) / 100;
+  const poiRows = pois.map(p => { const mile = p.route_d_m / MI, eta = startMin + mile / P.pace * 60 * k;
+    return `<label class="radio"><input type="radio" name="stop" value="${esc(p.name)}" ${P.stop === p.name ? 'checked' : ''}><span><b>${esc(p.name)}</b> <span class="tag">${esc(p.type)}</span><br><span class="small muted">mile ${mile.toFixed(1)} · ≈ ${fmtTime(eta)}${p.off_route_m > 50 ? ` · ${r0(p.off_route_m)} m off route` : ''}</span></span></label>`; }).join('');
+
+  const meetS = section('Meet', `<div class="row"><label class="field">Date (any day)<input type="date" id="p-date" value="${P.date}"></label><label class="field">Roll-out<input type="time" id="p-time" value="${P.time}" step="900"></label></div>
+    <label class="field">Start spot<select id="p-spot">${SPOTS.map(s => `<option value="${s.id}" ${P.spot === s.id ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select><span class="tiny muted" style="font-weight:400">${suggestion || 'Suggested from the route once you pick one'}${route && !P.spotAuto ? ' · <a href="#" id="p-spotauto">use suggestion</a>' : ''}</span></label>`);
+  const routeS = section('Route', `<label class="field">Search or paste a RideWithGPS link<input id="p-q" type="search" placeholder="e.g. Katonah or ridewithgps.com/routes/57406828" value="${esc(P.q)}" autocomplete="off">${searchResults(P.q, 'main')}</label>
+    <label class="radio" style="border:0;padding:0"><input type="checkbox" id="p-alton" ${P.altOn ? 'checked' : ''}><span><b>Add alternate route</b><br><span class="small muted">Same spot and time</span></span></label>
     ${P.altOn ? `<div class="row"><label class="field">Main label<input id="p-la" value="${esc(P.labelA)}"></label><label class="field">Alternate label<input id="p-lb" value="${esc(P.labelB)}"></label></div>
       <label class="field">Alternate route<input id="p-qalt" type="search" placeholder="Search or paste link" value="${esc(P.qAlt)}" autocomplete="off">${searchResults(P.qAlt, 'alt')}</label>` : ''}
-    <fieldset style="border:0;padding:0;margin:0"><legend class="field" style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px">Coffee stop (from route POIs)</legend>
-      ${route ? `${poiRows}<label class="radio"><input type="radio" name="stop" value="" ${!P.stop ? 'checked' : ''}><span><b>No stop</b></span></label>
-      <div class="tiny muted" style="margin-top:4px">Custom stop (name + Maps link) available in the live editor. Stop length: ${S.stopMin} min.</div>` : '<span class="small muted">Pick a route first.</span>'}</fieldset>
-    <div class="row"><label class="field">Pace (mph)<input type="number" id="p-pace" min="10" max="25" step="0.5" value="${P.pace}"></label><span></span></div>
-    <label class="field">Notes<textarea id="p-notes" placeholder="Regroup points, café plan, lights…">${esc(P.notes)}</textarea></label>
-  </div></section><div>${preview}</div></div>`;
+    <fieldset style="border:0;padding:0;margin:0"><legend class="field" style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px">Coffee stop</legend>
+      ${route ? `${poiRows}<label class="radio"><input type="radio" name="stop" value="" ${!P.stop ? 'checked' : ''}><span><b>No stop</b></span></label>` : '<span class="small muted">Pick a route first.</span>'}</fieldset>
+    <div class="row"><label class="field">Pace (mph)<input type="number" id="p-pace" min="10" max="25" step="0.5" value="${P.pace}"></label><span></span></div>`);
+  const notesS = section('Notes', `<textarea id="p-notes" aria-label="Notes" placeholder="Regroup points, café plan, lights…">${esc(P.notes)}</textarea>`);
+
+  let preview = `<section class="panel empty"><p><b>Pick a route to see the preview.</b></p><p class="muted small">The preview shows the ride page as riders will see it.</p></section>`;
+  if (route){
+    const rts = [{ label: P.altOn ? P.labelA : 'Main', id: P.route, stop: P.stop || null }];
+    if (P.altOn && P.alt) rts.push({ label: P.labelB, id: P.alt, stop: routeById(P.alt).pois.some(p => p.name === P.stop) ? P.stop : null });
+    UI.draft = { date: P.date, time: P.time, spot: P.spot, pace: P.pace, routes: rts, notes: P.notes || '' };
+    preview = rideBody(UI.draft, P.date, { preview: true }).replace(/<h1 class="sr">[^<]*<\/h1>/, '')
+      + `<div class="btnrow" style="margin-top:12px"><button class="btn btn-primary" type="button" id="publish">Publish</button><button class="btn btn-outline" type="button" id="savedraft">Save draft</button></div>`;
+  }
+  return `<h1 class="sr">Plan a ride</h1><p class="tiny muted" style="margin:-4px 0 10px">Prototype editor: nothing is saved.</p>
+    <div class="plan-grid"><div class="panels">${meetS}${routeS}${notesS}</div><div><div class="kicker" style="margin:4px 0 8px">Preview · ${dayLabel(P.date, true)}</div>${preview}</div></div>`;
 }
 
 function viewSettings(){
-  const ro = can.settings() ? '' : ' disabled';
-  const num = (k, label, step = 1, unit = '') => `<label class="field">${label}${unit ? ` (${unit})` : ''}<input type="number" data-set="${k}" value="${S[k]}" step="${step}"${ro}></label>`;
-  const users = can.settings() ? `<section class="card"><div class="card-h"><h2>Users</h2><span class="tiny muted">Sign in with Google</span></div>
-      <div class="tablewrap"><table><thead><tr><th>Name</th><th style="text-align:left">Email</th><th style="text-align:left">Role</th><th>Status</th></tr></thead><tbody>
+  const num = (k, label, step = 1, unit = '') => `<label class="field">${label}${unit ? ` (${unit})` : ''}<input type="number" data-set="${k}" value="${S[k]}" step="${step}"></label>`;
+  const invited = USERS.filter(u => u.status === 'Invited').length;
+  const users = panel('set-users', 'Users', `${USERS.length} users${invited ? ` · ${invited} invited` : ''} · sign in with Google`,
+    `<div class="tablewrap" style="margin-top:0"><table><thead><tr><th>Name</th><th style="text-align:left">Email</th><th style="text-align:left">Role</th><th>Status</th></tr></thead><tbody>
       ${USERS.map((u, i) => `<tr><td>${esc(u.name)}</td><td style="text-align:left">${esc(u.email)}</td><td style="text-align:left">${i === 0 ? 'Admin' : `<select data-user-role="${i}" aria-label="Role for ${esc(u.email)}" style="min-height:32px;padding:4px 8px;width:auto">${ROLES.map(r => `<option value="${r}" ${u.role === r ? 'selected' : ''}>${ROLE_LABEL[r]}</option>`).join('')}</select>`}</td><td>${u.status}</td></tr>`).join('')}</tbody></table></div>
-      <div class="controls" style="margin:12px 0 0"><label class="field" style="flex:1 1 220px">Invite by email<input type="email" id="u-email" placeholder="name@gmail.com" autocomplete="off"></label>
-        <label class="field">Role<select id="u-role">${ROLES.map(r => `<option value="${r}">${ROLE_LABEL[r]}</option>`).join('')}</select></label><button class="btn btn-primary" type="button" id="invite">Invite</button></div>
-      <p class="tiny muted" style="margin:8px 0 0">View: see rides and forecasts. Edit: also create and edit rides. Admin: also change settings and manage users.</p></section>` : '';
-  return `<div class="ride-head"><div><div class="kicker">Team</div><h1>Settings</h1></div></div>
-    <p class="small muted" style="margin-top:-6px">${can.settings() ? 'Team-wide settings. Live app saves them to the database; this prototype keeps them in this browser.' : 'Only admins can change team settings. Appearance is yours to change.'}</p>
-    ${users}
-    <section class="card"><h2 style="margin-bottom:10px">Ride defaults</h2><div class="settings-grid">
-      ${num('pace', 'Pace', 0.5, 'mph')}<label class="field">Roll-out<input type="time" data-set="rollout" value="${S.rollout}" step="900"${ro}></label>${num('durationH', 'Duration', 0.5, 'h')}${num('stopMin', 'Coffee stop', 5, 'min')}${num('regroupPct', 'Regroup buffer', 1, '% of moving time')}</div></section>
-    <section class="card"><h2 style="margin-bottom:10px">Road wetness</h2><div class="settings-grid">
-      ${num('lookback', 'Look-back', 1, 'hours')}${num('wetMm', 'Wet at film ≥', 0.05, 'mm')}${num('dryingMm', 'Drying at film ≥', 0.05, 'mm')}</div>
-      <p class="tiny muted" style="margin:8px 0 0">0.1" of rain ≈ 2.5 mm of water; the film is capped at 2 mm (runoff).</p></section>
-    <section class="card"><h2 style="margin-bottom:10px">Verdict thresholds</h2><div class="settings-grid">
-      ${num('feelCaution', 'Caution: bike feel <', 1, '°F')}${num('feelNoGo', 'No-go: bike feel <', 1, '°F')}${num('heatCaution', 'Caution: real feel ≥', 1, '°F')}${num('heatNoGo', 'No-go: real feel ≥', 1, '°F')}
-      ${num('windCaution', 'Caution: wind ≥', 1, 'mph')}${num('windNoGo', 'No-go: wind ≥', 1, 'mph')}${num('gustCaution', 'Caution: gusts ≥', 1, 'mph')}${num('gustNoGo', 'No-go: gusts ≥', 1, 'mph')}
-      ${num('rainProbCaution', 'Caution: rain chance ≥', 5, '%')}${num('rainProbNoGo', 'No-go: rain chance ≥', 5, '%')}${num('rainAmtCaution', 'Caution: rain ≥', 0.01, 'in')}${num('rainAmtNoGo', 'No-go: rain ≥', 0.01, 'in')}</div>
-      <p class="tiny muted" style="margin:8px 0 0">Road: Dry = Go, Drying = Caution, Wet = No-go. Thunderstorms = No-go. Worst factor wins.</p></section>
-    <section class="card"><h2 style="margin-bottom:10px">Appearance</h2><div class="seg" role="group" aria-label="Theme">${['auto', 'light', 'dark'].map(t => `<button type="button" data-theme-set="${t}" aria-pressed="${S.theme === t}">${t[0].toUpperCase() + t.slice(1)}</button>`).join('')}</div></section>
-    <section class="card"><h2 style="margin-bottom:6px">Kit chart</h2><p class="small muted" style="margin:0 0 8px">Bands on bike feel; rider offset ±5°. Admins edit bands and items in the live app.</p>
-      <div class="tablewrap"><table><thead><tr><th>Bike feel</th><th style="text-align:left">Band</th><th style="text-align:left">Kit</th></tr></thead><tbody>
-      ${KIT.map((b, i) => `<tr><td>${i === 0 ? `≥ ${b.min}°` : b.min < -50 ? `< ${KIT[i - 1].min}°` : `${b.min}–${KIT[i - 1].min - 1}°`}</td><td style="text-align:left">${b.name}</td><td style="text-align:left;white-space:normal">${b.items.join(', ')}</td></tr>`).join('')}</tbody></table></div></section>
-    ${can.settings() ? '<div class="btnrow"><button class="btn btn-outline" type="button" id="reset">Reset to defaults</button></div>' : ''}`;
+     <div class="controls" style="margin:12px 0 0"><label class="field" style="flex:1 1 220px">Invite by email<input type="email" id="u-email" placeholder="name@gmail.com" autocomplete="off"></label>
+       <label class="field">Role<select id="u-role">${ROLES.map(r => `<option value="${r}">${ROLE_LABEL[r]}</option>`).join('')}</select></label><button class="btn btn-primary" type="button" id="invite">Invite</button></div>
+     <p class="tiny muted" style="margin:8px 0 0">View: see rides and forecasts. Edit: also plan and publish rides. Admin: also change settings and manage users.</p>`, { title: true, collapsed: true });
+  const defaults = panel('set-defaults', 'Ride defaults', `${fmtTime(hhmmToMin(S.rollout))} · ${S.durationH} h · ${S.pace} mph · coffee ${S.stopMin} min · regroups ${S.regroupPct}%`,
+    `<div class="settings-grid">${num('pace', 'Pace', 0.5, 'mph')}<label class="field">Roll-out<input type="time" data-set="rollout" value="${S.rollout}" step="900"></label>${num('durationH', 'Weekend board window', 0.5, 'h')}${num('stopMin', 'Coffee stop', 5, 'min')}${num('regroupPct', 'Regroup buffer', 1, '% of moving time')}</div>`, { title: true, collapsed: true });
+  const road = panel('set-road', 'Road wetness', `${S.lookback} h look-back · wet ≥ ${S.wetMm} mm · drying ≥ ${S.dryingMm} mm`,
+    `<div class="settings-grid">${num('lookback', 'Look-back', 1, 'hours')}${num('wetMm', 'Wet at film ≥', 0.05, 'mm')}${num('dryingMm', 'Drying at film ≥', 0.05, 'mm')}</div>
+     <p class="tiny muted" style="margin:8px 0 0">0.1" of rain ≈ 2.5 mm of water; the film is capped at 2 mm (runoff).</p>`, { title: true, collapsed: true });
+  const warn = panel('set-warn', 'Warnings', `cold < ${S.feelCaution}° · heat ≥ ${S.heatCaution}° · wind ≥ ${S.windCaution} · gusts ≥ ${S.gustCaution} · rain ≥ ${S.rainProbCaution}%`,
+    `<p class="tiny muted" style="margin:0 0 8px">A warning shows when a value crosses the first threshold (amber) and turns red at the second.</p>
+     <div class="settings-grid">${num('feelCaution', 'Cold: bike feel <', 1, '°F')}${num('feelNoGo', 'Red below', 1, '°F')}${num('heatCaution', 'Heat: real feel ≥', 1, '°F')}${num('heatNoGo', 'Red at', 1, '°F')}
+      ${num('windCaution', 'Wind ≥', 1, 'mph')}${num('windNoGo', 'Red at', 1, 'mph')}${num('gustCaution', 'Gusts ≥', 1, 'mph')}${num('gustNoGo', 'Red at', 1, 'mph')}
+      ${num('rainProbCaution', 'Rain chance ≥', 5, '%')}${num('rainProbNoGo', 'Red at', 5, '%')}${num('rainAmtCaution', 'Rain amount ≥', 0.01, 'in')}${num('rainAmtNoGo', 'Red at', 0.01, 'in')}</div>
+     <p class="tiny muted" style="margin:8px 0 0">Roads: Drying = amber, Wet = red. Thunderstorms = red. Low light: roll-out within 30 min of sunrise.</p>`, { title: true, collapsed: true });
+  const kit = panel('set-kit', 'Kit chart', `${KIT.length} bands on bike feel · rider offset ±5°`,
+    `<div class="tablewrap" style="margin-top:0"><table><thead><tr><th>Bike feel</th><th style="text-align:left">Band</th><th style="text-align:left">Kit</th></tr></thead><tbody>
+      ${KIT.map((b, i) => `<tr><td>${i === 0 ? `≥ ${b.min}°` : b.min < -50 ? `< ${KIT[i - 1].min}°` : `${b.min}–${KIT[i - 1].min - 1}°`}</td><td style="text-align:left">${b.name}</td><td style="text-align:left;white-space:normal">${b.items.join(', ')}</td></tr>`).join('')}</tbody></table></div>
+     <p class="tiny muted" style="margin:8px 0 0">Editable in the live app.</p>`, { title: true, collapsed: true });
+  return `<h1 class="sr">Settings</h1><p class="tiny muted" style="margin:-4px 0 10px">Team-wide. The live app saves to the database; this prototype keeps them in this browser.</p>
+    <div class="panels">${users}${defaults}${road}${warn}${kit}</div>
+    <div class="btnrow" style="margin-top:12px"><button class="btn btn-outline btn-sm" type="button" id="reset">Reset to defaults</button></div>`;
 }
 
 /* ---------- router + events ---------- */
@@ -890,7 +842,8 @@ function applyTheme(){ if (S.theme === 'auto') document.documentElement.removeAt
 function render(){
   maps.forEach(m => { try { m.remove(); } catch(e){} }); maps = [];
   const [page, arg] = (location.hash.slice(1) || 'ride').split('/');
-  document.querySelectorAll('[data-nav]').forEach(a => a.setAttribute('aria-selected', String(a.dataset.nav === page || (page === 'spot' && a.dataset.nav === 'board'))));
+  if (page === 'spot'){ location.replace('#board/' + (arg || '')); return; }
+  document.querySelectorAll('[data-nav]').forEach(a => a.setAttribute('aria-selected', String(a.dataset.nav === page)));
   const app = document.getElementById('app');
   if (WX.source === 'loading'){ app.innerHTML = `<div class="card empty muted">Loading forecast…</div>`; return; }
   const banner = WX.source === 'fallback' ? `<div class="banner" role="status">Live forecast unavailable (${esc(WX.err || 'offline')}). Showing the saved Open-Meteo sample from ${SEED.generated} for SUNY Purchase at every spot.</div>` : '';
@@ -898,24 +851,22 @@ function render(){
   document.querySelector('[data-nav="settings"]').hidden = !can.settings();
   if ((page === 'settings' && !can.settings()) || (page === 'plan' && !can.plan())){ location.hash = 'ride'; return; }
   const demo = `<div class="rolebar"><span class="tiny muted">Prototype · view as</span><div class="seg" role="group" aria-label="Demo role">${ROLES.map(r => `<button type="button" data-role-set="${r}" aria-pressed="${ROLE === r}">${ROLE_LABEL[r]}</button>`).join('')}</div></div>`;
-  const views = { ride: viewRide, board: viewBoard, spot: viewSpot, plan: viewPlan, settings: viewSettings };
+  const views = { ride: viewRide, board: viewBoard, plan: viewPlan, settings: viewSettings };
   app.innerHTML = demo + banner + (views[page] || viewRide)(arg);
-  mount(page);
+  mount();
 }
-function mount(page){
-  const rm = document.getElementById('routemap');
-  if (rm && !rm.closest('[hidden]')){ const ride = rideOn(UI.day), rt = ride.routes[Math.min(UI.route, ride.routes.length - 1)]; mountRouteMap(rm, routeById(rt.id), poiFor(rt)); }
-  const pm = document.getElementById('planmap');
-  if (pm && P.route){ const r = routeById(P.route); mountRouteMap(pm, r, r.pois.find(p => p.name === P.stop)); }
-  const rd = document.getElementById('radarmap');
-  if (rd) mountRadar(rd, spotById(location.hash.split('/')[1]));
+function mount(){
+  document.querySelectorAll('[data-map-route]').forEach(el => {
+    if (el.closest('[hidden]') || el.childElementCount) return;
+    const r = routeById(el.dataset.mapRoute); mountRouteMap(el, r, r.pois.find(p => p.name === el.dataset.mapStop));
+  });
 }
 function toast(msg){ const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 2600); }
 
 document.addEventListener('click', e => {
   const tg = e.target.closest('[data-toggle]');
   if (tg && !e.target.closest('a,.seg,.panel-s button')){ const k = tg.dataset.toggle, sec = document.querySelector(`[data-panel="${k}"]`), body = sec.querySelector('.panel-b'), btn = sec.querySelector('.panel-t');
-    const open = body.hidden; body.hidden = !open; btn.setAttribute('aria-expanded', String(open)); const ps = store.get('bbt.panels', {}); ps[k] = open; store.set('bbt.panels', ps); if (open && k === 'route') mount('ride'); return; }
+    const open = body.hidden; body.hidden = !open; btn.setAttribute('aria-expanded', String(open)); const ps = store.get('bbt.panels', {}); ps[k] = open; store.set('bbt.panels', ps); if (open) mount(); return; }
   if (e.target.closest('[data-share]')){
     const sh = UI.share, full = `${sh.text}\n${sh.url}`;
     if (navigator.share) navigator.share({ title: sh.title, text: sh.text, url: sh.url }).catch(err => { if (err && err.name !== 'AbortError') showShareSheet(full); });
@@ -931,17 +882,15 @@ document.addEventListener('click', e => {
     a.href = URL.createObjectURL(blob); a.download = `bbt-ride-${UI.cal.date}.ics`; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 2000); document.querySelector('.sheet')?.remove(); return;
   }
-  const el = e.target.closest('[data-route],[data-offset],[data-bday],[data-spot],[data-pick],[data-theme-set],[data-role-set],#publish,#savedraft,#reset,#themebtn,#p-spotauto,#invite');
+  const el = e.target.closest('[data-route],[data-offset],[data-bday],[data-plan-here],[data-pick],[data-role-set],#publish,#savedraft,#reset,#themebtn,#p-spotauto,#invite');
   if (!el) return;
   if (el.dataset.route != null){ UI.route = +el.dataset.route; render(); }
   else if (el.dataset.offset){ store.set('bbt.kitOffset', el.dataset.offset); render(); }
   else if (el.dataset.bday){ UI.board.date = el.dataset.bday; render(); }
   else if (el.dataset.pick){ const id = +el.dataset.id; if (el.dataset.pick === 'alt'){ P.alt = id; P.qAlt = routeById(id).name; } else { P.route = id; P.q = routeById(id).name; P.stop = null; P.spotAuto = true; } render(); }
-  else if (el.dataset.spot){ location.hash = 'spot/' + el.dataset.spot; }
-  else if (el.dataset.themeSet){ S.theme = el.dataset.themeSet; saveSettings(); applyTheme(); render(); }
+  else if (el.dataset.planHere){ Object.assign(P, { spot: el.dataset.planHere, spotAuto: false, date: UI.board.date, time: UI.board.time }); location.hash = 'plan'; }
   else if (el.id === 'publish'){
-    if (P.route){ const rts = [{ label: P.altOn ? P.labelA : 'Main', id: P.route, stop: P.stop || null }]; if (P.altOn && P.alt) rts.push({ label: P.labelB, id: P.alt, stop: routeById(P.alt).pois.some(p => p.name === P.stop) ? P.stop : null });
-      const i = RIDES.findIndex(r => r.date === P.date); const ride = { date: P.date, time: P.time, spot: P.spot, pace: P.pace, routes: rts, notes: P.notes || '' };
+    if (UI.draft){ const i = RIDES.findIndex(r => r.date === P.date), ride = Object.assign({}, UI.draft);
       if (i >= 0) RIDES[i] = ride; else RIDES.push(ride); UI.day = P.date; UI.route = 0; location.hash = 'ride/' + P.date; toast('Published for this session only (prototype).'); }
   }
   else if (el.id === 'savedraft'){ toast('Prototype: drafts are not saved. The live editor saves to D1.'); }
@@ -953,7 +902,6 @@ document.addEventListener('click', e => {
   else if (el.id === 'themebtn'){ S.theme = isDark() ? 'light' : 'dark'; saveSettings(); applyTheme(); render(); }
   else if (el.id === 'p-spotauto'){ e.preventDefault(); P.spotAuto = true; render(); }
 });
-document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.dataset && e.target.dataset.spot) location.hash = 'spot/' + e.target.dataset.spot; });
 // Text inputs re-render on change (not every keystroke) except search boxes, which keep focus.
 document.addEventListener('input', e => {
   const t = e.target;
@@ -967,12 +915,12 @@ document.addEventListener('input', e => {
 });
 document.addEventListener('change', e => {
   const t = e.target;
+  if (t.dataset.wxApp != null){ store.set('bbt.wxApp', t.value); render(); return; }
   if (t.dataset.userRole != null){ USERS[+t.dataset.userRole].role = t.value; render(); toast('Role updated (prototype).'); return; }
   if (t.dataset.set){ const k = t.dataset.set; S[k] = k === 'rollout' ? t.value : (isNaN(parseFloat(t.value)) ? DEFAULTS[k] : parseFloat(t.value)); saveSettings(); render(); return; }
   switch (t.id){
     case 'b-time': UI.board.time = t.value || S.rollout; break;
     case 'b-dur': UI.board.dur = +t.value; break;
-    case 'wx-app': store.set('bbt.wxApp', t.value); break;
     case 'b-date': if (t.value) UI.board.date = t.value; break;
     case 'p-date': P.date = t.value; break;
     case 'p-time': P.time = t.value || S.rollout; break;
