@@ -169,6 +169,14 @@ textarea{min-height:80px;resize:vertical}
 .clamp{display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
 .panel-b .tablewrap{margin:8px -14px 0}
 @media (min-width:960px){.panels{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}}
+.dayrow{display:flex;align-items:flex-end;gap:8px;border-bottom:1px solid var(--line);margin:-4px 0 14px}
+.dayrow .daytabs{border-bottom:0;margin:0;flex:1}
+.iconbtn.share{color:var(--link);margin-bottom:4px}
+.iconbtn.share:hover{background:var(--win)}
+.sheet{position:fixed;inset:0;background:rgba(2,12,43,.45);display:grid;place-items:end center;z-index:2500;padding:16px}
+.sheet-card{background:var(--card);color:var(--text);border-radius:16px;padding:16px;width:min(520px,100%);box-shadow:0 10px 40px rgba(0,0,0,.3)}
+.sheet textarea{font-size:13px;min-height:180px}
+@media (min-width:760px){.sheet{place-items:center}}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 @media (min-width:760px){
   .board{grid-template-columns:repeat(3,1fr)}
@@ -633,6 +641,25 @@ function panel(k, label, summary, body){
       <svg class="chev" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5 6 7.5 9 4.5" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></div>
     <div class="panel-b" id="pb-${k}"${open ? '' : ' hidden'}>${body}</div></section>`;
 }
+const WX_APPS = {
+  nws: { name: 'NWS', url: s => `https://forecast.weather.gov/MapClick.php?lat=${s.lat}&lon=${s.lng}&FcstType=graphical` },
+  weathercom: { name: 'Weather.com', url: s => `https://weather.com/weather/hourbyhour/l/${s.lat.toFixed(3)},${s.lng.toFixed(3)}` },
+  windy: { name: 'Windy', url: s => `https://www.windy.com/${s.lat.toFixed(3)}/${s.lng.toFixed(3)}?${s.lat.toFixed(3)},${s.lng.toFixed(3)},11` },
+  google: { name: 'Google', url: s => `https://www.google.com/search?q=${encodeURIComponent('hourly weather ' + s.name + ' NY')}` }
+};
+const calStamp = (date, min) => `${date.replace(/-/g, '')}T${pad(Math.floor(min / 60))}${pad(Math.round(min % 60))}00`;
+function gcalLink(c){ return 'https://calendar.google.com/calendar/render?' + new URLSearchParams({ action: 'TEMPLATE', text: c.title, dates: `${calStamp(c.date, c.start)}/${calStamp(c.date, c.end)}`, ctz: TZ, location: c.location, details: c.details }); }
+function icsText(c){
+  const e = v => String(v).replace(/[\\,;]/g, m => '\\' + m).replace(/\n/g, '\\n');
+  return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//BBT//Ride//EN', 'BEGIN:VEVENT', `UID:bbt-${c.date}@ride.bbt.team`, `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').slice(0, 15)}Z`,
+    `DTSTART;TZID=${TZ}:${calStamp(c.date, c.start)}`, `DTEND;TZID=${TZ}:${calStamp(c.date, c.end)}`, `SUMMARY:${e(c.title)}`, `LOCATION:${e(c.location)}`, `DESCRIPTION:${e(c.details)}`, 'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
+}
+function showShareSheet(text){
+  const d = document.createElement('div'); d.className = 'sheet'; d.setAttribute('role', 'dialog'); d.setAttribute('aria-label', 'Share ride');
+  d.innerHTML = `<div class="sheet-card"><h2>Share ride</h2><p class="small muted" style="margin:4px 0 8px">Copy and paste into any app.</p><textarea id="share-text" rows="9" readonly>${esc(text)}</textarea>
+    <div class="btnrow" style="margin-top:10px"><button type="button" class="btn btn-primary" data-copy>Copy</button><button type="button" class="btn btn-outline" data-close>Close</button></div></div>`;
+  document.body.appendChild(d); d.querySelector('textarea').select();
+}
 function sunriseMin(se, date){ const d = se.daily, i = d && d.time.indexOf(date); return i >= 0 && d.sunrise ? hhmmToMin(d.sunrise[i].slice(11, 16)) : null; }
 function viewRide(arg){
   const weekend = weekendDates();
@@ -647,11 +674,16 @@ function viewRide(arg){
   const t = rideTimes(route, { time: ride.time, pace: S.pace, stop: rt.stop, stopMin: S.stopMin }), poi = poiFor(rt);
   const se = WX.series[spot.id], ev = se && evaluate(se, sel.date, t.start, t.end - t.start, S.pace), st = ev && ev.st;
 
+  const cal = { date: sel.date, start: t.start, end: t.end, title: `BBT ride: ${route.name}`, location: `${spot.name} (${spot.maps_url})`,
+    details: `${ride.routes.map(r => `${r.label}: ${routeById(r.id).name} — ${routeById(r.id).url}`).join('\n')}\nParking: ${spot.note}${ride.notes ? `\n\n${ride.notes}` : ''}` };
+  UI.cal = cal;
   const meet = panel('meet', 'Meet',
     `<b>${fmtTime(t.start)}</b> · <a href="${spot.maps_url}" target="_blank" rel="noopener">${esc(spot.name)}</a>`,
     `<dl class="kvlist"><div><dt>Back</dt><dd><b>≈ ${fmtTime(t.end)}</b><span>${fmtDur(t.movingH)} moving + ${r0(t.regroupMin)} min regroups${t.stop ? ` + ${t.stop.len} min coffee · ≈ ${fmtTime(t.end - t.stop.len)} without the stop` : ''}</span></dd></div>
       <div><dt>Parking</dt><dd>${esc(spot.note)}</dd></div></dl>
-     <div class="btnrow"><a class="btn btn-outline btn-sm" href="${spot.maps_url}" target="_blank" rel="noopener">Open in Google Maps</a><a class="btn btn-outline btn-sm" href="#spot/${spot.id}">Spot forecast</a></div>`);
+     <div class="btnrow"><a class="btn btn-outline btn-sm" href="${spot.maps_url}" target="_blank" rel="noopener">Open in Google Maps</a>
+       <a class="btn btn-outline btn-sm" href="${gcalLink(cal)}" target="_blank" rel="noopener">+ Google Calendar</a>
+       <button type="button" class="btn btn-outline btn-sm" data-ics>+ Apple / Outlook</button></div>`);
 
   const switcher = ride.routes.length > 1 ? `<div class="seg" role="group" aria-label="Route">${ride.routes.map((r, i) => `<button type="button" data-route="${i}" aria-pressed="${i === ri}">${r.label} · ${r0(routeById(r.id).distance_m / MI)} mi</button>`).join('')}</div>` : '';
   let stopHTML = '';
@@ -671,20 +703,33 @@ function viewRide(arg){
   if (ev){
     const k = kitAdvice(st), cur = store.get('bbt.kitOffset', 'avg');
     const warnCount = ev.factors.filter(f => f.level).length;
+    const fa = Math.max(0, Math.floor(ev.f0) - 1), fb = Math.ceil(ev.f1) + 3;
+    const app = store.get('bbt.wxApp', 'nws');
     weather = panel('weather', 'Weather',
-      `<b>${r0(st.tMin)}–${r0(st.tMax)}°</b> · bike feel ${r0(st.feelMin)}° · wind ${r0(st.wsMax)} · rain ${r0(st.ppMax)}%${warnCount ? ` <span class="pill lv${ev.level}">${ICON[ev.level]}${warnCount} warning${warnCount > 1 ? 's' : ''}</span>` : ''}<div class="tiny muted">Wear: ${k.start.name.toLowerCase()} kit${k.add.length ? ' + ' + k.add.map(a => a[0].split(' ')[0].toLowerCase() === 'packable' ? 'rain jacket' : a[0].toLowerCase()).join(', ') : ''}</div>`,
-      `<div class="sub" style="margin-top:0;border-top:0;padding-top:0"><div class="sub-h">What to wear
+      `<b>${r0(st.tMin)}–${r0(st.tMax)}°</b> · feels ${r0(st.appMin)}–${r0(st.appMax)}° · wind ${r0(st.wsMax)} · rain ${r0(st.ppMax)}%${warnCount ? ` <span class="pill lv${ev.level}">${ICON[ev.level]}${warnCount} warning${warnCount > 1 ? 's' : ''}</span>` : ''}<div class="tiny muted">Wear: ${k.start.name.toLowerCase()} kit${k.add.length ? ' + ' + k.add.map(a => a[0].split(' ')[0].toLowerCase() === 'packable' ? 'rain jacket' : a[0].toLowerCase()).join(', ') : ''}</div>`,
+      `<p class="small" style="margin:0">Ride ${fmtTime(t.start)}–${fmtTime(t.end)} · bike feel ${r0(st.feelMin)}–${r0(st.feelMax)}° · gusts ${r0(st.wgMax)} mph from ${compass(st.dir)} · ${fmtIn(st.rain)} rain · roads ${st.road.state.toLowerCase()} (${st.road.sinceRain == null ? `no rain in ${S.lookback} h` : `${fmtIn(st.road.rainIn)} in last ${S.lookback} h`})</p>
+       ${hourRows(se, sel.date, fa, fb, ev.f0, ev.f1, S.pace)}
+       <div class="btnrow" style="margin-top:10px;align-items:center"><a class="btn btn-outline btn-sm" href="${WX_APPS[app].url(spot)}" target="_blank" rel="noopener">Full-day forecast in ${WX_APPS[app].name}</a>
+         <label class="tiny muted" style="display:flex;align-items:center;gap:6px">Open in<select id="wx-app" style="min-height:32px;padding:4px 8px;width:auto">${Object.entries(WX_APPS).map(([k2, v]) => `<option value="${k2}" ${k2 === app ? 'selected' : ''}>${v.name}</option>`).join('')}</select></label></div>
+       <div class="sub"><div class="sub-h">What to wear
          <div class="seg" role="group" aria-label="I usually run">${['cold', 'avg', 'hot'].map(o => `<button type="button" data-offset="${o}" aria-pressed="${cur === o}">${o === 'avg' ? 'Avg' : o === 'cold' ? 'Run cold' : 'Run hot'}</button>`).join('')}</div></div>
          <div class="muted small">${k.start.name} · bike feel ${r0(st.feelMin)}°${k.off ? ` (feels like ${r0(st.feelMin + k.off)}° to you)` : ''}</div>
          <ul class="wear-list">${k.start.items.map(i => `<li>${i}</li>`).join('')}</ul>
-         ${k.shed ? `<div class="addon">${k.shed}</div>` : ''}${k.add.map(([a, why]) => `<div class="addon"><b>+ ${a}</b> <span class="muted">— ${why}</span></div>`).join('')}</div>
-       <div class="sub"><div class="sub-h">Ride window ${fmtTime(t.start)}–${fmtTime(t.end)}</div>
-         <p class="small">Real feel ${r0(st.appMin)}–${r0(st.appMax)}° · gusts ${r0(st.wgMax)} mph from ${compass(st.dir)} · ${fmtIn(st.rain)} rain · roads ${st.road.state.toLowerCase()} (${st.road.sinceRain == null ? `no rain in ${S.lookback} h` : `${fmtIn(st.road.rainIn)} in last ${S.lookback} h`})</p>
-         ${hourRows(se, sel.date, ev.f0, ev.f1, ev.f0, ev.f1, S.pace)}</div>`);
+         ${k.shed ? `<div class="addon">${k.shed}</div>` : ''}${k.add.map(([a, why]) => `<div class="addon"><b>+ ${a}</b> <span class="muted">— ${why}</span></div>`).join('')}</div>`);
   } else weather = `<section class="panel"><div class="panel-h"><span class="panel-t">Weather</span><div class="panel-s muted">Forecast not available for this date yet.</div></div></section>`;
 
   const notes = ride.notes ? panel('notes', 'Notes', `<span class="clamp">${esc(ride.notes.split('\n')[0])}</span>`, `<p class="notes">${esc(ride.notes)}</p>`) : '';
-  return dayTabs + `<h1 class="sr">${esc(spot.name)} — ${esc(route.name)}</h1>` + (ev ? warnings(ev, se, sel.date, t) : '') + `<div class="panels">${meet}${routeP}${weather}${notes}</div>`;
+  UI.share = { title: `BBT ride ${dayLabel(sel.date)}`, text: [
+      `BBT ride · ${dayLabel(sel.date, true)}`,
+      `Meet ${fmtTime(t.start)} · ${spot.name} ${spot.maps_url}`,
+      ...ride.routes.map(r => { const rr = routeById(r.id); return `${ride.routes.length > 1 ? r.label + ': ' : 'Route: '}${rr.name} (${(rr.distance_m / MI).toFixed(1)} mi, ${r0(rr.elevation_gain_m * FT).toLocaleString()} ft) ${rr.url}`; }),
+      t.stop ? `Coffee: ${t.stop.poi.name}, mile ${t.stop.mile.toFixed(1)} ≈ ${fmtTime(t.stop.eta)} (optional)` : null,
+      `Back ≈ ${fmtTime(t.end)}`,
+      st ? `Weather: ${r0(st.tMin)}–${r0(st.tMax)}°, feels ${r0(st.appMin)}–${r0(st.appMax)}°, wind ${r0(st.wsMax)} mph, rain ${r0(st.ppMax)}%${st.road.state !== 'Dry' ? `, roads ${st.road.state.toLowerCase()}` : ''}` : null,
+      ride.notes ? `Notes: ${ride.notes.replace(/\n/g, ' ')}` : null
+    ].filter(Boolean).join('\n'), url: location.href };
+  const shareBtn = `<button type="button" class="iconbtn share" data-share aria-label="Share this ride" title="Share"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg></button>`;
+  return `<div class="dayrow">${dayTabs}${shareBtn}</div>` + `<h1 class="sr">${esc(spot.name)} — ${esc(route.name)}</h1>` + (ev ? warnings(ev, se, sel.date, t) : '') + `<div class="panels">${meet}${routeP}${weather}${notes}</div>`;
 }
 
 function viewBoard(){
@@ -854,6 +899,19 @@ document.addEventListener('click', e => {
   const tg = e.target.closest('[data-toggle]');
   if (tg && !e.target.closest('a,.seg,.panel-s button')){ const k = tg.dataset.toggle, sec = document.querySelector(`[data-panel="${k}"]`), body = sec.querySelector('.panel-b'), btn = sec.querySelector('.panel-t');
     const open = body.hidden; body.hidden = !open; btn.setAttribute('aria-expanded', String(open)); const ps = store.get('bbt.panels', {}); ps[k] = open; store.set('bbt.panels', ps); if (open && k === 'route') mount('ride'); return; }
+  if (e.target.closest('[data-share]')){
+    const sh = UI.share, full = `${sh.text}\n${sh.url}`;
+    if (navigator.share) navigator.share({ title: sh.title, text: sh.text, url: sh.url }).catch(err => { if (err && err.name !== 'AbortError') showShareSheet(full); });
+    else showShareSheet(full);
+    return;
+  }
+  if (e.target.closest('[data-copy]')){ const ta = document.getElementById('share-text'); ta.select(); (navigator.clipboard ? navigator.clipboard.writeText(ta.value) : Promise.reject()).then(() => toast('Copied'), () => { try { document.execCommand('copy'); toast('Copied'); } catch(err){ toast('Select the text and copy it'); } }); return; }
+  if (e.target.closest('[data-close]') || e.target.classList.contains('sheet')){ document.querySelector('.sheet')?.remove(); return; }
+  if (e.target.closest('[data-ics]')){
+    const blob = new Blob([icsText(UI.cal)], { type: 'text/calendar' }), a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = `bbt-ride-${UI.cal.date}.ics`; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000); return;
+  }
   const el = e.target.closest('[data-route],[data-offset],[data-bday],[data-spot],[data-pick],[data-theme-set],[data-role-set],#publish,#savedraft,#reset,#themebtn,#p-spotauto,#invite');
   if (!el) return;
   if (el.dataset.route != null){ UI.route = +el.dataset.route; render(); }
@@ -895,6 +953,7 @@ document.addEventListener('change', e => {
   switch (t.id){
     case 'b-time': UI.board.time = t.value || S.rollout; break;
     case 'b-dur': UI.board.dur = +t.value; break;
+    case 'wx-app': store.set('bbt.wxApp', t.value); break;
     case 'b-date': if (t.value) UI.board.date = t.value; break;
     case 'p-date': P.date = t.value; break;
     case 'p-time': P.time = t.value || S.rollout; break;
