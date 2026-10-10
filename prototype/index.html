@@ -197,6 +197,11 @@ textarea{min-height:80px;resize:vertical}
 .compose textarea{min-height:64px}
 .wxi{width:22px;height:22px;display:block;margin:0 auto}
 th.sky,td.sky{text-align:center}
+.notice{border-radius:12px;padding:10px 12px;margin:0 0 14px;background:var(--win);font-size:14px}
+.warn.big{margin:0 0 14px}
+.editbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;border-radius:12px;padding:10px 12px;margin:-4px 0 12px;background:var(--win);font-size:14px}
+.editbar.lv2{background:var(--no-bg);color:var(--no-fg)}
+.msg.sys .meta b{color:var(--link)}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 @media (min-width:760px){
   .map{height:280px}
@@ -729,7 +734,7 @@ function ridersPanel(ride, date){
   const btns = `<div class="seg rsvp" role="group" aria-label="Your RSVP"><button type="button" data-rsvp="in" aria-pressed="${R.me === 'in'}">In</button><button type="button" data-rsvp="out" aria-pressed="${R.me === 'out'}">Out</button></div>`;
   const routePick = R.me === 'in' && ride.routes.length > 1 ? `<div class="seg" role="group" aria-label="Your route" style="margin-top:6px">${ride.routes.map(r => `<button type="button" data-rsvp-route="${esc(r.label)}" aria-pressed="${R.myRoute === r.label}">${esc(r.label)}</button>`).join('')}</div>` : '';
   const alt = ride.routes.length > 1, person = p => `<span class="person${p.me ? ' me' : ''}">${esc(p.name)}${alt && p.status === 'in' && p.route ? ` <span class="muted">· ${esc(p.route)}</span>` : ''}</span>`;
-  const msg = (m, isReply) => `<div class="msg${isReply ? ' reply' : ''}"><div class="meta"><b>${esc(m.name)}</b> <span class="muted">${m.at}</span></div><p>${esc(m.text)}</p>
+  const msg = (m, isReply) => `<div class="msg${isReply ? ' reply' : ''}${m.sys ? ' sys' : ''}"><div class="meta"><b>${esc(m.name)}</b> <span class="muted">${m.at}</span></div><p>${esc(m.text)}</p>
       ${isReply ? '' : `<button type="button" class="linkbtn" data-reply="${m.id}">Reply</button>`}
       ${!isReply && m.replies.length ? `<div class="replies">${m.replies.map(r => msg(r, true)).join('')}</div>` : ''}
       ${!isReply && R.replyTo === m.id ? `<div class="compose"><textarea id="reply-${m.id}" aria-label="Reply to ${esc(m.name)}" placeholder="Reply to ${esc(m.name)}"></textarea><div class="btnrow"><button type="button" class="btn btn-primary btn-sm" data-send="${m.id}">Send</button><button type="button" class="btn btn-outline btn-sm" data-reply="0">Cancel</button></div></div>` : ''}</div>`;
@@ -789,7 +794,7 @@ function rideBody(ride, date, opts = {}){
   if (!opts.preview){
     UI.cal = cal;
     UI.share = { title: `BBT ride ${dayLabel(date)}`, text: [
-        `BBT ride · ${dayLabel(date, true)}`,
+        `${ride.cancelled ? 'CANCELLED: ' : ''}BBT ride · ${dayLabel(date, true)}`,
         `Meet ${fmtTime(t.start)} · ${spot.name} ${spot.maps_url}`,
         ...ride.routes.map(r => { const rr = routeById(r.id); return `${ride.routes.length > 1 ? r.label + ': ' : 'Route: '}${rr.name} (${(rr.distance_m / MI).toFixed(1)} mi, ${r0(rr.elevation_gain_m * FT).toLocaleString()} ft) ${rr.url}`; }),
         t.stop ? `Coffee: ${t.stop.poi.name}, mile ${t.stop.mile.toFixed(1)} ≈ ${fmtTime(t.stop.eta)} (optional)` : null,
@@ -809,9 +814,13 @@ function viewRide(arg){
   UI.day = date;
   const ride = rideOn(date);
   const shareBtn = ride ? `<button type="button" class="iconbtn share" data-share aria-label="Share this ride" title="Share"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg></button>` : '';
-  const head = `<div class="dayrow">${dayTabsHTML(days, date, d => `#ride/${d}`)}${shareBtn}</div>`;
+  const editBtn = ride && can.plan() ? `<button type="button" class="iconbtn share" data-edit-ride="${date}" aria-label="Edit this ride" title="Edit ride"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4"/></svg></button>` : '';
+  const head = `<div class="dayrow">${dayTabsHTML(days, date, d => `#ride/${d}`)}${editBtn}${shareBtn}</div>`;
   if (!ride) return head + `<h1 class="sr">No ride</h1><section class="panel empty"><p><b>No ride posted for ${dayLabel(date, true)}.</b></p>${can.plan() ? `<a class="btn btn-primary btn-sm" href="#plan" data-plan-date="${date}">Plan a ride</a>` : '<p class="muted small">Check back later.</p>'}</section>`;
-  return head + rideBody(ride, date);
+  const last = ride.updates && ride.updates[ride.updates.length - 1];
+  const banner = ride.cancelled ? `<div class="warn lv2 big">${ICON[2]}<div><b>Ride cancelled</b><span>Check the Riders panel for messages.</span></div></div>`
+    : last ? `<div class="notice"><b>Updated ${last.at}</b> · ${esc(last.text)}</div>` : '';
+  return head + banner + rideBody(ride, date);
 }
 
 // Start-spot picker (Plan → Meet): one compact row per spot to compare at a glance; the chosen spot gets a detail panel.
@@ -855,7 +864,34 @@ function saveNewSpot(){
 }
 
 /* Plan-a-ride editor: mock, nothing is persisted. */
-const P = { date: null, time: null, spot: null, newSpot: null, route: null, alt: null, altOn: false, labelA: 'Full', labelB: 'Short', stop: null, pace: null, notes: '', q: '', qAlt: '' };
+const P = { editing: null, date: null, time: null, spot: null, newSpot: null, route: null, alt: null, altOn: false, labelA: 'Full', labelB: 'Short', stop: null, pace: null, notes: '', q: '', qAlt: '' };
+// Draft autosave: the editor's form survives reloads (live app: saved per editor in D1). No Save draft button.
+const DRAFT_KEYS = ['editing', 'date', 'time', 'spot', 'route', 'alt', 'altOn', 'labelA', 'labelB', 'stop', 'pace', 'notes', 'q', 'qAlt'];
+const P0 = Object.fromEntries(DRAFT_KEYS.map(k => [k, P[k]]));
+Object.assign(P, store.get('bbt.draft', {}));
+const saveDraft = () => store.set('bbt.draft', Object.fromEntries(DRAFT_KEYS.map(k => [k, P[k]])));
+function clearDraft(){ Object.assign(P, P0, { newSpot: null }); store.del('bbt.draft'); }
+// Load a published ride into the editor.
+function editRide(date){
+  const r = rideOn(date); if (!r) return;
+  const main = r.routes[0], alt = r.routes[1];
+  Object.assign(P, { editing: date, date, time: r.time, spot: r.spot, route: main.id, q: routeById(main.id).name, stop: main.stop || '', pace: r.pace || S.pace, notes: r.notes || '',
+    altOn: !!alt, alt: alt ? alt.id : null, qAlt: alt ? routeById(alt.id).name : '', labelA: alt ? main.label : 'Full', labelB: alt ? alt.label : 'Short', newSpot: null });
+  if (!r.date){ const i = RIDES.indexOf(r); RIDES[i] = Object.assign({}, r, { date }); }
+  saveDraft(); location.hash = 'plan';
+}
+// What riders need to know when a published ride changes.
+function rideChanges(a, b){
+  const out = [], rn = r => r.routes.map(x => `${x.label === 'Main' ? '' : x.label + ' '}${routeById(x.id).name}`).join(' / ');
+  if (a.date !== b.date) out.push(`moved to ${dayLabel(b.date, true)}`);
+  if (a.time !== b.time) out.push(`roll-out ${fmtTime(hhmmToMin(a.time))} → ${fmtTime(hhmmToMin(b.time))}`);
+  if (a.spot !== b.spot) out.push(`start ${spotById(a.spot).name} → ${spotById(b.spot).name}`);
+  if (rn(a) !== rn(b)) out.push(`route ${rn(b)}`);
+  if ((a.routes[0].stop || '') !== (b.routes[0].stop || '')) out.push(b.routes[0].stop ? `coffee stop ${b.routes[0].stop}` : 'no coffee stop');
+  if ((a.notes || '') !== (b.notes || '')) out.push('notes updated');
+  return out;
+}
+function postSystem(date, ride, text){ const R = rsvpFor(date, ride); R.msgs.push({ id: R.nextId++, name: 'Ride update', at: fmtTime(nyNow().min), text, replies: [], sys: true }); }
 function parseRouteInput(q){ const m = String(q).match(/ridewithgps\.com\/routes\/(\d+)/) || String(q).trim().match(/^(\d{6,})$/); return m ? +m[1] : null; }
 function searchResults(q, which){
   const id = parseRouteInput(q);
@@ -870,11 +906,17 @@ function nearestSpot(route){
   const [la, ln] = route.track[0];
   return SPOTS.map(s => ({ s, d: haversine(la, ln, s.lat, s.lng) })).sort((a, b) => a.d - b.d)[0];
 }
+function publishBar(){
+  const orig = P.editing && rideOn(P.editing), clash = RIDES.find(r => (r.date === P.date || (!r.date && r.day === dow(P.date) && !RIDES.some(x => x.date === P.date))) && r !== orig);
+  const label = orig ? 'Update ride' : clash ? 'Replace ride' : 'Publish';
+  return `${clash ? `<p class="tiny" style="margin:12px 0 0;color:var(--cau-fg)">A ride is already posted for ${dayLabel(P.date)}. ${orig ? 'Updating' : 'Publishing'} replaces it.</p>` : ''}
+    <div class="btnrow" style="margin-top:12px"><button class="btn btn-primary" type="button" id="publish">${label}</button>${orig ? `<button class="btn btn-outline" type="button" id="cancelride">${orig.cancelled ? 'Restore ride' : 'Cancel ride'}</button>` : ''}</div>`;
+}
 function viewPlan(){
   if (!can.plan()) return `<section class="panel empty"><p><b>Editors only.</b></p><p class="muted small">Your role is View. Ask an admin for the Edit role to plan rides.</p></section>`;
   const weekend = weekendDates().map(w => w.date);
   const se0 = WX.series[SPOTS[0].id], days = [...new Set(se0.time.map(t => t.slice(0, 10)))];
-  P.date = P.date || weekend[0]; P.time = P.time || S.rollout; P.pace = P.pace || S.pace;
+  P.date = P.date || weekend.find(d => !rideOn(d)) || weekend[0]; P.time = P.time || S.rollout; P.pace = P.pace || S.pace;
   const route = P.route && routeById(P.route);
   if (route && !P.spot) P.spot = nearestSpot(route).s.id;
   const pois = route ? route.pois.slice().sort((a, b) => (/coffee|food/.test(b.type) - /coffee|food/.test(a.type)) || a.route_d_m - b.route_d_m) : [];
@@ -908,9 +950,13 @@ function viewPlan(){
     if (P.altOn && P.alt) rts.push({ label: P.labelB, id: P.alt, stop: routeById(P.alt).pois.some(p => p.name === P.stop) ? P.stop : null });
     UI.draft = { date: P.date, time: P.time, spot: P.spot, pace: P.pace, routes: rts, notes: P.notes || '' };
     preview = rideBody(UI.draft, P.date, { preview: true }).replace(/<h1 class="sr">[^<]*<\/h1>/, '')
-      + `<div class="btnrow" style="margin-top:12px"><button class="btn btn-primary" type="button" id="publish">Publish</button><button class="btn btn-outline" type="button" id="savedraft">Save draft</button></div>`;
+      + publishBar();
   }
-  return `<h1 class="sr">Plan a ride</h1><p class="tiny muted" style="margin:-4px 0 10px">Prototype editor: nothing is saved.</p>
+  saveDraft();
+  const orig = P.editing && rideOn(P.editing);
+  const status = orig ? `<div class="editbar${orig.cancelled ? ' lv2' : ''}"><span><b>Editing the ${dayLabel(P.editing)} ride</b>${orig.cancelled ? ' · cancelled' : ''}</span><button type="button" class="linkbtn" id="discard">Discard changes</button></div>`
+    : `<p class="tiny muted" style="margin:-4px 0 10px">Draft saves automatically. <button type="button" class="linkbtn" id="startover">Start over</button></p>`;
+  return `<h1 class="sr">Plan a ride</h1>${status}
     <div class="plan-grid"><div class="panels">${meetS}${routeS}${notesS}</div><div><div class="kicker" style="margin:4px 0 8px">Preview · ${dayLabel(P.date, true)}</div>${preview}</div></div>`;
 }
 
@@ -1002,7 +1048,7 @@ document.addEventListener('click', e => {
     a.href = URL.createObjectURL(blob); a.download = `bbt-ride-${UI.cal.date}.ics`; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 2000); document.querySelector('.sheet')?.remove(); return;
   }
-  const el = e.target.closest('[data-route],[data-offset],[data-pday],[data-pick-spot],[data-plan-date],[data-pick],[data-role-set],#publish,#savedraft,#ns-open,#ns-save,#ns-cancel,#reset,#themebtn,#invite');
+  const el = e.target.closest('[data-route],[data-offset],[data-pday],[data-pick-spot],[data-plan-date],[data-pick],[data-role-set],#publish,#cancelride,#discard,#startover,[data-edit-ride],#ns-open,#ns-save,#ns-cancel,#reset,#themebtn,#invite');
   if (!el) return;
   if (el.dataset.route != null){ UI.route = +el.dataset.route; render(); }
   else if (el.dataset.offset){ store.set('bbt.kitOffset', el.dataset.offset); render(); }
@@ -1011,13 +1057,24 @@ document.addEventListener('click', e => {
   else if (el.dataset.planDate){ P.date = el.dataset.planDate; }
   else if (el.dataset.pick){ const id = +el.dataset.id; if (el.dataset.pick === 'alt'){ P.alt = id; P.qAlt = routeById(id).name; } else { P.route = id; P.q = routeById(id).name; P.stop = null; } render(); }
   else if (el.id === 'publish'){
-    if (UI.draft){ const i = RIDES.findIndex(r => r.date === P.date), ride = Object.assign({}, UI.draft);
-      if (i >= 0) RIDES[i] = ride; else RIDES.push(ride); UI.day = P.date; UI.route = 0; location.hash = 'ride/' + P.date; toast('Published for this session only (prototype).'); }
+    if (UI.draft){
+      const orig = P.editing && rideOn(P.editing), ride = Object.assign({}, UI.draft, { updates: orig ? (orig.updates || []).slice() : [] });
+      if (orig){
+        const ch = rideChanges(orig, ride);
+        if (ch.length){ ride.updates.push({ at: fmtTime(nyNow().min), text: ch.join(' · ') }); if (orig.date !== ride.date && RSVP[orig.date]){ RSVP[ride.date] = RSVP[orig.date]; delete RSVP[orig.date]; } postSystem(ride.date, ride, 'Updated: ' + ch.join(' · ')); }
+        RIDES.splice(RIDES.indexOf(orig), 1);
+      }
+      for (let i = RIDES.length - 1; i >= 0; i--) if (rideOn(ride.date) === RIDES[i]) RIDES.splice(i, 1); // replace any ride on that date
+      RIDES.push(ride); UI.day = ride.date; UI.route = 0; clearDraft(); location.hash = 'ride/' + ride.date;
+      toast(orig ? 'Ride updated (prototype: this session only).' : 'Published (prototype: this session only).');
+    }
   }
   else if (el.id === 'ns-open'){ P.newSpot = { name: '', link: '', note: '', msg: '' }; render(); document.getElementById('ns-name')?.focus(); }
   else if (el.id === 'ns-save') saveNewSpot();
   else if (el.id === 'ns-cancel'){ P.newSpot = null; render(); }
-  else if (el.id === 'savedraft'){ toast('Prototype: drafts are not saved. The live editor saves to D1.'); }
+  else if (el.id === 'cancelride'){ const r = rideOn(P.editing); r.cancelled = !r.cancelled; postSystem(P.editing, r, r.cancelled ? 'Ride cancelled.' : 'Ride is back on.'); UI.day = P.editing; clearDraft(); location.hash = 'ride/' + UI.day; toast(r.cancelled ? 'Ride cancelled' : 'Ride restored'); }
+  else if (el.id === 'discard' || el.id === 'startover'){ clearDraft(); render(); }
+  else if (el.dataset.editRide){ editRide(el.dataset.editRide); }
   else if (el.dataset.roleSet){ ROLE = el.dataset.roleSet; store.set('bbt.role', ROLE); render(); }
   else if (el.id === 'invite'){ const em = document.getElementById('u-email'), rl = document.getElementById('u-role');
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em.value)){ toast('Enter a valid email address.'); return; }

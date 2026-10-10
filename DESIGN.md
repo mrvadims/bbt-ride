@@ -35,7 +35,9 @@ sessions(id PRIMARY KEY, user_id, created_at, expires_at, user_agent)
 settings(key PRIMARY KEY, value_json, updated_by, updated_at)        -- one row per setting
 kit_bands(id, min_feel_f, name, items_json, sort)                    -- editable kit chart
 spots(id, name, lat, lng, maps_url, note, archived)
-rides(id, date, rollout, spot_id, pace_mph, stop_min, notes, status CHECK(status IN ('draft','published','archived')), created_by, updated_by, updated_at)
+rides(id, date, rollout, spot_id, pace_mph, stop_min, notes, status CHECK(status IN ('published','cancelled','archived')), created_by, updated_by, updated_at)
+ride_updates(id, ride_id, user_id, summary, at)                       -- what changed, shown on the ride page
+drafts(user_id PRIMARY KEY, ride_id NULL, form_json, updated_at)       -- editor autosave; ride_id set when editing
 ride_routes(ride_id, sort, label, rwgps_route_id, stop_poi_json)
 route_cache(rwgps_route_id PRIMARY KEY, json, fetched_at)
 rsvps(ride_id, user_id, status CHECK(status IN ('in','out')), route_label NULL, updated_at, PRIMARY KEY(ride_id, user_id))
@@ -46,7 +48,7 @@ audit_log(id, user_id, action, entity, entity_id, diff_json, at)
 ## v1 scope
 
 ### Rides (viewer home)
-- Editor plans a ride on **any date** (weekend or weekday): date, roll-out time, start spot, avg pace, notes, and one or more routes. Draft → Publish.
+- Editor plans a ride on **any date** (weekend or weekday): date, roll-out time, start spot, avg pace, notes, and one or more routes. Publish (form autosaves; see Plan a ride).
   - Usually one route; occasionally a labeled alternate (e.g., "Full" / "Short") sharing the same spot and time.
 - Home shows upcoming published rides as date tabs: this Saturday and Sunday always, plus any other day that has a published ride. The tab carries the date; the page doesn't repeat it.
 - Ride page = warnings (only when something needs attention) + a stack of collapsible panels. Each collapsed header is the briefing; tapping it expands detail. Open/closed state is remembered per rider; panels start open on desktop.
@@ -93,7 +95,15 @@ Planning is one top-to-bottom flow in the same panel style, mirroring the ride p
 2. **Start spot:** a compact pick list, one row per spot: name, temp · real feel · wind · rain for the weather window, and warning chips only when something needs attention. Tap a row to select it. The selected spot gets a collapsed **Details** panel below: bike feel, gusts, rain and road state; rain bars −12 h → +8 h; hourly table (1 h before → 3 h after); Full-day forecast and Radar; parking notes and Google Maps. The weather window is the default length (Settings) until a route is picked, then the route's actual ride time. The last row is **Add a start spot** (see Spots).
 3. **Route:** routes that start at the chosen spot are listed first ("starts here"), plus search or a pasted RWGPS link; a note appears if the route starts away from the spot. Optional alternate route with labels, coffee stop from the route's POIs, pace. Picking a route first (before a spot) selects its nearest spot.
 4. **Notes.**
-5. **Preview:** the actual ride-page warnings and panels for the draft, then Publish / Save draft.
+5. **Preview:** the actual ride-page warnings and panels for the draft, then **Publish**.
+
+Drafts and changes:
+- **No Save draft button.** The form autosaves per editor (`drafts` table), so a half-planned ride survives closing the page. "Start over" clears it.
+- If a ride is already posted for the chosen date, the button reads **Replace ride** with a note.
+- **Editing a published ride:** editors get an Edit (pencil) icon on the ride page, next to Share. It opens Plan pre-filled with an "Editing the Sat, Oct 10 ride" bar, and the button reads **Update ride**. "Discard changes" leaves the published ride untouched.
+  - RSVPs and messages are kept (moved along if the date changes).
+  - If something riders care about changed (date, roll-out, start spot, route, coffee stop, notes), the ride page shows "Updated 9:12 PM · roll-out 8:30 → 9:00 AM" and the same text is posted to the Riders thread as a "Ride update" message.
+  - **Cancel ride** marks it cancelled without deleting it: a red "Ride cancelled" banner on the ride page, a "Ride cancelled" message in the thread, and "CANCELLED:" at the start of the shared text. **Restore ride** undoes it.
 
 ### Metrics
 - **Real feel** — standard apparent temperature.
