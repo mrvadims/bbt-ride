@@ -47,17 +47,12 @@ audit_log(id, user_id, action, entity, entity_id, diff_json, at)
 - Editor plans a ride on **any date** (weekend or weekday): date, roll-out time, start spot, avg pace, notes, and one or more routes. Draft → Publish.
   - Usually one route; occasionally a labeled alternate (e.g., "Full" / "Short") sharing the same spot and time.
 - Home shows upcoming published rides as date tabs: this Saturday and Sunday always, plus any other day that has a published ride. The tab carries the date; the page doesn't repeat it.
-- Ride page, top to bottom:
-  - Title: spot — route name.
-  - **Summary** (the essentials):
-    - **Park:** spot name, linking to Google Maps; "Details" expands the parking notes and a link to the spot forecast.
-    - **Meet:** roll-out time plus temp and bike feel at that time. Tapping the time (or "Hourly forecast") opens the hour-by-hour table in Conditions, so there's only one hourly table.
-    - **Back:** estimated return = moving time + regroup buffer + coffee stop, with the time without the stop.
-    - **Route:** Full/Short switcher, distance and climbing, "Open in RWGPS", and "Send to device" (opens the route in RWGPS for its own Garmin/Wahoo/Hammerhead sync, or downloads GPX/TCX).
-  - **Warnings, only when something needs attention:** wet or drying roads, cold, heat, wind, rain, thunder, each with a one-line reason. No Go badge; a clean forecast shows nothing.
-  - Conditions for the ride window: four tiles (temp with real feel and bike feel, wind, rain, roads) and the hour-by-hour table.
-  - Route map and elevation profile.
-  - Notes, What to wear, Coffee stop (always shown when the ride has one, labeled optional; no on/off switch).
+- Ride page = warnings (only when something needs attention) + a stack of collapsible panels. Each collapsed header is the briefing; tapping it expands detail. Open/closed state is remembered per rider; panels start open on desktop.
+  - **Meet** — collapsed: roll-out time · spot name (links to Google Maps). Expanded: estimated time back (moving + regroup buffer + coffee stop, and the time without the stop), parking notes, Google Maps and spot-forecast buttons.
+  - **Route** — collapsed: route name (opens RWGPS) · distance · climbing, plus the Full/Short switcher. Expanded: map, elevation profile, coffee stop (name links to Maps, mile, ETA, length, weather there; labeled optional), "Open in RWGPS".
+  - **Weather** — collapsed: temp range · bike feel · wind · rain chance, a warning count if any, and a one-line kit hint. Expanded: What to wear (with Run cold / Avg / Run hot), a ride-window summary (real feel, gusts, rain total, roads) and the hour-by-hour table.
+  - **Notes** — only if the ride has notes; collapsed shows the first line.
+  - Warnings: wet/drying roads, cold, heat, wind, rain, thunder, and low light (roll-out within 30 min of sunrise). No Go badge.
 - Route picker: search RWGPS routes from the captain's personal library **and** the BBT club library, or paste a RWGPS link. Suggest start spot by nearest saved spot to route start.
   - "Open in RWGPS" works for viewers only if the route is public or shared; map/stats render regardless.
 - **Coffee / muffin stop (optional)** — a ride can have an optional mid-ride stop.

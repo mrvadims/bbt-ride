@@ -137,26 +137,6 @@ textarea{min-height:80px;resize:vertical}
 .wear-list li{margin:3px 0}
 .addon{margin-top:10px;padding:8px 10px;border-radius:10px;background:var(--card2);font-size:13px}
 .rolebar{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin:-4px 0 12px}
-.facts{margin:0 0 14px;display:grid;gap:0;background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
-.facts>div{display:grid;grid-template-columns:64px minmax(0,1fr);gap:10px;padding:11px 14px;border-bottom:1px solid var(--line)}
-.facts>div:last-child{border-bottom:0}
-.facts dt{font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);padding-top:2px}
-.facts dd{margin:0;min-width:0}
-.facts a{text-decoration:none}
-.linkbtn{appearance:none;background:none;border:0;padding:0;font:inherit;color:var(--link);cursor:pointer}
-.linkbtn.small{font-size:13px;margin-left:6px;text-decoration:underline}
-details.more{display:inline}
-details.more>summary{list-style:none;cursor:pointer;display:inline}
-details.more>summary::-webkit-details-marker{display:none}
-.facts details.more:not(.send)>summary{color:var(--link);font-size:13px;margin-left:8px;text-decoration:underline}
-.facts details.more[open]:not(.send){display:block}
-.facts details.more p{margin:6px 0 4px;color:var(--muted);font-size:14px}
-.send{position:relative}
-.send[open]{display:block;flex-basis:100%}
-.send .menu{margin-top:8px;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:4px}
-.send .menu a{display:flex;flex-direction:column;gap:2px;padding:9px 10px;border-radius:8px;color:var(--text)}
-.send .menu a:hover{background:var(--win)}
-.send .menu span{font-size:12px;color:var(--muted)}
 .warns{display:grid;gap:8px;margin:0 0 14px}
 .warn{display:flex;gap:10px;align-items:flex-start;border-radius:12px;padding:10px 12px}
 .warn svg{width:14px;height:14px;flex:none;margin-top:3px}
@@ -164,6 +144,31 @@ details.more>summary::-webkit-details-marker{display:none}
 .warn span{font-size:13px;opacity:.85}
 .kv.kv4{grid-template-columns:repeat(2,1fr)}
 @media (min-width:760px){.kv.kv4{grid-template-columns:repeat(4,1fr)}}
+.panels{display:grid;gap:10px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);min-width:0}
+.panel-h{display:grid;grid-template-columns:66px minmax(0,1fr) 16px;gap:10px;align-items:start;padding:13px 14px;cursor:pointer}
+.panel-t{appearance:none;background:none;border:0;padding:2px 0 0;font:inherit;font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);text-align:left;cursor:pointer}
+.panel-t:focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:4px}
+.panel-s{min-width:0;line-height:1.5}
+.panel-s a{text-decoration:none}
+.panel-s .sw{margin-top:8px}
+.panel-s .seg button{white-space:nowrap}
+.panel-s .pill{font-size:12px;padding:1px 8px;vertical-align:1px}
+.chev{width:16px;height:16px;color:var(--muted);margin-top:3px;transition:transform .15s}
+.panel-t[aria-expanded="true"]~.chev{transform:rotate(180deg)}
+@media (prefers-reduced-motion:reduce){.chev{transition:none}}
+.panel-b{padding:0 14px 14px;border-top:1px solid var(--line);padding-top:12px}
+.kvlist{margin:0 0 12px;display:grid;gap:10px}
+.kvlist>div{display:grid;gap:2px}
+.kvlist dt{font-size:12px;font-weight:600;color:var(--muted)}
+.kvlist dd{margin:0}
+.kvlist dd span{display:block;font-size:13px;color:var(--muted)}
+.sub{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.sub-h{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;font-weight:700;margin-bottom:6px}
+.sub p{margin:0 0 4px}
+.clamp{display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+.panel-b .tablewrap{margin:8px -14px 0}
+@media (min-width:960px){.panels{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 @media (min-width:760px){
   .board{grid-template-columns:repeat(3,1fr)}
@@ -602,8 +607,10 @@ function verdictBlock(ev){
 /* ---------- views ---------- */
 const UI = { day: null, route: 0, board: null };
 // Only conditions that need attention are shown; a clean forecast shows nothing.
-function warnings(ev){
+function warnings(ev, se, date, t){
   const st = ev.st, out = [];
+  const sr = se && sunriseMin(se, date);
+  if (sr != null && t && t.start < sr + 30) out.push([1, 'Low light at roll-out', `Sunrise ${fmtTime(sr)}; bring front and rear lights`]);
   for (const f of ev.factors){
     if (!f.level) continue;
     if (f.k === 'Road') out.push([f.level, `Roads ${st.road.state.toLowerCase()} at roll-out`, `${fmtIn(st.road.rainIn)} of rain in the last ${S.lookback} h${st.roadEnd && st.roadEnd.state !== st.road.state ? `; ${st.roadEnd.state.toLowerCase()} by the finish` : ''}`]);
@@ -615,6 +622,18 @@ function warnings(ev){
   out.sort((a, b) => b[0] - a[0]);
   return out.length ? `<section class="warns" aria-label="Warnings">${out.map(([l, h, d]) => `<div class="warn lv${l}">${ICON[l]}<div><b>${h}</b><span>${d}</span></div></div>`).join('')}</section>` : '';
 }
+// Panels: the collapsed header is the briefing; expanding shows detail. Open state is remembered per viewer.
+const PANEL_DEFAULT = () => window.innerWidth >= 960;
+function panelOpen(k){ const v = store.get('bbt.panels', {})[k]; return v == null ? PANEL_DEFAULT() : v; }
+function panel(k, label, summary, body){
+  const open = panelOpen(k);
+  return `<section class="panel" data-panel="${k}"><div class="panel-h" data-toggle="${k}">
+      <button type="button" class="panel-t" data-toggle="${k}" aria-expanded="${open}" aria-controls="pb-${k}">${label}</button>
+      <div class="panel-s">${summary}</div>
+      <svg class="chev" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5 6 7.5 9 4.5" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></div>
+    <div class="panel-b" id="pb-${k}"${open ? '' : ' hidden'}>${body}</div></section>`;
+}
+function sunriseMin(se, date){ const d = se.daily, i = d && d.time.indexOf(date); return i >= 0 && d.sunrise ? hhmmToMin(d.sunrise[i].slice(11, 16)) : null; }
 function viewRide(arg){
   const weekend = weekendDates();
   RIDES.filter(r => r.date && !weekend.some(w => w.date === r.date)).forEach(r => weekend.push({ date: r.date, dow: dow(r.date) }));
@@ -626,56 +645,46 @@ function viewRide(arg){
   if (!ride) return dayTabs + `<div class="card empty"><h2>No ride posted for ${dayLabel(sel.date, true)}</h2><p class="muted">Check the weekend board for conditions at each spot.</p><a class="btn btn-primary" href="#board">Weekend board</a></div>`;
   const ri = Math.min(UI.route, ride.routes.length - 1), rt = ride.routes[ri], route = routeById(rt.id), spot = spotById(ride.spot);
   const t = rideTimes(route, { time: ride.time, pace: S.pace, stop: rt.stop, stopMin: S.stopMin }), poi = poiFor(rt);
-  const se = WX.series[spot.id], ev = se && evaluate(se, sel.date, t.start, t.end - t.start, S.pace);
-  const f0 = se && fIdx(se, sel.date, t.start);
-  const meetWx = f0 != null ? `${r0(at(se.T, f0))}°, feels ${r0(bikeFeel(at(se.T, f0), at(se.ws, f0), at(se.app, f0), S.pace))}° on the bike` : '';
+  const se = WX.series[spot.id], ev = se && evaluate(se, sel.date, t.start, t.end - t.start, S.pace), st = ev && ev.st;
+
+  const meet = panel('meet', 'Meet',
+    `<b>${fmtTime(t.start)}</b> · <a href="${spot.maps_url}" target="_blank" rel="noopener">${esc(spot.name)}</a>`,
+    `<dl class="kvlist"><div><dt>Back</dt><dd><b>≈ ${fmtTime(t.end)}</b><span>${fmtDur(t.movingH)} moving + ${r0(t.regroupMin)} min regroups${t.stop ? ` + ${t.stop.len} min coffee · ≈ ${fmtTime(t.end - t.stop.len)} without the stop` : ''}</span></dd></div>
+      <div><dt>Parking</dt><dd>${esc(spot.note)}</dd></div></dl>
+     <div class="btnrow"><a class="btn btn-outline btn-sm" href="${spot.maps_url}" target="_blank" rel="noopener">Open in Google Maps</a><a class="btn btn-outline btn-sm" href="#spot/${spot.id}">Spot forecast</a></div>`);
+
   const switcher = ride.routes.length > 1 ? `<div class="seg" role="group" aria-label="Route">${ride.routes.map((r, i) => `<button type="button" data-route="${i}" aria-pressed="${i === ri}">${r.label} · ${r0(routeById(r.id).distance_m / MI)} mi</button>`).join('')}</div>` : '';
-  const gpx = `https://ridewithgps.com/routes/${route.id}.gpx?sub_format=track`, tcx = `https://ridewithgps.com/routes/${route.id}.tcx`;
-  const facts = `<dl class="facts">
-    <div><dt>Park</dt><dd><a href="${spot.maps_url}" target="_blank" rel="noopener"><b>${esc(spot.name)}</b></a>
-      <details class="more"><summary>Details</summary><p>${esc(spot.note)}</p><a class="small" href="#spot/${spot.id}">Forecast for this spot →</a></details></dd></div>
-    <div><dt>Meet</dt><dd><button type="button" class="linkbtn" data-hourly><b>${fmtTime(t.start)}</b></button>${meetWx ? ` <span class="muted">· ${meetWx}</span>` : ''}
-      <button type="button" class="linkbtn small" data-hourly>Hourly forecast</button></dd></div>
-    <div><dt>Back</dt><dd><b>≈ ${fmtTime(t.end)}</b> <span class="muted">· ${fmtDur(t.movingH)} moving + ${r0(t.regroupMin)} min regroups${t.stop ? ` + ${t.stop.len} min coffee (≈ ${fmtTime(t.end - t.stop.len)} without)` : ''}</span></dd></div>
-    <div><dt>Route</dt><dd>${switcher ? `<div style="margin-bottom:6px">${switcher}</div>` : ''}<span><b>${t.distMi.toFixed(1)} mi</b> · ${r0(t.climbFt).toLocaleString()} ft climbing</span>
-      <div class="btnrow" style="margin-top:8px"><a class="btn btn-primary btn-sm" href="${route.url}" target="_blank" rel="noopener">Open in RWGPS</a>
-      <details class="more send"><summary class="btn btn-outline btn-sm">Send to device</summary><div class="menu">
-        <a href="${route.url}" target="_blank" rel="noopener"><b>Garmin, Wahoo, Hammerhead</b><span>Opens the route in RWGPS; use its "Send to device" (needs your device linked in RWGPS)</span></a>
-        <a href="${gpx}" target="_blank" rel="noopener"><b>Download GPX</b><span>For any GPS unit or app</span></a>
-        <a href="${tcx}" target="_blank" rel="noopener"><b>Download TCX</b><span>Turn-by-turn cues for Garmin</span></a></div></details></div></dd></div>
-  </dl>`;
-  const head = `<div class="ride-head"><h1>${esc(spot.name)} — ${esc(route.name)}</h1></div>`;
-  const st = ev && ev.st;
-  const condCard = ev ? `<section class="card" aria-label="Conditions"><div class="card-h"><h2>Conditions ${fmtTime(t.start)}–${fmtTime(t.end)}</h2></div>
-    <div class="kv kv4">
-      <div><div class="k">Temp</div><div class="v">${r0(st.tMin)}–${r0(st.tMax)}°</div><div class="s">feels ${r0(st.appMin)}–${r0(st.appMax)}° · bike ${r0(st.feelMin)}–${r0(st.feelMax)}°</div></div>
-      <div><div class="k">Wind</div><div class="v">${arrow(st.dir)} ${r0(st.wsMax)} mph</div><div class="s">gusts ${r0(st.wgMax)} · from ${compass(st.dir)}</div></div>
-      <div><div class="k">Rain</div><div class="v">${r0(st.ppMax)}%</div><div class="s">${fmtIn(st.rain)} expected · ${wxLabel(st.code).toLowerCase()}</div></div>
-      <div><div class="k">Roads</div><div class="v">${st.road.state}</div><div class="s">${st.road.sinceRain == null ? `no rain in ${S.lookback} h` : `${fmtIn(st.road.rainIn)} in last ${S.lookback} h`}</div></div>
-    </div>
-    <details id="hourly" style="margin-top:10px"><summary class="small" style="cursor:pointer;font-weight:600">Hour by hour</summary>${hourRows(se, sel.date, ev.f0, ev.f1, ev.f0, ev.f1, S.pace)}</details></section>`
-    : `<section class="card"><h2>Conditions</h2><p class="muted">Forecast not available for this date yet.</p></section>`;
-  const routeCard = `<section class="card" aria-label="Route map"><div class="map" id="routemap"></div>${elevationSVG(route, t.stop ? t.stop.mile : null)}</section>`;
-  let stopCard = '';
+  let stopHTML = '';
   if (poi){
     const ps = WX.series[poiKey(poi)], f = ps && fIdx(ps, sel.date, t.stop.eta);
     const w = f != null ? { T: at(ps.T, f), app: at(ps.app, f), ws: at(ps.ws, f), pp: near(ps.pp, f), code: near(ps.code, f) } : null;
-    stopCard = `<section class="card" aria-label="Coffee stop"><div class="card-h"><h2>Coffee stop <span class="tag">optional</span></h2></div>
-      <p style="margin:0 0 8px"><a href="${mapsLink(poi.lat, poi.lng)}" target="_blank" rel="noopener"><b>${esc(poi.name)}</b></a> · mile ${t.stop.mile.toFixed(1)} · ≈ ${fmtTime(t.stop.eta)} · ${t.stop.len} min</p>
-      ${w ? `<p class="small muted" style="margin:0">${r0(w.T)}° there, ${wxLabel(w.code).toLowerCase()}, ${r0(w.pp)}% rain · bike feel ${r0(bikeFeel(w.T, w.ws, w.app, S.pace))}° rolling out</p>` : ''}</section>`;
+    stopHTML = `<div class="sub"><div class="sub-h">Coffee stop <span class="tag">optional</span></div>
+      <p><a href="${mapsLink(poi.lat, poi.lng)}" target="_blank" rel="noopener"><b>${esc(poi.name)}</b></a> · mile ${t.stop.mile.toFixed(1)} · ≈ ${fmtTime(t.stop.eta)} · ${t.stop.len} min</p>
+      ${w ? `<p class="small muted">${r0(w.T)}° there, ${wxLabel(w.code).toLowerCase()}, ${r0(w.pp)}% rain · bike feel ${r0(bikeFeel(w.T, w.ws, w.app, S.pace))}° rolling out</p>` : ''}</div>`;
   }
-  const wearCard = ev ? wearHTML(ev.st) : '';
-  const notesCard = ride.notes ? `<section class="card" aria-label="Notes"><div class="card-h"><h2>Notes</h2></div><p class="notes">${esc(ride.notes)}</p></section>` : '';
-  return dayTabs + head + facts + (ev ? warnings(ev) : '') + `<div class="ride-grid"><div>${condCard}${routeCard}</div><div>${notesCard}${wearCard}${stopCard}</div></div>`;
-}
-function wearHTML(st){
-  const k = kitAdvice(st), cur = store.get('bbt.kitOffset', 'avg');
-  return `<section class="card" aria-label="What to wear"><div class="card-h"><h2>What to wear</h2>
-    <div class="seg" role="group" aria-label="I usually run" title="I usually run…">${['cold', 'avg', 'hot'].map(o => `<button type="button" data-offset="${o}" aria-pressed="${cur === o}">${o === 'avg' ? 'Avg' : o === 'cold' ? 'Cold' : 'Hot'}</button>`).join('')}</div></div>
-    <div class="muted small">${k.start.name} · bike feel ${r0(st.feelMin)}°${k.off ? ` (feels like ${r0(st.feelMin + k.off)}° to you)` : ''}</div>
-    <ul class="wear-list">${k.start.items.map(i => `<li>${i}</li>`).join('')}</ul>
-    ${k.shed ? `<div class="addon">${k.shed}</div>` : ''}
-    ${k.add.map(([a, why]) => `<div class="addon"><b>+ ${a}</b> <span class="muted">— ${why}</span></div>`).join('')}</section>`;
+  const routeP = panel('route', 'Route',
+    `<a href="${route.url}" target="_blank" rel="noopener"><b>${esc(route.name)}</b></a> · ${t.distMi.toFixed(1)} mi · ${r0(t.climbFt).toLocaleString()} ft${switcher ? `<div class="sw">${switcher}</div>` : ''}`,
+    `<div class="map" id="routemap"></div>${elevationSVG(route, t.stop ? t.stop.mile : null)}${stopHTML}
+     <div class="btnrow" style="margin-top:12px"><a class="btn btn-primary btn-sm" href="${route.url}" target="_blank" rel="noopener">Open in RWGPS</a></div>`);
+
+  let weather = '';
+  if (ev){
+    const k = kitAdvice(st), cur = store.get('bbt.kitOffset', 'avg');
+    const warnCount = ev.factors.filter(f => f.level).length;
+    weather = panel('weather', 'Weather',
+      `<b>${r0(st.tMin)}–${r0(st.tMax)}°</b> · bike feel ${r0(st.feelMin)}° · wind ${r0(st.wsMax)} · rain ${r0(st.ppMax)}%${warnCount ? ` <span class="pill lv${ev.level}">${ICON[ev.level]}${warnCount} warning${warnCount > 1 ? 's' : ''}</span>` : ''}<div class="tiny muted">Wear: ${k.start.name.toLowerCase()} kit${k.add.length ? ' + ' + k.add.map(a => a[0].split(' ')[0].toLowerCase() === 'packable' ? 'rain jacket' : a[0].toLowerCase()).join(', ') : ''}</div>`,
+      `<div class="sub" style="margin-top:0;border-top:0;padding-top:0"><div class="sub-h">What to wear
+         <div class="seg" role="group" aria-label="I usually run">${['cold', 'avg', 'hot'].map(o => `<button type="button" data-offset="${o}" aria-pressed="${cur === o}">${o === 'avg' ? 'Avg' : o === 'cold' ? 'Run cold' : 'Run hot'}</button>`).join('')}</div></div>
+         <div class="muted small">${k.start.name} · bike feel ${r0(st.feelMin)}°${k.off ? ` (feels like ${r0(st.feelMin + k.off)}° to you)` : ''}</div>
+         <ul class="wear-list">${k.start.items.map(i => `<li>${i}</li>`).join('')}</ul>
+         ${k.shed ? `<div class="addon">${k.shed}</div>` : ''}${k.add.map(([a, why]) => `<div class="addon"><b>+ ${a}</b> <span class="muted">— ${why}</span></div>`).join('')}</div>
+       <div class="sub"><div class="sub-h">Ride window ${fmtTime(t.start)}–${fmtTime(t.end)}</div>
+         <p class="small">Real feel ${r0(st.appMin)}–${r0(st.appMax)}° · gusts ${r0(st.wgMax)} mph from ${compass(st.dir)} · ${fmtIn(st.rain)} rain · roads ${st.road.state.toLowerCase()} (${st.road.sinceRain == null ? `no rain in ${S.lookback} h` : `${fmtIn(st.road.rainIn)} in last ${S.lookback} h`})</p>
+         ${hourRows(se, sel.date, ev.f0, ev.f1, ev.f0, ev.f1, S.pace)}</div>`);
+  } else weather = `<section class="panel"><div class="panel-h"><span class="panel-t">Weather</span><div class="panel-s muted">Forecast not available for this date yet.</div></div></section>`;
+
+  const notes = ride.notes ? panel('notes', 'Notes', `<span class="clamp">${esc(ride.notes.split('\n')[0])}</span>`, `<p class="notes">${esc(ride.notes)}</p>`) : '';
+  return dayTabs + `<h1 class="sr">${esc(spot.name)} — ${esc(route.name)}</h1>` + (ev ? warnings(ev, se, sel.date, t) : '') + `<div class="panels">${meet}${routeP}${weather}${notes}</div>`;
 }
 
 function viewBoard(){
@@ -833,7 +842,7 @@ function render(){
 }
 function mount(page){
   const rm = document.getElementById('routemap');
-  if (rm){ const ride = rideOn(UI.day), rt = ride.routes[Math.min(UI.route, ride.routes.length - 1)]; mountRouteMap(rm, routeById(rt.id), poiFor(rt)); }
+  if (rm && !rm.closest('[hidden]')){ const ride = rideOn(UI.day), rt = ride.routes[Math.min(UI.route, ride.routes.length - 1)]; mountRouteMap(rm, routeById(rt.id), poiFor(rt)); }
   const pm = document.getElementById('planmap');
   if (pm && P.route){ const r = routeById(P.route); mountRouteMap(pm, r, r.pois.find(p => p.name === P.stop)); }
   const rd = document.getElementById('radarmap');
@@ -842,10 +851,12 @@ function mount(page){
 function toast(msg){ const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 2600); }
 
 document.addEventListener('click', e => {
-  const el = e.target.closest('[data-route],[data-hourly],[data-offset],[data-bday],[data-spot],[data-pick],[data-theme-set],[data-role-set],#publish,#savedraft,#reset,#themebtn,#p-spotauto,#invite');
+  const tg = e.target.closest('[data-toggle]');
+  if (tg && !e.target.closest('a,.seg,.panel-s button')){ const k = tg.dataset.toggle, sec = document.querySelector(`[data-panel="${k}"]`), body = sec.querySelector('.panel-b'), btn = sec.querySelector('.panel-t');
+    const open = body.hidden; body.hidden = !open; btn.setAttribute('aria-expanded', String(open)); const ps = store.get('bbt.panels', {}); ps[k] = open; store.set('bbt.panels', ps); if (open && k === 'route') mount('ride'); return; }
+  const el = e.target.closest('[data-route],[data-offset],[data-bday],[data-spot],[data-pick],[data-theme-set],[data-role-set],#publish,#savedraft,#reset,#themebtn,#p-spotauto,#invite');
   if (!el) return;
   if (el.dataset.route != null){ UI.route = +el.dataset.route; render(); }
-  else if (el.dataset.hourly != null){ const d = document.getElementById('hourly'); if (d){ d.open = true; d.scrollIntoView({ behavior: 'smooth', block: 'start' }); } }
   else if (el.dataset.offset){ store.set('bbt.kitOffset', el.dataset.offset); render(); }
   else if (el.dataset.bday){ UI.board.date = el.dataset.bday; render(); }
   else if (el.dataset.pick){ const id = +el.dataset.id; if (el.dataset.pick === 'alt'){ P.alt = id; P.qAlt = routeById(id).name; } else { P.route = id; P.q = routeById(id).name; P.stop = null; P.spotAuto = true; } render(); }
