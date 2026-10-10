@@ -165,7 +165,19 @@ textarea{min-height:80px;resize:vertical}
 .panel.titled .chev{grid-column:2;grid-row:1}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 .chips .pill{font-size:12px;padding:1px 8px}
-.chips .pickspot{margin-left:auto;min-height:30px;padding:4px 10px}
+.spotlist{display:grid;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.spotrow{display:flex;gap:10px;align-items:flex-start;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);padding:11px 12px;font:inherit;color:var(--text);cursor:pointer}
+.spotlist>:last-child{border-bottom:0}
+.spotrow:hover{background:var(--win)}
+.spotrow:focus-visible{outline:2px solid var(--primary);outline-offset:-2px}
+.spotrow[aria-checked="true"]{background:var(--win)}
+.spotrow-b{display:grid;gap:2px;min-width:0}
+.spotrow-b .chips{margin-top:4px}
+.radio-dot{width:18px;height:18px;border-radius:50%;border:2px solid var(--muted);flex:none;margin-top:2px;display:grid;place-items:center;font-weight:700;line-height:1}
+.spotrow[aria-checked="true"] .radio-dot{border-color:var(--primary);box-shadow:inset 0 0 0 4px var(--card);background:var(--primary)}
+.radio-dot.plus{border-style:dashed;color:var(--link);font-size:14px}
+.spotrow.add b{color:var(--link)}
+.newspot{display:grid;gap:12px;padding:12px;background:var(--card2)}
 .sec-h{padding:13px 14px 0;font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--muted)}
 .sec-b{padding:10px 14px 14px;display:grid;gap:12px}
 .panel.empty{padding:16px 14px}
@@ -728,23 +740,48 @@ function viewRide(arg){
   return head + rideBody(ride, date);
 }
 
-// Spot panel (Plan → Meet): weather for the window, warning chips, and spot detail when expanded.
-function spotPanel(s, date, startMin, durMin){
-  const se = WX.series[s.id], ev = se && evaluate(se, date, startMin, durMin, P.pace || S.pace), chosen = P.spot === s.id;
-  const pick = `<button type="button" class="btn btn-sm ${chosen ? 'btn-primary' : 'btn-outline'} pickspot" data-pick-spot="${s.id}" aria-pressed="${chosen}">${chosen ? '✓ Start here' : 'Start here'}</button>`;
-  if (!ev) return `<section class="panel titled"><div class="panel-h"><span class="panel-t">${esc(s.name)}</span><div class="panel-s muted">No forecast for this date yet. ${pick}</div></div></section>`;
-  const st = ev.st, chips = warnChips(warnList(ev, se, date, startMin));
-  const radar = `https://www.rainviewer.com/map.html?loc=${s.lat},${s.lng},9&oFa=0&oC=1&oU=0&oCS=1&oF=0&oAP=1&c=3&o=83&lm=1&layer=radar&sm=1&sn=1`;
-  return panel('spot-' + s.id, esc(s.name), `${wxSummary(st)}<div class="chips">${chips}${pick}</div>`,
-    `<p class="small" style="margin:0 0 8px">Bike feel ${r0(st.feelMin)}–${r0(st.feelMax)}° · gusts ${r0(st.wgMax)} mph from ${compass(st.dir)} · ${fmtIn(st.rain)} rain · ${roadNote(st)}</p>
-     <div class="sub-h" style="margin-top:4px">Rain −12 h → +8 h</div>${rainBarsSVG(se, date, startMin, startMin + durMin)}
-     ${hourRange(se, date, ev)}${wxAppRow(s, `<a class="btn btn-outline btn-sm" href="${radar}" target="_blank" rel="noopener">Radar</a>`)}
-     <div class="sub"><div class="sub-h">Parking</div><p>${esc(s.note)}</p><div class="btnrow"><a class="btn btn-outline btn-sm" href="${s.maps_url}" target="_blank" rel="noopener">Open in Google Maps</a></div></div>`,
-    { title: true, collapsed: true });
+// Start-spot picker (Plan → Meet): one compact row per spot to compare at a glance; the chosen spot gets a detail panel.
+function spotRow(sp, date, startMin, durMin){
+  const se = WX.series[sp.id], ev = se && evaluate(se, date, startMin, durMin, P.pace || S.pace), chosen = P.spot === sp.id;
+  const body = ev ? `${wxSummary(ev.st)}${(c => c ? `<span class="chips">${c}</span>` : '')(warnChips(warnList(ev, se, date, startMin)))}` : '<span class="muted">No forecast for this date yet.</span>';
+  return `<button type="button" class="spotrow" role="radio" aria-checked="${chosen}" data-pick-spot="${sp.id}"><span class="radio-dot" aria-hidden="true"></span><span class="spotrow-b"><b>${esc(sp.name)}</b><span class="small">${body}</span></span></button>`;
+}
+function spotDetail(sp, date, startMin, durMin){
+  const se = WX.series[sp.id], ev = se && evaluate(se, date, startMin, durMin, P.pace || S.pace);
+  const radar = `https://www.rainviewer.com/map.html?loc=${sp.lat},${sp.lng},9&oFa=0&oC=1&oU=0&oCS=1&oF=0&oAP=1&c=3&o=83&lm=1&layer=radar&sm=1&sn=1`;
+  const wx = ev ? `<p class="small" style="margin:0 0 8px">Bike feel ${r0(ev.st.feelMin)}–${r0(ev.st.feelMax)}° · gusts ${r0(ev.st.wgMax)} mph from ${compass(ev.st.dir)} · ${fmtIn(ev.st.rain)} rain · ${roadNote(ev.st)}</p>
+     <div class="sub-h" style="margin-top:4px">Rain −12 h → +8 h</div>${rainBarsSVG(se, date, startMin, startMin + durMin)}${hourRange(se, date, ev)}` : '';
+  return panel('spotdetail', 'Details', `${esc(sp.name)} · weather, parking`,
+    `${wx}${wxAppRow(sp, `<a class="btn btn-outline btn-sm" href="${radar}" target="_blank" rel="noopener">Radar</a>`)}
+     <div class="sub"><div class="sub-h">Parking</div><p>${esc(sp.note || 'No notes yet.')}</p><div class="btnrow"><a class="btn btn-outline btn-sm" href="${sp.maps_url}" target="_blank" rel="noopener">Open in Google Maps</a></div></div>`,
+    { collapsed: true });
+}
+// New spot: name + Google Maps link (or "lat, lng") + parking notes. The live app resolves short links server-side.
+function parseLatLng(v){
+  const m = String(v).match(/@(-?\d+\.\d+),(-?\d+\.\d+)/) || String(v).match(/[?&](?:q|query|ll|destination)=(-?\d+\.\d+)(?:,|%2C)\s*(-?\d+\.\d+)/i) || String(v).trim().match(/^(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)$/);
+  return m ? { lat: +m[1], lng: +m[2] } : null;
+}
+function addSpotForm(){
+  const N = P.newSpot;
+  return `<div class="newspot"><div class="sub-h">New start spot</div>
+    <label class="field">Name<input id="ns-name" value="${esc(N.name)}" placeholder="e.g. Rockefeller Preserve"></label>
+    <label class="field">Google Maps link or coordinates<input id="ns-link" value="${esc(N.link)}" placeholder="Paste a Maps link, or 41.0454, -73.6973"></label>
+    <span class="tiny muted" style="margin-top:-8px">${N.msg || 'In Google Maps: drop a pin on the parking spot → Share → Copy link.'}</span>
+    <label class="field">Parking notes<textarea id="ns-note" placeholder="Where to park, restrooms, anything riders should know">${esc(N.note)}</textarea></label>
+    <div class="btnrow"><button type="button" class="btn btn-primary btn-sm" id="ns-save">Save spot</button><button type="button" class="btn btn-outline btn-sm" id="ns-cancel">Cancel</button></div></div>`;
+}
+function saveNewSpot(){
+  const N = P.newSpot, name = N.name.trim(), ll = parseLatLng(N.link);
+  if (!name){ N.msg = 'Add a name.'; return render(); }
+  if (!ll){ N.msg = /goo\.gl|maps\.app/.test(N.link) ? 'Short Maps links are resolved by the live app. In this prototype, open the link and copy the full address-bar URL, or paste coordinates.' : 'Paste a Google Maps link with a pin, or coordinates like 41.0454, -73.6973.'; return render(); }
+  const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'spot-' + Date.now();
+  SPOTS.push({ id, name, lat: ll.lat, lng: ll.lng, maps_url: /^https?:/.test(N.link) ? N.link.trim() : mapsLink(ll.lat, ll.lng), note: N.note.trim() });
+  WX.series[id] = WX.series[SPOTS[0].id]; // prototype: reuse loaded data; the live app fetches the new point
+  P.spot = id; P.newSpot = null; render(); toast(`${name} added (this session only).`);
 }
 
 /* Plan-a-ride editor: mock, nothing is persisted. */
-const P = { date: null, time: null, spot: null, route: null, alt: null, altOn: false, labelA: 'Full', labelB: 'Short', stop: null, pace: null, notes: '', q: '', qAlt: '' };
+const P = { date: null, time: null, spot: null, newSpot: null, route: null, alt: null, altOn: false, labelA: 'Full', labelB: 'Short', stop: null, pace: null, notes: '', q: '', qAlt: '' };
 function parseRouteInput(q){ const m = String(q).match(/ridewithgps\.com\/routes\/(\d+)/) || String(q).trim().match(/^(\d{6,})$/); return m ? +m[1] : null; }
 function searchResults(q, which){
   const id = parseRouteInput(q);
@@ -779,7 +816,9 @@ function viewPlan(){
   const meetS = section('Meet', `${dayTabsHTML(weekend, P.date, null, d => `data-pday="${d}"`)}
     <div class="row"><label class="field">Date (any day)<input type="date" id="p-date" value="${P.date}" min="${days[0]}"></label><label class="field">Roll-out<input type="time" id="p-time" value="${P.time}" step="900"></label></div>
     <div class="field" style="margin-bottom:-4px">Start spot · weather ${fmtTime(startMin)}–${fmtTime(startMin + durMin)}</div>
-    <div class="panels">${SPOTS.map(sp => spotPanel(sp, P.date, startMin, durMin)).join('')}</div>`);
+    <div class="spotlist" role="radiogroup" aria-label="Start spot">${SPOTS.map(sp => spotRow(sp, P.date, startMin, durMin)).join('')}
+      ${P.newSpot ? addSpotForm() : '<button type="button" class="spotrow add" id="ns-open"><span class="radio-dot plus" aria-hidden="true">+</span><span class="spotrow-b"><b>Add a start spot</b></span></button>'}</div>
+    ${P.spot ? spotDetail(spotById(P.spot), P.date, startMin, durMin) : ''}`);
   const routeS = section('Route', `<label class="field">${P.spot ? `Routes from ${esc(spotById(P.spot).name)}, or search / paste a RideWithGPS link` : 'Search or paste a RideWithGPS link'}<input id="p-q" type="search" placeholder="e.g. Katonah or ridewithgps.com/routes/57406828" value="${esc(P.q)}" autocomplete="off">${searchResults(P.q, 'main')}</label>${far}
     <label class="radio" style="border:0;padding:0"><input type="checkbox" id="p-alton" ${P.altOn ? 'checked' : ''}><span><b>Add alternate route</b><br><span class="small muted">Same spot and time</span></span></label>
     ${P.altOn ? `<div class="row"><label class="field">Main label<input id="p-la" value="${esc(P.labelA)}"></label><label class="field">Alternate label<input id="p-lb" value="${esc(P.labelB)}"></label></div>
@@ -875,7 +914,7 @@ document.addEventListener('click', e => {
     a.href = URL.createObjectURL(blob); a.download = `bbt-ride-${UI.cal.date}.ics`; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 2000); document.querySelector('.sheet')?.remove(); return;
   }
-  const el = e.target.closest('[data-route],[data-offset],[data-pday],[data-pick-spot],[data-plan-date],[data-pick],[data-role-set],#publish,#savedraft,#reset,#themebtn,#invite');
+  const el = e.target.closest('[data-route],[data-offset],[data-pday],[data-pick-spot],[data-plan-date],[data-pick],[data-role-set],#publish,#savedraft,#ns-open,#ns-save,#ns-cancel,#reset,#themebtn,#invite');
   if (!el) return;
   if (el.dataset.route != null){ UI.route = +el.dataset.route; render(); }
   else if (el.dataset.offset){ store.set('bbt.kitOffset', el.dataset.offset); render(); }
@@ -887,6 +926,9 @@ document.addEventListener('click', e => {
     if (UI.draft){ const i = RIDES.findIndex(r => r.date === P.date), ride = Object.assign({}, UI.draft);
       if (i >= 0) RIDES[i] = ride; else RIDES.push(ride); UI.day = P.date; UI.route = 0; location.hash = 'ride/' + P.date; toast('Published for this session only (prototype).'); }
   }
+  else if (el.id === 'ns-open'){ P.newSpot = { name: '', link: '', note: '', msg: '' }; render(); document.getElementById('ns-name')?.focus(); }
+  else if (el.id === 'ns-save') saveNewSpot();
+  else if (el.id === 'ns-cancel'){ P.newSpot = null; render(); }
   else if (el.id === 'savedraft'){ toast('Prototype: drafts are not saved. The live editor saves to D1.'); }
   else if (el.dataset.roleSet){ ROLE = el.dataset.roleSet; store.set('bbt.role', ROLE); render(); }
   else if (el.id === 'invite'){ const em = document.getElementById('u-email'), rl = document.getElementById('u-role');
@@ -905,6 +947,9 @@ document.addEventListener('input', e => {
     const box = t.parentElement.querySelector('.results'); if (box) box.outerHTML = searchResults(t.value, which);
   }
   if (t.id === 'p-notes') P.notes = t.value;
+  if (P.newSpot && t.id === 'ns-name') P.newSpot.name = t.value;
+  if (P.newSpot && t.id === 'ns-link') P.newSpot.link = t.value;
+  if (P.newSpot && t.id === 'ns-note') P.newSpot.note = t.value;
 });
 document.addEventListener('change', e => {
   const t = e.target;

@@ -62,8 +62,11 @@ audit_log(id, user_id, action, entity, entity_id, diff_json, at)
 - **Archive** — past rides list (date, route(s), spot, recorded conditions at roll-out); "reuse this plan".
 
 ### Spots
-- Name, Google Maps parking pin link (coordinates parsed from link; short links resolved server-side), notes (parking, restrooms).
-- Add via Maps link, search, map tap, or current location. One-off spots allowed.
+- Fields: name, location (lat/lng), Google Maps link, parking notes (where to park, restrooms).
+- **Add (Edit and Admin):** "Add a start spot" at the bottom of Plan's spot list. Enter a name, paste a Google Maps link (drop a pin on the parking spot → Share → Copy link) or plain coordinates, and parking notes; Save selects the new spot.
+  - Full Maps links are parsed in the browser (`@lat,lng` or `?q=lat,lng`). Short `maps.app.goo.gl` links are resolved by the Worker (follow the redirect, then parse), since browsers can't read cross-site redirects.
+  - The Worker fetches the forecast for the new point on save.
+- **Manage (Admin):** a Spots panel in Settings to rename, edit notes, move the pin, or archive. Archived spots drop out of the pick list but stay on past rides.
 
 ### What to wear
 - Default team kit chart keyed on **bike feel** + wind + rain + road wetness; editors can tune.
@@ -84,7 +87,7 @@ Per-rider preferences stay in the rider's browser: theme (header toggle), Run co
 ### Plan a ride (Edit and Admin)
 Planning is one top-to-bottom flow in the same panel style, mirroring the ride page. There is no separate Weekend page; navigation is Ride / Plan / Settings (View riders see Ride only).
 1. **Meet:** Sat / Sun tabs or any date, and roll-out time.
-2. **Start spot:** one collapsible panel per spot, collapsed by default so they compare at a glance. Each shows temp · real feel · wind · rain for the weather window, warning chips only when something needs attention, and a **Start here** button. Expanding a spot shows the detail: bike feel, gusts, rain and road state; rain bars −12 h → +8 h; hourly table (1 h before → 3 h after); Full-day forecast and Radar; parking notes and Google Maps. The weather window is the default length (Settings) until a route is picked, then the route's actual ride time.
+2. **Start spot:** a compact pick list, one row per spot: name, temp · real feel · wind · rain for the weather window, and warning chips only when something needs attention. Tap a row to select it. The selected spot gets a collapsed **Details** panel below: bike feel, gusts, rain and road state; rain bars −12 h → +8 h; hourly table (1 h before → 3 h after); Full-day forecast and Radar; parking notes and Google Maps. The weather window is the default length (Settings) until a route is picked, then the route's actual ride time. The last row is **Add a start spot** (see Spots).
 3. **Route:** routes that start at the chosen spot are listed first ("starts here"), plus search or a pasted RWGPS link; a note appears if the route starts away from the spot. Optional alternate route with labels, coffee stop from the route's POIs, pace. Picking a route first (before a spot) selects its nearest spot.
 4. **Notes.**
 5. **Preview:** the actual ride-page warnings and panels for the draft, then Publish / Save draft.
