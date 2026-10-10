@@ -699,7 +699,7 @@ function ridersPanel(ride, date){
   const nMsg = R.msgs.reduce((n, m) => n + 1 + m.replies.length, 0);
   const btns = `<div class="seg rsvp" role="group" aria-label="Your RSVP"><button type="button" data-rsvp="in" aria-pressed="${R.me === 'in'}">In</button><button type="button" data-rsvp="out" aria-pressed="${R.me === 'out'}">Out</button></div>`;
   const routePick = R.me === 'in' && ride.routes.length > 1 ? `<div class="seg" role="group" aria-label="Your route" style="margin-top:6px">${ride.routes.map(r => `<button type="button" data-rsvp-route="${esc(r.label)}" aria-pressed="${R.myRoute === r.label}">${esc(r.label)}</button>`).join('')}</div>` : '';
-  const person = p => `<span class="person${p.me ? ' me' : ''}">${esc(p.name)}${p.route ? ` <span class="muted">· ${esc(p.route)}</span>` : ''}</span>`;
+  const alt = ride.routes.length > 1, person = p => `<span class="person${p.me ? ' me' : ''}">${esc(p.name)}${alt && p.status === 'in' && p.route ? ` <span class="muted">· ${esc(p.route)}</span>` : ''}</span>`;
   const msg = (m, isReply) => `<div class="msg${isReply ? ' reply' : ''}"><div class="meta"><b>${esc(m.name)}</b> <span class="muted">${m.at}</span></div><p>${esc(m.text)}</p>
       ${isReply ? '' : `<button type="button" class="linkbtn" data-reply="${m.id}">Reply</button>`}
       ${!isReply && m.replies.length ? `<div class="replies">${m.replies.map(r => msg(r, true)).join('')}</div>` : ''}
@@ -954,7 +954,7 @@ document.addEventListener('click', e => {
   const rs = e.target.closest('[data-rsvp],[data-rsvp-route],[data-reply],[data-send]');
   if (rs){
     const ride = rideOn(UI.day), R = rsvpFor(UI.day, ride), now = fmtTime(nyNow().min);
-    if (rs.dataset.rsvp){ R.me = R.me === rs.dataset.rsvp ? null : rs.dataset.rsvp; if (R.me === 'in' && ride.routes.length > 1 && !R.myRoute) R.myRoute = ride.routes[0].label; toast(R.me === 'in' ? "You're in" : R.me === 'out' ? "You're out" : 'RSVP cleared'); }
+    if (rs.dataset.rsvp){ R.me = R.me === rs.dataset.rsvp ? null : rs.dataset.rsvp; if (R.me !== 'in') R.myRoute = ''; else if (ride.routes.length > 1 && !R.myRoute) R.myRoute = ride.routes[0].label; toast(R.me === 'in' ? "You're in" : R.me === 'out' ? "You're out" : 'RSVP cleared'); }
     else if (rs.dataset.rsvpRoute) R.myRoute = rs.dataset.rsvpRoute;
     else if (rs.dataset.reply != null) R.replyTo = +rs.dataset.reply || null;
     else {
