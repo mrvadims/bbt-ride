@@ -65,11 +65,6 @@ audit_log(id, user_id, action, entity, entity_id, diff_json, at)
 - Name, Google Maps parking pin link (coordinates parsed from link; short links resolved server-side), notes (parking, restrooms).
 - Add via Maps link, search, map tap, or current location. One-off spots allowed.
 
-### Weekend (planning view; all roles)
-- Same panel pattern as the ride page. Sat / Sun tabs, an "Other day" date picker (any day in the forecast range), roll-out time and window length.
-- One collapsible panel per spot (collapsed by default so spots compare at a glance): spot name, temp · real feel · wind · rain, and warning chips only when something needs attention (same rules and colors as the ride page warnings; no Go badge).
-- Expanded = spot detail (replaces the separate spot page): bike feel, gusts, rain total and road state; rain bars −12 h → +8 h with the window highlighted; hourly table (1 h before → 3 h after); Full-day forecast (rider's weather source) and Radar (RainViewer) buttons; parking notes, Google Maps, and "Plan a ride here" for editors (pre-fills spot, date and time).
-
 ### What to wear
 - Default team kit chart keyed on **bike feel** + wind + rain + road wetness; editors can tune.
 - Per-rider offset (runs cold / avg / hot, ±5°) stored in that rider's browser.
@@ -78,7 +73,7 @@ audit_log(id, user_id, action, entity, entity_id, diff_json, at)
 ### Settings (Admin only, stored in D1)
 Every setting lives in the `settings` table and is edited on the Settings tab; nothing is hard-coded except first-run defaults. Collapsible panels, each with a one-line summary of the current values:
 - **Users:** invite by email with a role, change roles, disable.
-- **Ride defaults:** roll-out **8:30**, Weekend window 3 h, pace 17 mph, coffee stop **20 min** (typical 15–20), regroup buffer **5 %** of moving time.
+- **Ride defaults:** roll-out **8:30**, weather window 3 h (used before a route is picked), pace 17 mph, coffee stop **20 min** (typical 15–20), regroup buffer **5 %** of moving time.
 - **Road wetness:** look-back hours, Wet / Drying film thresholds.
 - **Warnings:** amber and red thresholds for cold (bike feel), heat (real feel), wind, gusts, rain chance, rain amount.
 - **Kit chart:** bands and items (`kit_bands`).
@@ -87,8 +82,12 @@ Every setting lives in the `settings` table and is edited on the Settings tab; n
 Per-rider preferences stay in the rider's browser: theme (header toggle), Run cold / Avg / Run hot, weather source, which panels are open.
 
 ### Plan a ride (Edit and Admin)
-- Form in the same panel style, mirroring the ride page: **Meet** (date (any day), roll-out, start spot suggested from the route's first point), **Route** (search or paste a RWGPS link, optional alternate with labels, coffee stop picked from route POIs, pace), **Notes**.
-- **Preview** shows the actual ride-page panels for the draft, so the editor sees exactly what riders will see. Publish / Save draft.
+Planning is one top-to-bottom flow in the same panel style, mirroring the ride page. There is no separate Weekend page; navigation is Ride / Plan / Settings (View riders see Ride only).
+1. **Meet:** Sat / Sun tabs or any date, and roll-out time.
+2. **Start spot:** one collapsible panel per spot, collapsed by default so they compare at a glance. Each shows temp · real feel · wind · rain for the weather window, warning chips only when something needs attention, and a **Start here** button. Expanding a spot shows the detail: bike feel, gusts, rain and road state; rain bars −12 h → +8 h; hourly table (1 h before → 3 h after); Full-day forecast and Radar; parking notes and Google Maps. The weather window is the default length (Settings) until a route is picked, then the route's actual ride time.
+3. **Route:** routes that start at the chosen spot are listed first ("starts here"), plus search or a pasted RWGPS link; a note appears if the route starts away from the spot. Optional alternate route with labels, coffee stop from the route's POIs, pace. Picking a route first (before a spot) selects its nearest spot.
+4. **Notes.**
+5. **Preview:** the actual ride-page warnings and panels for the draft, then Publish / Save draft.
 
 ### Metrics
 - **Real feel** — standard apparent temperature.
@@ -162,7 +161,7 @@ The NWS formula is only defined for T ≤ 50 °F. Above that we take the chill d
 Display: range over the ride window (min–max), next to temp and real feel.
 
 ### Warnings (amber / red)
-Evaluated on 15-minute samples across the ride window. Each factor gets a level: none, amber (caution) or red (no-go). Only factors with a level are shown, as warnings on the ride page and chips on the Weekend page; there is no overall Go badge. Defaults (editable in Settings):
+Evaluated on 15-minute samples across the ride window. Each factor gets a level: none, amber (caution) or red (no-go). Only factors with a level are shown, as warnings on the ride page and chips on the Plan page's spot panels; there is no overall Go badge. Defaults (editable in Settings):
 
 | Factor | Measure | Amber | Red |
 |---|---|---|---|
@@ -205,7 +204,7 @@ Mile markers come from the POI's distance along the RWGPS track (nearest track p
 ## Prototype
 `prototype/index.html` — one self-contained file (inline CSS/JS, Leaflet 1.9.4 from cdnjs). Built from `prototype/src/app.html` by `python3 prototype/build.py`, which inlines `data/seed.json`, the fallback forecast `data/raw/om_purchase.json`, and the logo.
 - Fetches Open-Meteo live in the browser for the 3 spots + coffee-stop POIs (one multi-location request, `past_days=2`). On failure it uses the embedded sample and shows a banner.
-- Screens: Ride (date tabs, Meet / Route / Weather / Notes panels, share, calendar), Weekend (spot panels with inline detail), Plan a ride (mock; preview reuses the ride panels), Settings (panels; stored in this browser). A View / Edit / Admin switcher demonstrates roles.
+- Screens: Ride (date tabs, Meet / Route / Weather / Notes panels, share, calendar), Plan a ride (mock; spot comparison → route → preview that reuses the ride panels), Settings (panels; stored in this browser). A View / Edit / Admin switcher demonstrates roles.
 - Without Leaflet (offline/CDN blocked) maps fall back to an SVG route outline.
 
 ## Data sources

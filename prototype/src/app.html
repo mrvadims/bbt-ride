@@ -165,6 +165,7 @@ textarea{min-height:80px;resize:vertical}
 .panel.titled .chev{grid-column:2;grid-row:1}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 .chips .pill{font-size:12px;padding:1px 8px}
+.chips .pickspot{margin-left:auto;min-height:30px;padding:4px 10px}
 .sec-h{padding:13px 14px 0;font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--muted)}
 .sec-b{padding:10px 14px 14px;display:grid;gap:12px}
 .panel.empty{padding:16px 14px}
@@ -216,7 +217,6 @@ textarea{min-height:80px;resize:vertical}
 <nav class="nav" aria-label="Main">
   <div class="tabs" role="tablist" id="navtabs">
     <a class="tab" href="#ride" data-nav="ride" role="tab">Ride</a>
-    <a class="tab" href="#board" data-nav="board" role="tab">Weekend</a>
     <a class="tab" href="#plan" data-nav="plan" role="tab">Plan</a>
     <a class="tab" href="#settings" data-nav="settings" role="tab">Settings</a>
   </div>
@@ -571,7 +571,7 @@ function hourRows(se, date, fromF, toF, winF0, winF1, pace){
   return `<div class="tablewrap"><table><thead><tr><th>Time</th><th>Sky</th><th>Temp</th><th>Real</th><th>Bike</th><th>Wind mph</th><th>Gust</th><th>Rain</th><th>Amt</th><th>Road</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 /* ---------- views ---------- */
-const UI = { day: null, route: 0, board: null };
+const UI = { day: null, route: 0 };
 
 // Warnings: only conditions that need attention. Shared by the ride page (boxes) and the board (chips).
 function warnList(ev, se, date, startMin){
@@ -724,48 +724,36 @@ function viewRide(arg){
   const ride = rideOn(date);
   const shareBtn = ride ? `<button type="button" class="iconbtn share" data-share aria-label="Share this ride" title="Share"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg></button>` : '';
   const head = `<div class="dayrow">${dayTabsHTML(days, date, d => `#ride/${d}`)}${shareBtn}</div>`;
-  if (!ride) return head + `<h1 class="sr">No ride</h1><section class="panel empty"><p><b>No ride posted for ${dayLabel(date, true)}.</b></p><p class="muted small">See conditions at each spot on the Weekend tab.</p><a class="btn btn-primary btn-sm" href="#board">Weekend</a></section>`;
+  if (!ride) return head + `<h1 class="sr">No ride</h1><section class="panel empty"><p><b>No ride posted for ${dayLabel(date, true)}.</b></p>${can.plan() ? `<a class="btn btn-primary btn-sm" href="#plan" data-plan-date="${date}">Plan a ride</a>` : '<p class="muted small">Check back later.</p>'}</section>`;
   return head + rideBody(ride, date);
 }
 
-// Weekend: one panel per spot for the chosen day and window. Expanding shows the spot detail inline.
-function viewBoard(arg){
-  const weekend = weekendDates().map(w => w.date);
-  const b = UI.board = UI.board || { date: weekend[0], time: S.rollout, dur: S.durationH };
-  const se0 = WX.series[SPOTS[0].id], days = [...new Set(se0.time.map(t => t.slice(0, 10)))];
-  if (!days.includes(b.date)) b.date = weekend[0];
-  const startMin = hhmmToMin(b.time), durMin = b.dur * 60;
-  const panels = SPOTS.map(s => {
-    const se = WX.series[s.id], ev = se && evaluate(se, b.date, startMin, durMin, S.pace);
-    if (!ev) return `<section class="panel"><div class="panel-h"><span class="panel-t">${esc(s.name)}</span><div class="panel-s muted">No forecast for this window.</div></div></section>`;
-    const st = ev.st, chips = warnChips(warnList(ev, se, b.date, startMin));
-    const radar = `https://www.rainviewer.com/map.html?loc=${s.lat},${s.lng},9&oFa=0&oC=1&oU=0&oCS=1&oF=0&oAP=1&c=3&o=83&lm=1&layer=radar&sm=1&sn=1`;
-    return panel('spot-' + s.id, esc(s.name), `${wxSummary(st)}${chips ? `<div class="chips">${chips}</div>` : ''}`,
-      `<p class="small" style="margin:0 0 8px">Bike feel ${r0(st.feelMin)}–${r0(st.feelMax)}° · gusts ${r0(st.wgMax)} mph from ${compass(st.dir)} · ${fmtIn(st.rain)} rain · ${roadNote(st)}</p>
-       <div class="sub-h" style="margin-top:4px">Rain −12 h → +8 h</div>${rainBarsSVG(se, b.date, startMin, startMin + durMin)}
-       ${hourRange(se, b.date, ev)}${wxAppRow(s, `<a class="btn btn-outline btn-sm" href="${radar}" target="_blank" rel="noopener">Radar</a>`)}
-       <div class="sub"><div class="sub-h">Parking</div><p>${esc(s.note)}</p>
-         <div class="btnrow"><a class="btn btn-outline btn-sm" href="${s.maps_url}" target="_blank" rel="noopener">Open in Google Maps</a>${can.plan() ? `<button type="button" class="btn btn-primary btn-sm" data-plan-here="${s.id}">Plan a ride here</button>` : ''}</div></div>`,
-      { title: true, collapsed: true, open: arg === s.id ? true : undefined });
-  }).join('');
-  const opts = [2, 2.5, 3, 3.5, 4, 5].map(h => `<option value="${h}" ${h === b.dur ? 'selected' : ''}>${h} h</option>`).join('');
-  return `<h1 class="sr">Weekend</h1>${dayTabsHTML(weekend, b.date, null, d => `data-bday="${d}"`)}
-    <div class="controls"><label class="field">Other day<input type="date" id="b-date" value="${b.date}" min="${days[0]}" max="${days[days.length - 1]}"></label><label class="field">Roll-out<input type="time" id="b-time" value="${b.time}" step="900"></label><label class="field">Duration<select id="b-dur">${opts}</select></label>
-      <span class="small muted" style="padding-bottom:10px">${fmtTime(startMin)}–${fmtTime(startMin + durMin)}</span></div>
-    <div class="panels">${panels}</div>`;
+// Spot panel (Plan → Meet): weather for the window, warning chips, and spot detail when expanded.
+function spotPanel(s, date, startMin, durMin){
+  const se = WX.series[s.id], ev = se && evaluate(se, date, startMin, durMin, P.pace || S.pace), chosen = P.spot === s.id;
+  const pick = `<button type="button" class="btn btn-sm ${chosen ? 'btn-primary' : 'btn-outline'} pickspot" data-pick-spot="${s.id}" aria-pressed="${chosen}">${chosen ? '✓ Start here' : 'Start here'}</button>`;
+  if (!ev) return `<section class="panel titled"><div class="panel-h"><span class="panel-t">${esc(s.name)}</span><div class="panel-s muted">No forecast for this date yet. ${pick}</div></div></section>`;
+  const st = ev.st, chips = warnChips(warnList(ev, se, date, startMin));
+  const radar = `https://www.rainviewer.com/map.html?loc=${s.lat},${s.lng},9&oFa=0&oC=1&oU=0&oCS=1&oF=0&oAP=1&c=3&o=83&lm=1&layer=radar&sm=1&sn=1`;
+  return panel('spot-' + s.id, esc(s.name), `${wxSummary(st)}<div class="chips">${chips}${pick}</div>`,
+    `<p class="small" style="margin:0 0 8px">Bike feel ${r0(st.feelMin)}–${r0(st.feelMax)}° · gusts ${r0(st.wgMax)} mph from ${compass(st.dir)} · ${fmtIn(st.rain)} rain · ${roadNote(st)}</p>
+     <div class="sub-h" style="margin-top:4px">Rain −12 h → +8 h</div>${rainBarsSVG(se, date, startMin, startMin + durMin)}
+     ${hourRange(se, date, ev)}${wxAppRow(s, `<a class="btn btn-outline btn-sm" href="${radar}" target="_blank" rel="noopener">Radar</a>`)}
+     <div class="sub"><div class="sub-h">Parking</div><p>${esc(s.note)}</p><div class="btnrow"><a class="btn btn-outline btn-sm" href="${s.maps_url}" target="_blank" rel="noopener">Open in Google Maps</a></div></div>`,
+    { title: true, collapsed: true });
 }
 
 /* Plan-a-ride editor: mock, nothing is persisted. */
-const P = { date: null, time: null, spot: null, spotAuto: true, route: null, alt: null, altOn: false, labelA: 'Full', labelB: 'Short', stop: null, pace: null, notes: '', q: '', qAlt: '' };
+const P = { date: null, time: null, spot: null, route: null, alt: null, altOn: false, labelA: 'Full', labelB: 'Short', stop: null, pace: null, notes: '', q: '', qAlt: '' };
 function parseRouteInput(q){ const m = String(q).match(/ridewithgps\.com\/routes\/(\d+)/) || String(q).trim().match(/^(\d{6,})$/); return m ? +m[1] : null; }
 function searchResults(q, which){
   const id = parseRouteInput(q);
   if (id && !routeById(id)) return `<div class="results"><div style="padding:10px" class="small muted">Route ${id} isn’t in the prototype’s seed. The live app fetches <code>/routes/${id}.json</code> (works for public routes, no key).</div></div>`;
   const s = q.trim().toLowerCase();
-  const list = ROUTES.filter(r => !s || id === r.id || r.name.toLowerCase().includes(s) || String(r.id).includes(s));
+  const list = ROUTES.filter(r => !s || id === r.id || r.name.toLowerCase().includes(s) || String(r.id).includes(s)).sort((a, b) => (b.nearest_spot === P.spot) - (a.nearest_spot === P.spot));
   if (!list.length) return `<div class="results"><div style="padding:10px" class="small muted">No match in the 4 seeded routes. Live: captain library + BBT club library.</div></div>`;
   const cur = which === 'alt' ? P.alt : P.route;
-  return `<div class="results" role="listbox">${list.map(r => `<button type="button" role="option" data-pick="${which}" data-id="${r.id}" aria-selected="${r.id === cur}"><span><b>${esc(r.name)}</b><br><span class="tiny muted">#${r.id} · start near ${esc(spotById(r.nearest_spot).name)}</span></span><span class="small muted">${r0(r.distance_m / MI)} mi · ${r0(r.elevation_gain_m * FT).toLocaleString()} ft</span></button>`).join('')}</div>`;
+  return `<div class="results" role="listbox">${list.map(r => `<button type="button" role="option" data-pick="${which}" data-id="${r.id}" aria-selected="${r.id === cur}"><span><b>${esc(r.name)}</b><br><span class="tiny muted">#${r.id} · ${r.nearest_spot === P.spot ? 'starts here' : 'starts at ' + esc(spotById(r.nearest_spot).name)}</span></span><span class="small muted">${r0(r.distance_m / MI)} mi · ${r0(r.elevation_gain_m * FT).toLocaleString()} ft</span></button>`).join('')}</div>`;
 }
 function nearestSpot(route){
   const [la, ln] = route.track[0];
@@ -773,21 +761,26 @@ function nearestSpot(route){
 }
 function viewPlan(){
   if (!can.plan()) return `<section class="panel empty"><p><b>Editors only.</b></p><p class="muted small">Your role is View. Ask an admin for the Edit role to plan rides.</p></section>`;
-  const weekend = weekendDates();
-  P.date = P.date || weekend[0].date; P.time = P.time || S.rollout; P.pace = P.pace || S.pace;
+  const weekend = weekendDates().map(w => w.date);
+  const se0 = WX.series[SPOTS[0].id], days = [...new Set(se0.time.map(t => t.slice(0, 10)))];
+  P.date = P.date || weekend[0]; P.time = P.time || S.rollout; P.pace = P.pace || S.pace;
   const route = P.route && routeById(P.route);
-  let suggestion = '';
-  if (route){ const n = nearestSpot(route); if (P.spotAuto) P.spot = n.s.id; suggestion = `Suggested: ${esc(n.s.name)} (${r0(n.d)} m from route start)`; }
-  P.spot = P.spot || SPOTS[0].id;
+  if (route && !P.spot) P.spot = nearestSpot(route).s.id;
   const pois = route ? route.pois.slice().sort((a, b) => (/coffee|food/.test(b.type) - /coffee|food/.test(a.type)) || a.route_d_m - b.route_d_m) : [];
   if (route && P.stop === null){ const c = pois.find(p => /coffee|food/.test(p.type)); P.stop = c ? c.name : ''; }
   const startMin = hhmmToMin(P.time), k = 1 + (S.regroupPct || 0) / 100;
+  // Weather window: the chosen route's ride time, or the default window before a route is picked.
+  const tr = route && rideTimes(route, { time: P.time, pace: P.pace, stop: P.stop || null, stopMin: S.stopMin });
+  const durMin = tr ? tr.end - tr.start : S.durationH * 60;
   const poiRows = pois.map(p => { const mile = p.route_d_m / MI, eta = startMin + mile / P.pace * 60 * k;
     return `<label class="radio"><input type="radio" name="stop" value="${esc(p.name)}" ${P.stop === p.name ? 'checked' : ''}><span><b>${esc(p.name)}</b> <span class="tag">${esc(p.type)}</span><br><span class="small muted">mile ${mile.toFixed(1)} · ≈ ${fmtTime(eta)}${p.off_route_m > 50 ? ` · ${r0(p.off_route_m)} m off route` : ''}</span></span></label>`; }).join('');
+  const far = route && P.spot && route.nearest_spot !== P.spot ? (() => { const sp = spotById(P.spot), d = haversine(route.track[0][0], route.track[0][1], sp.lat, sp.lng); return `<p class="tiny" style="margin:0;color:var(--cau-fg)">This route starts ${(d / MI).toFixed(1)} mi from ${esc(sp.name)}.</p>`; })() : '';
 
-  const meetS = section('Meet', `<div class="row"><label class="field">Date (any day)<input type="date" id="p-date" value="${P.date}"></label><label class="field">Roll-out<input type="time" id="p-time" value="${P.time}" step="900"></label></div>
-    <label class="field">Start spot<select id="p-spot">${SPOTS.map(s => `<option value="${s.id}" ${P.spot === s.id ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select><span class="tiny muted" style="font-weight:400">${suggestion || 'Suggested from the route once you pick one'}${route && !P.spotAuto ? ' · <a href="#" id="p-spotauto">use suggestion</a>' : ''}</span></label>`);
-  const routeS = section('Route', `<label class="field">Search or paste a RideWithGPS link<input id="p-q" type="search" placeholder="e.g. Katonah or ridewithgps.com/routes/57406828" value="${esc(P.q)}" autocomplete="off">${searchResults(P.q, 'main')}</label>
+  const meetS = section('Meet', `${dayTabsHTML(weekend, P.date, null, d => `data-pday="${d}"`)}
+    <div class="row"><label class="field">Date (any day)<input type="date" id="p-date" value="${P.date}" min="${days[0]}"></label><label class="field">Roll-out<input type="time" id="p-time" value="${P.time}" step="900"></label></div>
+    <div class="field" style="margin-bottom:-4px">Start spot · weather ${fmtTime(startMin)}–${fmtTime(startMin + durMin)}</div>
+    <div class="panels">${SPOTS.map(sp => spotPanel(sp, P.date, startMin, durMin)).join('')}</div>`);
+  const routeS = section('Route', `<label class="field">${P.spot ? `Routes from ${esc(spotById(P.spot).name)}, or search / paste a RideWithGPS link` : 'Search or paste a RideWithGPS link'}<input id="p-q" type="search" placeholder="e.g. Katonah or ridewithgps.com/routes/57406828" value="${esc(P.q)}" autocomplete="off">${searchResults(P.q, 'main')}</label>${far}
     <label class="radio" style="border:0;padding:0"><input type="checkbox" id="p-alton" ${P.altOn ? 'checked' : ''}><span><b>Add alternate route</b><br><span class="small muted">Same spot and time</span></span></label>
     ${P.altOn ? `<div class="row"><label class="field">Main label<input id="p-la" value="${esc(P.labelA)}"></label><label class="field">Alternate label<input id="p-lb" value="${esc(P.labelB)}"></label></div>
       <label class="field">Alternate route<input id="p-qalt" type="search" placeholder="Search or paste link" value="${esc(P.qAlt)}" autocomplete="off">${searchResults(P.qAlt, 'alt')}</label>` : ''}
@@ -796,8 +789,8 @@ function viewPlan(){
     <div class="row"><label class="field">Pace (mph)<input type="number" id="p-pace" min="10" max="25" step="0.5" value="${P.pace}"></label><span></span></div>`);
   const notesS = section('Notes', `<textarea id="p-notes" aria-label="Notes" placeholder="Regroup points, café plan, lights…">${esc(P.notes)}</textarea>`);
 
-  let preview = `<section class="panel empty"><p><b>Pick a route to see the preview.</b></p><p class="muted small">The preview shows the ride page as riders will see it.</p></section>`;
-  if (route){
+  let preview = `<section class="panel empty"><p><b>${P.spot ? 'Pick a route' : 'Pick a start spot and a route'} to see the preview.</b></p><p class="muted small">The preview shows the ride page as riders will see it.</p></section>`;
+  if (route && P.spot){
     const rts = [{ label: P.altOn ? P.labelA : 'Main', id: P.route, stop: P.stop || null }];
     if (P.altOn && P.alt) rts.push({ label: P.labelB, id: P.alt, stop: routeById(P.alt).pois.some(p => p.name === P.stop) ? P.stop : null });
     UI.draft = { date: P.date, time: P.time, spot: P.spot, pace: P.pace, routes: rts, notes: P.notes || '' };
@@ -818,7 +811,7 @@ function viewSettings(){
        <label class="field">Role<select id="u-role">${ROLES.map(r => `<option value="${r}">${ROLE_LABEL[r]}</option>`).join('')}</select></label><button class="btn btn-primary" type="button" id="invite">Invite</button></div>
      <p class="tiny muted" style="margin:8px 0 0">View: see rides and forecasts. Edit: also plan and publish rides. Admin: also change settings and manage users.</p>`, { title: true, collapsed: true });
   const defaults = panel('set-defaults', 'Ride defaults', `${fmtTime(hhmmToMin(S.rollout))} · ${S.durationH} h · ${S.pace} mph · coffee ${S.stopMin} min · regroups ${S.regroupPct}%`,
-    `<div class="settings-grid">${num('pace', 'Pace', 0.5, 'mph')}<label class="field">Roll-out<input type="time" data-set="rollout" value="${S.rollout}" step="900"></label>${num('durationH', 'Weekend board window', 0.5, 'h')}${num('stopMin', 'Coffee stop', 5, 'min')}${num('regroupPct', 'Regroup buffer', 1, '% of moving time')}</div>`, { title: true, collapsed: true });
+    `<div class="settings-grid">${num('pace', 'Pace', 0.5, 'mph')}<label class="field">Roll-out<input type="time" data-set="rollout" value="${S.rollout}" step="900"></label>${num('durationH', 'Weather window before a route is picked', 0.5, 'h')}${num('stopMin', 'Coffee stop', 5, 'min')}${num('regroupPct', 'Regroup buffer', 1, '% of moving time')}</div>`, { title: true, collapsed: true });
   const road = panel('set-road', 'Road wetness', `${S.lookback} h look-back · wet ≥ ${S.wetMm} mm · drying ≥ ${S.dryingMm} mm`,
     `<div class="settings-grid">${num('lookback', 'Look-back', 1, 'hours')}${num('wetMm', 'Wet at film ≥', 0.05, 'mm')}${num('dryingMm', 'Drying at film ≥', 0.05, 'mm')}</div>
      <p class="tiny muted" style="margin:8px 0 0">0.1" of rain ≈ 2.5 mm of water; the film is capped at 2 mm (runoff).</p>`, { title: true, collapsed: true });
@@ -842,7 +835,7 @@ function applyTheme(){ if (S.theme === 'auto') document.documentElement.removeAt
 function render(){
   maps.forEach(m => { try { m.remove(); } catch(e){} }); maps = [];
   const [page, arg] = (location.hash.slice(1) || 'ride').split('/');
-  if (page === 'spot'){ location.replace('#board/' + (arg || '')); return; }
+  if (page === 'spot' || page === 'board'){ location.replace(can.plan() ? '#plan' : '#ride'); return; }
   document.querySelectorAll('[data-nav]').forEach(a => a.setAttribute('aria-selected', String(a.dataset.nav === page)));
   const app = document.getElementById('app');
   if (WX.source === 'loading'){ app.innerHTML = `<div class="card empty muted">Loading forecast…</div>`; return; }
@@ -851,7 +844,7 @@ function render(){
   document.querySelector('[data-nav="settings"]').hidden = !can.settings();
   if ((page === 'settings' && !can.settings()) || (page === 'plan' && !can.plan())){ location.hash = 'ride'; return; }
   const demo = `<div class="rolebar"><span class="tiny muted">Prototype · view as</span><div class="seg" role="group" aria-label="Demo role">${ROLES.map(r => `<button type="button" data-role-set="${r}" aria-pressed="${ROLE === r}">${ROLE_LABEL[r]}</button>`).join('')}</div></div>`;
-  const views = { ride: viewRide, board: viewBoard, plan: viewPlan, settings: viewSettings };
+  const views = { ride: viewRide, plan: viewPlan, settings: viewSettings };
   app.innerHTML = demo + banner + (views[page] || viewRide)(arg);
   mount();
 }
@@ -882,13 +875,14 @@ document.addEventListener('click', e => {
     a.href = URL.createObjectURL(blob); a.download = `bbt-ride-${UI.cal.date}.ics`; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 2000); document.querySelector('.sheet')?.remove(); return;
   }
-  const el = e.target.closest('[data-route],[data-offset],[data-bday],[data-plan-here],[data-pick],[data-role-set],#publish,#savedraft,#reset,#themebtn,#p-spotauto,#invite');
+  const el = e.target.closest('[data-route],[data-offset],[data-pday],[data-pick-spot],[data-plan-date],[data-pick],[data-role-set],#publish,#savedraft,#reset,#themebtn,#invite');
   if (!el) return;
   if (el.dataset.route != null){ UI.route = +el.dataset.route; render(); }
   else if (el.dataset.offset){ store.set('bbt.kitOffset', el.dataset.offset); render(); }
-  else if (el.dataset.bday){ UI.board.date = el.dataset.bday; render(); }
-  else if (el.dataset.pick){ const id = +el.dataset.id; if (el.dataset.pick === 'alt'){ P.alt = id; P.qAlt = routeById(id).name; } else { P.route = id; P.q = routeById(id).name; P.stop = null; P.spotAuto = true; } render(); }
-  else if (el.dataset.planHere){ Object.assign(P, { spot: el.dataset.planHere, spotAuto: false, date: UI.board.date, time: UI.board.time }); location.hash = 'plan'; }
+  else if (el.dataset.pday){ P.date = el.dataset.pday; render(); }
+  else if (el.dataset.pickSpot){ P.spot = el.dataset.pickSpot; render(); }
+  else if (el.dataset.planDate){ P.date = el.dataset.planDate; }
+  else if (el.dataset.pick){ const id = +el.dataset.id; if (el.dataset.pick === 'alt'){ P.alt = id; P.qAlt = routeById(id).name; } else { P.route = id; P.q = routeById(id).name; P.stop = null; } render(); }
   else if (el.id === 'publish'){
     if (UI.draft){ const i = RIDES.findIndex(r => r.date === P.date), ride = Object.assign({}, UI.draft);
       if (i >= 0) RIDES[i] = ride; else RIDES.push(ride); UI.day = P.date; UI.route = 0; location.hash = 'ride/' + P.date; toast('Published for this session only (prototype).'); }
@@ -900,7 +894,6 @@ document.addEventListener('click', e => {
     USERS.push({ name: '—', email: em.value.trim().toLowerCase(), role: rl.value, status: 'Invited' }); render(); toast('Invited (prototype: no email sent).'); }
   else if (el.id === 'reset'){ S = Object.assign({}, DEFAULTS); store.del('bbt.settings'); applyTheme(); render(); toast('Settings reset'); }
   else if (el.id === 'themebtn'){ S.theme = isDark() ? 'light' : 'dark'; saveSettings(); applyTheme(); render(); }
-  else if (el.id === 'p-spotauto'){ e.preventDefault(); P.spotAuto = true; render(); }
 });
 // Text inputs re-render on change (not every keystroke) except search boxes, which keep focus.
 document.addEventListener('input', e => {
@@ -908,7 +901,7 @@ document.addEventListener('input', e => {
   if (t.id === 'p-q' || t.id === 'p-qalt'){
     const which = t.id === 'p-q' ? 'main' : 'alt'; if (which === 'main') P.q = t.value; else P.qAlt = t.value;
     const id = parseRouteInput(t.value);
-    if (id && routeById(id)){ if (which === 'main'){ P.route = id; P.stop = null; P.spotAuto = true; } else P.alt = id; render(); const n = document.getElementById(t.id); if (n){ n.focus(); n.setSelectionRange(n.value.length, n.value.length); } return; }
+    if (id && routeById(id)){ if (which === 'main'){ P.route = id; P.stop = null; } else P.alt = id; render(); const n = document.getElementById(t.id); if (n){ n.focus(); n.setSelectionRange(n.value.length, n.value.length); } return; }
     const box = t.parentElement.querySelector('.results'); if (box) box.outerHTML = searchResults(t.value, which);
   }
   if (t.id === 'p-notes') P.notes = t.value;
@@ -919,12 +912,8 @@ document.addEventListener('change', e => {
   if (t.dataset.userRole != null){ USERS[+t.dataset.userRole].role = t.value; render(); toast('Role updated (prototype).'); return; }
   if (t.dataset.set){ const k = t.dataset.set; S[k] = k === 'rollout' ? t.value : (isNaN(parseFloat(t.value)) ? DEFAULTS[k] : parseFloat(t.value)); saveSettings(); render(); return; }
   switch (t.id){
-    case 'b-time': UI.board.time = t.value || S.rollout; break;
-    case 'b-dur': UI.board.dur = +t.value; break;
-    case 'b-date': if (t.value) UI.board.date = t.value; break;
     case 'p-date': P.date = t.value; break;
     case 'p-time': P.time = t.value || S.rollout; break;
-    case 'p-spot': P.spot = t.value; P.spotAuto = false; break;
     case 'p-alton': P.altOn = t.checked; break;
     case 'p-la': P.labelA = t.value; break;
     case 'p-lb': P.labelB = t.value; break;
