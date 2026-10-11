@@ -19,40 +19,42 @@ Sign-in is required. Two ways to sign in, both on the same account: **Continue w
 | **Edit** | View + plan, publish, edit and cancel rides; add start spots; delete any message |
 | **Admin** | Edit + team settings (defaults, thresholds, kit chart), spots management, and users |
 
-**How it's built:** [Better Auth](https://www.better-auth.com) (open source, free) runs inside the Worker and stores everything in D1. No outside identity service. Chosen 2026-10-11 over Cloudflare Access (no passwords) and hosted services (extra vendor, user data split from roles).
-- **Invites:** an Admin enters an email and role in Settings → Users and copies the invite link to send (no email service). The link (7 days, one use) lets the person **continue with Google** (the verified Google email must match the invite) or **set a username and password**. Either way the account is created with the invited role. They can add the other method later.
-- **Public sign-up is off.** A Google account or username that isn't invited gets "Not invited — ask a team admin"; nothing is created.
-- **Passwords:** at least 10 characters; stored only as a salted PBKDF2-SHA256 hash via the Worker's built-in Web Crypto (Better Auth's default hashing can exceed the free Workers per-request CPU limit). Five failed attempts lock the account for 15 minutes.
+**How it's built:** [Better Auth](https://www.better-auth.com) (open source, free) runs inside the Worker and stores everything in D1. No outside identity service. Chosen 2026-10-11 over Cloudflare Access (no passwords) and hosted services (extra vendor, user data split from roles). Plugins: **username** (sign in with a username) and **admin** (roles `view` / `edit` / `admin`, default `view`; disable = ban; delete; revoke sessions).
+- **Invites:** an Admin enters an email and role in Settings → Users and copies the invite link to send (no email service). The link (7 days, one use) opens a page offering **Continue with Google** or **set a name, username and password**. Either way the account gets the invited role; the person can add the other method later.
+- **Who may create an account:** a Better Auth hook allows a new account only when an unexpired, unused invite exists for that email (for Google, the verified Google email). Anyone else gets "Not invited — ask a team admin" and nothing is created. Password accounts are created only through the invite link, never by open sign-up.
+- **Passwords:** at least 10 characters; stored as a salted PBKDF2-SHA256 hash (100,000 iterations, the Workers maximum) via Web Crypto, plugged into Better Auth's password `hash` / `verify`. Better Auth's default scrypt can exceed the free plan's 10 ms CPU limit; if PBKDF2 does too, the fallback is Workers Paid ($5/month).
+- **Sign-in attempts** are rate-limited by Better Auth (5 per 15 minutes per IP on the sign-in endpoints, counters in D1). No account lockout, so nobody can lock a rider out by guessing.
 - **Forgotten password:** an Admin creates a **reset link** (24 hours, one use) in Settings → Users and sends it. No self-service reset emails in v1.
-- **Usernames:** each account has an email (needed for invites and notifications); a username is optional, and sign-in accepts either.
-- **Sessions:** Better Auth's database sessions in an `HttpOnly; Secure; SameSite=Lax` cookie, 30-day sliding expiry. The role is read on each request, so a role change or disabling takes effect immediately.
-- Every API route checks the role server-side; the UI only hides what the role can't do.
-- **Bootstrap:** while no Admin exists, the Worker treats `BOOTSTRAP_ADMIN_EMAIL` (a Worker variable) as an Admin invite, so that person can sign in with Google or set a password.
-- **Public pages: only sign-in and `/privacy`.** Every other page, including a shared ride link, requires sign-in; the shared text carries the essentials (time, place, route links). `/privacy` is a static page (`public/privacy.html`, linked from the sign-in page) that Google requires before the sign-in app can be published; it shows no team data.
-- **Audit:** `audit_log` records who changed rides, settings and users, and when.
+- **Usernames:** each account has an email (needed for invites and Google matching); a username is optional, and sign-in accepts either.
+- **Sessions:** Better Auth database sessions in an `HttpOnly; Secure; SameSite=Lax` cookie, 30-day expiry renewed daily while in use; no cookie cache, so a role change or disabling takes effect on the next request.
+- **Server-side checks:** every `/api/*` route checks the session and role; the UI only hides what the role can't do. Requests that change data must come from the app's own origin (Origin header check), and every input is validated against a schema; messages are capped at 2,000 characters.
+- **Bootstrap:** while no Admin exists, the hook treats `BOOTSTRAP_ADMIN_EMAIL` (a Worker variable) as an Admin invite.
+- **Public pages: only sign-in and `/privacy`.** The app's code and styles are public static files (they contain no team data); everything the app shows comes from `/api/*`, which requires a session, so a shared ride link opens the sign-in page first. `/privacy` (`public/privacy.html`, linked from the sign-in page) is required by Google to publish the sign-in app. The `workers.dev` address and preview URLs are turned off.
+- **Google data kept:** name, email and the Google account ID only. The profile photo and Google's access and refresh tokens are discarded (sign-in needs nothing after the first exchange).
+- **Audit:** `audit_log` records who changed rides, settings and users, and when. No screen in v1; read it with `wrangler d1 execute`.
 
 ### Data model (D1)
+Better Auth's tables come from its CLI (`npx @better-auth/cli generate`); ours are plain SQL migrations. Every reference to a user is `ON DELETE CASCADE` (sessions, accounts, RSVPs, drafts, push subscriptions) or `ON DELETE SET NULL` (authorship of rides, messages, settings, links, audit entries).
 ```
--- Better Auth core tables (user, session, account, verification), with our extra fields on user:
-user(id, email UNIQUE, email_verified, name, username UNIQUE NULL, role CHECK(role IN ('view','edit','admin')) DEFAULT 'view',
-     status CHECK(status IN ('active','disabled')), failed_logins DEFAULT 0, locked_until NULL, created_at, updated_at)
-session(id, user_id, token, expires_at, ip_address, user_agent, created_at, updated_at)
-account(id, user_id, provider_id ('google' | 'credential'), account_id, password NULL, created_at, updated_at)  -- one row per sign-in method
-verification(id, identifier, value, expires_at)                                                              -- password reset links
-invites(token PRIMARY KEY, email, role, invited_by, expires_at, used_at NULL)
-settings(key PRIMARY KEY, value_json, updated_by, updated_at)        -- one row per setting
+-- Better Auth (generated): user (+ username, role, banned, ban_reason, ban_expires), session, account, verification, rate_limit
+links(token_hash PRIMARY KEY, kind CHECK(kind IN ('invite','reset')), email, role NULL, user_id NULL, created_by NULL,
+      created_at, expires_at, used_at NULL)                     -- invite (7 days) and reset (24 h) links; only a SHA-256 of the token is stored
+settings(key PRIMARY KEY, value_json, updated_by NULL, updated_at)   -- one row per setting
 kit_bands(id, min_feel_f, name, items_json, sort)                    -- editable kit chart
-spots(id, name, lat, lng, maps_url, note, archived)
-rides(id, date, rollout, spot_id, pace_mph, notes, observed_json NULL, status CHECK(status IN ('published','cancelled')), created_by, updated_by, updated_at)
-ride_updates(id, ride_id, user_id, summary, at)                       -- what changed, shown on the ride page
-drafts(user_id PRIMARY KEY, ride_id NULL, form_json, updated_at)       -- editor autosave; ride_id set when editing
-ride_routes(ride_id, sort, label, rwgps_route_id, stop_poi_json)
+spots(id, name UNIQUE, lat, lng, maps_url, note, archived DEFAULT 0)
+rides(id, date, rollout, spot_id, pace_mph, notes, observed_json NULL, status CHECK(status IN ('published','cancelled')),
+      created_by NULL, updated_by NULL, updated_at)               -- UNIQUE(date) WHERE status = 'published'
+ride_routes(ride_id, sort, label, rwgps_route_id, stop_poi_json NULL, PRIMARY KEY(ride_id, sort))
 route_cache(rwgps_route_id PRIMARY KEY, json, fetched_at)
+drafts(user_id PRIMARY KEY, ride_id NULL, form_json, updated_at)  -- editor autosave; ride_id set when editing
 rsvps(ride_id, user_id, status CHECK(status IN ('in','out')), route_label NULL, updated_at, PRIMARY KEY(ride_id, user_id))
-messages(id, ride_id, user_id NULL, parent_id NULL, body, created_at, edited_at NULL, deleted_at NULL)  -- parent_id = reply to; user_id NULL = former member
+messages(id, ride_id, user_id NULL, parent_id NULL, kind CHECK(kind IN ('user','update','cancel','restore')) DEFAULT 'user',
+         body, created_at, edited_at NULL, deleted_at NULL)       -- parent_id = reply to; kind 'update' etc. = "Ride update" posts;
+                                                                  -- user_id NULL on a 'user' message = former member
 push_subscriptions(endpoint PRIMARY KEY, user_id, keys_json, created_at)  -- one row per device that opted in
-audit_log(id, user_id, action, entity, entity_id, diff_json, at)
+audit_log(id, user_id NULL, action, entity, entity_id, diff_json, at)
 ```
+The ride page's "Updated 9:12 PM · …" note is the latest `kind = 'update'` message, so there is no separate updates table.
 
 ## v1 scope
 
@@ -61,26 +63,26 @@ audit_log(id, user_id, action, entity, entity_id, diff_json, at)
   - Usually one route; occasionally a labeled alternate (e.g., "Full" / "Short") sharing the same spot and time.
 - Home shows upcoming published rides as date tabs: this Saturday and Sunday always, plus any other upcoming day that has a published ride. The tab carries the date; the page doesn't repeat it.
 - Ride page = warnings (only when something needs attention) + a stack of collapsible panels. Each collapsed header is the briefing; tapping it expands detail. Open/closed state is remembered per rider; panels start open on desktop.
-  - **Meet** — collapsed: roll-out time · spot name (links to Google Maps). Expanded: estimated time back (moving + regroup buffer + coffee stop, and the time without the stop), parking notes, Open in Google Maps, and "+ Calendar", which opens a picker: Google Calendar, Apple Calendar (.ics), Outlook.com, Outlook (work or school), Other (.ics). The .ics is served by `/api/rides/:id.ics`; event = meet → back, location = parking pin, routes and notes in the description.
+  - **Meet** — collapsed: roll-out time · spot name (links to Google Maps). Expanded: estimated time back (moving + regroup buffer + coffee stop, and the time without the stop), parking notes, Open in Google Maps, and "+ Calendar", which opens a picker: Google Calendar, Apple Calendar (.ics), Outlook.com, Outlook (work or school), Other (.ics). The .ics file is generated in the browser (an iPhone Home Screen app doesn't share its sign-in with Safari, so a server link wouldn't work there); event = meet → back, location = parking pin, routes and notes in the description.
   - **Route** — collapsed: route name (opens RWGPS) · distance · climbing, plus the Full/Short switcher. Expanded: map, elevation profile, coffee stop (see below), "Open in RWGPS".
   - **Weather** — collapsed: temp range · real feel range · wind · rain chance, and a one-line kit hint. Expanded: ride-window summary (bike feel, gusts, rain total, roads), hourly table from the whole hour before roll-out to 3 h after the estimated return, rounded to whole hours (ride window shaded; Sky column uses icons for clear, partly cloudy, overcast, fog, drizzle, rain, showers, snow and thunder, with a moon for clear night hours and the label on hover and for screen readers), a "Full-day forecast" button that opens the rider's chosen weather source (NWS, Weather.com, Windy or Google; choice saved in their browser), then What to wear (Run cold / Avg / Run hot).
   - **Notes** — only if the ride has notes; collapsed shows the first line.
   - **Riders** — collapsed: "5 in · 1 out · 3 messages" plus **In / Out** buttons, so riders answer without opening the panel; tapping the selected answer again clears it. The Full / Short choice appears only when the ride has an alternate route and only after tapping In (main route preselected); Out never asks for a route. Expanded: who's in (with their route) and out, and a message thread for the ride: anyone can post, reply to a message (one level), and see everyone's messages. All signed-in roles can RSVP and post. Authors can edit or delete their own messages; Edit and Admin can delete any (moderation). The page refreshes RSVPs and messages every 30 s while open.
   - **Share** icon next to the day tabs: uses the phone's share sheet (Web Share API) with a text brief (date, meet time and Maps link, routes with RWGPS links, coffee stop, time back, weather, notes) plus the ride link; falls back to a copy-to-clipboard sheet. The ride link requires sign-in.
-  - Warnings: wet/drying roads, cold, heat, wind, rain, thunder, low light (roll-out within 30 min of sunrise), and **active NWS alerts** for the spot's forecast zone (warnings red, advisories and watches amber; from api.weather.gov, cached by the Worker). No Go badge.
+  - Warnings: wet/drying roads, cold, heat, wind, rain, thunder, low light (roll-out within 30 min of sunrise), and **active NWS alerts** at the spot's location (warnings red, advisories and watches amber; see Warnings).
 - "Open in RWGPS" works for riders only if the route is public or shared with them; the map and stats render regardless.
 - **Coffee / muffin stop (optional)** — a ride can have an optional mid-ride stop.
   - Auto-suggested from the route's RWGPS POIs (`poi_type_name` = `coffee` or `food`, listed first); the editor confirms, picks another POI, or chooses no stop.
   - Route panel shows: name (links to Maps), mile marker, ETA (see ETA math), stop length (team setting, default 20 min; it extends the ride window) and an "optional" label. No separate stop forecast.
-- **Past rides** — a **Past** tab after the date tabs on the Ride page (all roles). Newest first, grouped by month; each row shows date, start spot, route(s), how many rode, and the observed conditions at roll-out (temp, real feel, wind, roads), with a red "Cancelled" tag where it applies. A search box filters by route or spot.
-  - Opening a past ride shows the same panels, read-only: Meet and Route as published, **Weather = observed** (saved from NWS station observations once the ride window has passed, not the old forecast), Notes, and Riders (who rode, who was out, and the full message thread; RSVP and posting are off).
+- **Past rides** — a **Past** tab after the date tabs on the Ride page (all roles). Newest first, grouped by month; each row shows date, start spot, route(s), how many rode, and the recorded conditions at roll-out (temp, real feel, wind, roads), with a red "Cancelled" tag where it applies. A search box filters by route or spot.
+  - Opening a past ride shows the same panels, read-only: Meet and Route as published, **Weather = recorded** (what Open-Meteo's past hours show for the spot, saved after the ride window has passed, not the old forecast; same algorithms, so roads come out the same way), Notes, and Riders (who rode, who was out, and the full message thread; RSVP and posting are off).
   - Editors get **Reuse this plan**, which copies the ride into Plan on that same default day.
-  - Data: no new tables. A ride is past once its date has passed; observed weather is stored with the ride (`rides.observed_json`). Nothing is deleted.
+  - Data: no new tables. A ride is past once its date has passed; recorded weather is stored with the ride (`rides.observed_json`), written by a scheduled Worker job every 3 hours. Rides are never deleted.
 
 ### Spots
 - Fields: name, location (lat/lng), Google Maps link, parking notes (where to park, restrooms).
 - **Add (Edit and Admin):** "Add a start spot" at the bottom of Plan's spot list. Enter a name, paste a Google Maps link (drop a pin on the parking spot → Share → Copy link) or plain coordinates, and parking notes; Save selects the new spot. Spot names must be unique.
-  - Full Maps links are parsed in the browser (`@lat,lng` or `?q=lat,lng`). Short `maps.app.goo.gl` links are resolved by the Worker (follow the redirect, then parse), since browsers can't read cross-site redirects.
+  - Full Maps links are parsed in the browser, pin first: `!3d<lat>!4d<lng>`, then `q=` / `query=` / `/search/<lat>,<lng>`, then `@lat,lng` (that one is the map's centre, so it's the last resort). Short `maps.app.goo.gl` links are resolved by the Worker (one redirect, only from that host), since browsers can't read cross-site redirects.
   - The Worker fetches the forecast for the new point on save.
 - **Manage (Admin):** a Spots panel in Settings to rename, edit notes, move the pin, or archive. Archived spots drop out of the pick list but stay on past rides.
 
@@ -89,8 +91,8 @@ audit_log(id, user_id, action, entity, entity_id, diff_json, at)
 - Per-rider offset (runs cold / avg / hot, ±5°) stored in that rider's browser.
 
 ### Settings (Admin only, stored in D1)
-Every setting lives in the `settings` table and is edited on the Settings page (gear icon); nothing is hard-coded except first-run defaults. Collapsible panels, each with a one-line summary of the current values:
-- **Users:** invite by email with a role (copy invite link), change roles, disable, create a password reset link, delete on request; shows each user's sign-in methods. A short line explains what each role can do. Deleting removes the account, sign-in methods, sessions, push subscriptions and RSVPs; the person's messages stay on past rides as "Former member".
+Team settings live in D1 (`settings`, `kit_bands`, `spots`) and are edited on the Settings page (gear icon). Fixed by design, not settings: low light = roll-out within 30 min of sunrise, wind-vest add-on at 12 mph, shedding hint at 8°, pace 10–25 mph. Collapsible panels, each with a one-line summary of the current values:
+- **Users:** invite by email with a role (copy invite link), change roles, edit name or email, disable, create a password reset link, delete on request; shows each user's sign-in methods. A short line explains what each role can do. Deleting removes the account, sign-in methods, sessions, push subscriptions, drafts and RSVPs; the person's messages stay on past rides as "Former member".
 - **Ride defaults:** roll-out **8:30**, weather window 3 h (used before a route is picked), pace 17 mph, coffee stop **20 min** (typical 15–20), regroup buffer **5 %** of moving time.
 - **Road wetness:** look-back hours, Wet / Drying film thresholds.
 - **Warnings:** amber and red thresholds for cold (bike feel), heat (real feel), wind, gusts, rain chance, rain amount.
@@ -109,7 +111,7 @@ Planning is one top-to-bottom flow in the same panel style, mirroring the ride p
 
 Drafts and changes:
 - **No Save draft button.** The form autosaves per editor (`drafts` table), so a half-planned ride survives closing the page. "Start over" clears it.
-- If a ride is already posted for the chosen date, the button reads **Replace ride** with a note; the replaced ride's RSVPs and messages go with it.
+- If a ride is already posted for the chosen date, the button reads **Replace ride** with a note. Replacing cancels the old ride (it keeps its RSVPs and messages in history) and publishes the new one.
 - **Editing a published ride:** editors get an Edit (pencil) icon on the ride page, next to Share. It opens Plan pre-filled with an "Editing the Sat, Oct 10 ride" bar, and the button reads **Update ride**. "Discard changes" leaves the published ride untouched.
   - RSVPs and messages are kept (moved along if the date changes).
   - If something riders care about changed (date, roll-out, start spot, route, coffee stop, notes), the ride page shows "Updated 9:12 PM · roll-out 8:30 → 9:00 AM" and the same text is posted to the Riders thread as a "Ride update" message.
@@ -160,7 +162,7 @@ For each hour *i* in the window, oldest first:
    SW     = shortwave radiation, W/m²  (if missing: is_day × (1 − cloud%/100) × 600)
    D      = (0.02 + 0.004·max(0,Tc) + 0.015·min(spread,15) + 0.0006·SW) × (1 + 0.03·min(wind_mph,20))
    if spread < 1 °C:          D ×= 0.25   (near-saturated air / dew)
-   if rain_i > 0.1 mm:        D ×= 0.2    (still raining)
+   if rain_i > 0.004" (0.1 mm): D ×= 0.2  (still raining)
    ```
    Sanity anchors: sunny 68 °F, 14 °F spread, 8 mph, 600 W/m² → ~0.7 mm/h (1 mm gone in ~1.5 h). Calm overcast night 46 °F, 3 °F spread → ~0.08 mm/h (wet roads stay wet till morning).
 
@@ -199,7 +201,7 @@ Evaluated on 15-minute samples across the ride window. Each factor gets a level:
 | Rain | max chance / total in window | ≥ 30 % / ≥ 0.01" | ≥ 60 % / ≥ 0.05" |
 | Thunder | weather code 95–99 in window (replaces the rain warning) | — | any |
 | Low light | roll-out within 30 min of sunrise | yes | — |
-| NWS alert | active alert for the spot's forecast zone | advisory, watch | warning |
+| NWS alert | active alert at the spot | advisory, watch | warning |
 
 ### Kit chart
 Bands on minimum bike feel over the ride, after the rider's offset (runs cold −5°, avg 0, runs hot +5°; stored in the rider's browser).
@@ -229,7 +231,7 @@ ETA at mile m    = roll-out + (m ÷ pace) × k               (Tazza, mile 24.4 �
 after the stop   = + stop length (default 20 min)
 ride window      = roll-out → roll-out + moving time × k + stop (8:30 → 11:41)
 ```
-Mile markers come from the POI's distance along the RWGPS track (nearest track point). The regroup buffer is an Admin setting; 0 % gives pure moving time. There is no separate coffee-stop forecast; per-point route weather is Phase 2.
+Mile markers come from the POI's distance along the RWGPS track (nearest track point). The regroup buffer is an Admin setting; 0 % gives pure moving time. Weather along the route is in the backlog.
 
 ## Prototype
 `prototype/index.html` — one self-contained file (inline CSS/JS, Leaflet 1.9.4 from cdnjs). Built from `prototype/src/app.html` by `python3 prototype/build.py`, which inlines `data/seed.json`, the fallback forecast `data/raw/om_purchase.json`, and the logo.
@@ -239,9 +241,10 @@ Mile markers come from the POI's distance along the RWGPS track (nearest track p
 - Without Leaflet (offline/CDN blocked) maps fall back to an SVG route outline.
 
 ## Data sources
-- **Forecast:** Open-Meteo (free, no key), hourly, `best_match` (HRRR and NBM for the US); `past_days=2` supplies the recent rain for road wetness. The Worker fetches all spots in one request and caches it in KV.
-- **Observed and alerts:** nearest NWS station observations (saved on past rides) and NWS active alerts (api.weather.gov, no key). Radar: link to RainViewer.
-- **Routes:** RideWithGPS API v1 (API key + secret + auth token, stored as Worker secrets; see Secrets). To verify at build time: listing club/organization routes via the API; paste-link fallback always works.
+- **Forecast and recorded weather:** Open-Meteo (free, no key), hourly, `best_match` (NOAA GFS and HRRR for the US); `past_days=2` supplies the recent rain for road wetness and the recorded weather for past rides. The Worker fetches all spots in one request and caches it in KV for 30 minutes.
+- **Alerts:** NWS active alerts by point (`api.weather.gov/alerts/active?point=lat,lng`, no key; NWS requires a `User-Agent` with a contact, `BBT Ride (info@bbt.team)`), cached in KV for 10 minutes. Radar: link to RainViewer.
+- **Map tiles:** OpenStreetMap (light) and CARTO (dark), loaded by the browser.
+- **Routes:** RideWithGPS. Public route JSON (`/routes/{id}.json`) needs no key; listing the captain's and the club's routes uses the API key and auth token (Worker secrets). The exact list endpoints are confirmed against the live API on first deploy; a pasted route link always works.
 
 ## Secrets
 Never in the repo, the built assets, or any response to the browser. All third-party calls that need a credential go through the Worker.
@@ -250,20 +253,24 @@ Never in the repo, the built assets, or any response to the browser. All third-p
 |---|---|---|
 | `RWGPS_API_KEY`, `RWGPS_API_SECRET`, `RWGPS_AUTH_TOKEN` | Cloudflare Worker secrets (`wrangler secret put …`) | Worker → RideWithGPS |
 | `GOOGLE_CLIENT_ID` (not secret), `GOOGLE_CLIENT_SECRET` | Worker variable / Worker secret | Google sign-in |
-| `SESSION_SECRET` (random 32 bytes) | Worker secret | Better Auth's signing secret (cookies, OAuth state, invite and reset tokens) |
-| `VAPID_PUBLIC_KEY` (not secret), `VAPID_PRIVATE_KEY` | Worker variable / Worker secret | Web Push notifications |
+| `SESSION_SECRET` (random 32 bytes) | Worker secret | Better Auth's `secret` (signs cookies and OAuth state) |
+| `BETTER_AUTH_URL`, `BOOTSTRAP_ADMIN_EMAIL` (not secret) | Worker variables | Auth base URL (`https://ride.bbt.team`); first Admin |
+| `VAPID_PUBLIC_KEY`, `VAPID_SUBJECT` (`mailto:info@bbt.team`) (not secret), `VAPID_PRIVATE_KEY` | Worker variables / Worker secret | Web Push notifications |
 | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` | GitHub repository secrets (Actions deploy) and your local `.env` (manual deploys) | `wrangler deploy`, D1 migrations |
 
 - Local development: Worker secrets in `.dev.vars`, Cloudflare credentials in `.env` (both git-ignored); `.dev.vars.example` lists the names with empty values.
 - Verified 2026-10-11 with `wrangler secret list`: `GOOGLE_CLIENT_SECRET`, `RWGPS_API_KEY`, `RWGPS_API_SECRET`, `RWGPS_AUTH_TOKEN`, `SESSION_SECRET` are set on the `bbt-ride` Worker. `VAPID_PRIVATE_KEY` is generated when the app is built.
 - Worker secrets are write-only: once set, Cloudflare never shows them again; rotate by running `wrangler secret put` with the new value.
-- The browser calls `/api/routes/:id` and `/api/routes/search`; the Worker adds the RWGPS credentials and caches results in D1 `route_cache`.
+- The browser calls `/api/routes/:id` and `/api/routes?q=`; the Worker adds the RWGPS credentials and caches results in D1 `route_cache`.
 
 ## Architecture
 - Cloudflare Worker + static assets (React + TypeScript + Vite) on ride.bbt.team.
+- Worker routes: `/api/auth/*` (Better Auth) and `/api/*` (the app's JSON API, Hono); everything else is static assets (the app shell, `/privacy`). See Users and roles for the checks.
 - D1: the tables in Data model. KV: forecast and NWS alert cache.
-- Every route except sign-in, `/privacy` and the auth endpoints requires a session (Google or password sign-in via Better Auth); API routes enforce View / Edit / Admin server-side.
-- Deploys: GitHub Actions on merge to `main` (runs D1 migrations, then `wrangler deploy`), using the repository's Cloudflare secrets. `ride.bbt.team` is attached once by hand in the Cloudflare dashboard.
+- Scheduled job (Cron Trigger, every 3 hours): saves recorded weather on rides whose window has passed.
+- Push: sent from the Worker with a Web Crypto-based Web Push library, in the background (`waitUntil`); a subscription the push service reports gone (404/410) is deleted.
+- Backups: D1 Time Travel (restore to any minute in the last 7 days on the free plan).
+- Deploys: GitHub Actions on merge to `main`: typecheck and tests, `wrangler d1 migrations apply --remote`, then `wrangler deploy`, using the repository's Cloudflare secrets. `ride.bbt.team` is attached once by hand in the Cloudflare dashboard. Pull requests run typecheck and tests only.
 
 ## Backlog (post-v1)
 1. **Route weather** — forecast at points along the route by ETA; head/tail/crosswind per segment.

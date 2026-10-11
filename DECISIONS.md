@@ -7,7 +7,7 @@ Every open question from the design review, with what was decided. Details live 
 |---|---|---|
 | Navy | `#020C2B` dark-mode background; `#03144D` text on light and dark-mode cards; `#1C367B` not used | 2026-10-09 |
 | Header | Light-blue bar, white bike logo, 4px orange stripe directly under it, no hairline (checked on a phone), no text next to the logo | 2026-10-11 |
-| Navigation | No tab row. Top bar: logo (home = Ride), Plan and Settings icons for roles that have them, account menu (theme, units, sign out) | 2026-10-11 |
+| Navigation | No tab row. Top bar: logo (home = Ride), Plan and Settings icons for roles that have them, account menu (theme, units, ride notifications, sign out) | 2026-10-11 |
 
 ## Weather model
 | Topic | Decision | Date |
@@ -46,8 +46,8 @@ Every open question from the design review, with what was decided. Details live 
 | Cloudflare deploys | Scoped API token in GitHub repository secrets; deploy via GitHub Actions; `ride.bbt.team` attached by hand | 2026-10-10 |
 
 ## Notes
-- **Prototype data.** The private prototype can't reach Open-Meteo or map tiles, so it shows the saved Oct 7–11 sample (yellow banner) and an outline map. The real app fetches forecasts through the Worker.
+- **Prototype data.** In sandboxed previews (such as the private artifact) the prototype can't reach Open-Meteo or map tiles, so it shows the saved Oct 7–11 sample (yellow banner) and an outline map. Opened directly in a browser it fetches live. The real app fetches forecasts through the Worker.
 - **Nearest spot.** Use the route's first track point to find the nearest start spot (the seed file's RWGPS start point differs by about 45 m).
 
 ## Still to do (outside the code)
-- Nothing. Accounts and secrets are in place (SETUP.md); the Web Push key pair is generated when the app is built (SETUP.md §4).
+- Only the Web Push key pair, generated when the app is built (SETUP.md §4). Everything else is in place (SETUP.md).

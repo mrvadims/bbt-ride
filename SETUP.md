@@ -89,7 +89,7 @@ Google keeps this under **Google Auth Platform** (APIs & Services → OAuth cons
    npx wrangler secret put GOOGLE_CLIENT_SECRET --name bbt-ride
    npx wrangler secret list --name bbt-ride     # should list 5 names
    ```
-   `GOOGLE_CLIENT_ID` and `BOOTSTRAP_ADMIN_EMAIL` aren't secret; they go in `wrangler.toml` `[vars]`.
+   `GOOGLE_CLIENT_ID` and `BOOTSTRAP_ADMIN_EMAIL` aren't secret; they go in `wrangler.jsonc` under `vars`.
    Client ID: `788843663115-civobe823j0r2vnkpgsjg7o8vqvik76c.apps.googleusercontent.com`
    First Admin (`BOOTSTRAP_ADMIN_EMAIL`): `mrvadims@gmail.com`
 
@@ -104,4 +104,4 @@ Generate a key pair once, from your own terminal:
 npx web-push generate-vapid-keys
 npx wrangler secret put VAPID_PRIVATE_KEY --name bbt-ride   # paste the private key
 ```
-The public key isn't secret; it goes in `wrangler.toml` `[vars]` as `VAPID_PUBLIC_KEY`.
+The public key isn't secret; it goes in `wrangler.jsonc` under `vars` as `VAPID_PUBLIC_KEY`, with `VAPID_SUBJECT = "mailto:info@bbt.team"`.
