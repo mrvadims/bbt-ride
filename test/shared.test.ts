@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import fallback from "../data/raw/om_purchase.json";
 import seed from "../data/seed.json";
-import { DEFAULT_KIT, kitAdvice, kitBand } from "../shared/kit";
-import { parseLatLng, type Route, rideTimes } from "../shared/ride";
-import { DEFAULT_SETTINGS as S } from "../shared/settings";
-import { fmtDur, fmtTime, nyToUTC, weekendDates } from "../shared/time";
+import { DEFAULT_KIT, kitAdvice, kitBand } from "../shared/kit.ts";
+import { parseLatLng, type Route, rideTimes } from "../shared/ride.ts";
+import { DEFAULT_SETTINGS as S } from "../shared/settings.ts";
+import { fmtDur, fmtTime, nyToUTC, weekendDates } from "../shared/time.ts";
 import {
   bikeFeel,
   dryingRate,
@@ -16,7 +16,7 @@ import {
   toSeries,
   warnings,
   windChill,
-} from "../shared/weather";
+} from "../shared/weather.ts";
 
 /** Fails the test when a value is unexpectedly missing. */
 function must<T>(v: T | null | undefined): T {

@@ -1,6 +1,6 @@
 // Kit chart: bands on minimum bike feel (after the rider's offset), plus add-ons (DESIGN.md → Kit chart).
-import { type Settings, SHED_DEG, WIND_VEST_MPH } from "./settings";
-import { fmtIn, type WindowStats } from "./weather";
+import { type Settings, SHED_DEG, WIND_VEST_MPH } from "./settings.ts";
+import { fmtIn, type WindowStats } from "./weather.ts";
 
 export interface KitBand {
   minFeel: number; // lowest bike feel for this band, °F; the last band uses -99

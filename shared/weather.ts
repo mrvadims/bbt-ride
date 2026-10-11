@@ -1,7 +1,7 @@
 // Weather algorithms (DESIGN.md → Algorithms). Inputs are Open-Meteo hourly values in °F, mph and inches,
 // America/New_York local time. precipitation at hour h is the total for the hour ending at h.
-import { LOW_LIGHT_MIN, type Settings } from "./settings";
-import { fmtTime, hhmmToMin, pad } from "./time";
+import { LOW_LIGHT_MIN, type Settings } from "./settings.ts";
+import { fmtTime, hhmmToMin, pad } from "./time.ts";
 
 export const MM_PER_IN = 25.4;
 export const HOURLY_VARS = [

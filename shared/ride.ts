@@ -1,6 +1,6 @@
 // Ride data shapes and ETA math (DESIGN.md → ETA math).
-import type { Settings } from "./settings";
-import { hhmmToMin } from "./time";
+import type { Settings } from "./settings.ts";
+import { hhmmToMin } from "./time.ts";
 
 export const M_PER_MI = 1609.344;
 export const FT_PER_M = 3.28084;

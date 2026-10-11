@@ -13,9 +13,14 @@
     "db:migrate:local": "wrangler d1 migrations apply DB --local",
     "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
     "cf-typegen": "wrangler types worker/worker-configuration.d.ts",
-    "deploy": "npm run build && wrangler deploy"
+    "deploy": "npm run build && wrangler deploy",
+    "dev:seed": "node scripts/dev-seed.ts",
+    "smoke": "node scripts/smoke.ts",
+    "auth:schema": "node scripts/auth-schema.ts"
   },
   "dependencies": {
+    "@block65/webcrypto-web-push": "^2.0.0",
+    "@hono/zod-validator": "^0.9.1",
     "better-auth": "^1.7.7",
     "hono": "^4.13.13",
     "react": "^19.3.0",
