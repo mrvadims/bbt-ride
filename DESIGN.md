@@ -97,10 +97,10 @@ Every setting lives in the `settings` table and is edited on the Settings tab; n
 - **Kit chart:** bands and items (`kit_bands`).
 - **Spots:** rename, edit notes, move the pin, archive (see Spots).
 
-Team settings are stored in imperial units. Per-rider preferences stay in the rider's browser: theme (header toggle), **units** (imperial by default; metric shows °C, km/h, km, m, mm), Run cold / Avg / Run hot, weather source, and which panels are open.
+Team settings are stored in imperial units. Per-rider preferences stay in the rider's browser: theme and **units** (both in the account menu; imperial by default; metric shows °C, km/h, km, m, mm), Run cold / Avg / Run hot, weather source, and which panels are open.
 
 ### Plan a ride (Edit and Admin)
-Planning is one top-to-bottom flow in the same panel style, mirroring the ride page. There is no separate Weekend page; navigation is Ride / Plan / Settings (View riders see Ride only).
+Planning is one top-to-bottom flow in the same panel style, mirroring the ride page. There is no separate Weekend page. Plan opens from the calendar-plus icon in the top bar.
 1. **Meet:** Sat / Sun tabs or any date, and roll-out time.
 2. **Start spot:** a compact pick list, one row per spot: name, temp · real feel · wind · rain for the weather window, and warning chips only when something needs attention. Tap a row to select it. The selected spot gets a collapsed **Details** panel below: bike feel, gusts, rain and road state; rain bars −12 h → +8 h; hourly table (1 h before → 3 h after); Full-day forecast and Radar; parking notes and Google Maps. The weather window is the default length (Settings) until a route is picked, then the route's actual ride time. The last row is **Add a start spot** (see Spots).
 3. **Route:** routes that start at the chosen spot are listed first ("starts here"), then the captain's RWGPS library and the BBT club library via search, or a pasted RWGPS link; a note appears if the route starts away from the spot. Optional alternate route with labels, coffee stop from the route's POIs, pace. Picking a route first (before a spot) selects its nearest spot.
@@ -142,7 +142,7 @@ Both use `fill="currentColor"` so they can switch between navy, white, and orang
 
 Navy roles confirmed 2026-10-09: `#020C2B` background, `#03144D` text and cards; `#1C367B` is not used.
 
-- **Top bar:** white bike logo (`bbt-logo.svg`, ~32px tall) on Light Blue, with a 4px orange stripe directly underneath (no separator). Same bar in light and dark mode; checked on a phone 2026-10-11, no hairline needed. No text next to the logo.
+- **Top bar** (the only navigation; there is no tab row): white bike logo on the left, which is the way home to Ride; on the right, **Plan** (calendar-plus icon) and **Settings** (gear) for roles that have them (icons only on phones, icon + label on wider screens), then an **account button** with the user's initial. View riders see just the logo and the account button. The account menu shows name, role and sign-in method; **Theme** (Auto / Light / Dark); **Units** (°F · mi / °C · km); and **Sign out**. Logo `bbt-logo.svg`, ~32px tall, on Light Blue, with a 4px orange stripe directly underneath (no separator). Same bar in light and dark mode; checked on a phone 2026-10-11, no hairline needed. No text next to the logo.
 
 - Warnings use amber and red tinted pills and boxes (icon + label), never brand orange. There is no green "Go" state; a clean forecast shows nothing.
 - Light and dark mode both supported; dark mode is navy-based, not gray.
@@ -234,7 +234,7 @@ Mile markers come from the POI's distance along the RWGPS track (nearest track p
 ## Prototype
 `prototype/index.html` — one self-contained file (inline CSS/JS, Leaflet 1.9.4 from cdnjs). Built from `prototype/src/app.html` by `python3 prototype/build.py`, which inlines `data/seed.json`, the fallback forecast `data/raw/om_purchase.json`, and the logo.
 - Fetches Open-Meteo live in the browser for the start spots (one multi-location request, `past_days=2`). On failure it uses the embedded sample (SUNY Purchase, Oct 7–11) for every spot and shows a banner.
-- Screens: Sign-in (Google + password), Ride (date tabs + Past; Meet / Route / Weather / Notes / Riders panels; share, calendar, edit), Plan (spot comparison → route → preview that reuses the ride panels; autosaved draft), Settings (panels, incl. Users with invite and reset links). A View / Edit / Admin switcher and a "Sign-in screen" link sit at the top.
+- Screens: Sign-in (Google + password), Ride (date tabs + Past; Meet / Route / Weather / Notes / Riders panels; share, calendar, edit), Plan (spot comparison → route → preview that reuses the ride panels; autosaved draft), Settings (panels, incl. Users with invite and reset links). A View / Edit / Admin switcher and a "Sign-in screen" link sit below the top bar.
 - Prototype-only: everything you change lives in this browser or this session; sample rides, riders, messages and past rides are examples. Not in the prototype: NWS alerts, the metric toggle, Spots management, message edit/delete, notifications.
 - Without Leaflet (offline/CDN blocked) maps fall back to an SVG route outline.
 

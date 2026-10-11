@@ -45,14 +45,10 @@ h1{font-size:20px} h2{font-size:16px} h3{font-size:14px}
 .topbar .logo{height:32px;width:auto;color:#fff;display:block}
 .brandlink{display:flex;align-items:center;gap:10px;color:#fff;text-decoration:none}
 .topbar .spacer{flex:1}
-.datachip{font-size:12px;background:rgba(255,255,255,.18);border-radius:999px;padding:3px 9px;white-space:nowrap}
 .iconbtn{background:transparent;border:0;color:#fff;width:36px;height:36px;border-radius:8px;display:grid;place-items:center;cursor:pointer}
 .iconbtn:hover{background:rgba(255,255,255,.15)}
 .stripe{height:4px;background:var(--stripe)}
 /* Tabs: orange underline for active only. */
-.nav{background:var(--card);border-bottom:1px solid var(--line)}
-.tabs{display:flex;gap:4px;max-width:1200px;margin:0 auto;padding:0 8px;overflow-x:auto;scrollbar-width:none}
-.tabs::-webkit-scrollbar{display:none}
 .tab{appearance:none;background:none;border:0;color:var(--muted);font:inherit;font-weight:600;padding:12px 10px 10px;border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap;text-decoration:none}
 .tab[aria-selected="true"]{color:var(--text);border-bottom-color:var(--stripe)}
 .tab:focus-visible{outline:2px solid var(--primary);outline-offset:-2px}
@@ -210,6 +206,22 @@ a.spotrow{text-decoration:none}
 .gbtn{gap:10px;color:var(--text)}
 .or{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12px}
 .or::before,.or::after{content:"";flex:1;border-top:1px solid var(--line)}
+[hidden]{display:none!important}
+.topnav{display:flex;gap:2px}
+.navbtn{display:flex;align-items:center;gap:6px;color:#fff;text-decoration:none;font-weight:600;font-size:14px;height:38px;padding:0 9px;border-radius:9px}
+.navbtn:hover{background:rgba(255,255,255,.15)}
+.navbtn[aria-current="page"]{background:rgba(255,255,255,.22)}
+.navbtn span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+@media (min-width:600px){.navbtn span{position:static;width:auto;height:auto;overflow:visible;clip:auto}}
+.avatar{width:34px;height:34px;border-radius:50%;border:2px solid rgba(255,255,255,.85);background:rgba(255,255,255,.18);color:#fff;font:inherit;font-weight:700;cursor:pointer;margin-left:6px}
+.avatar:focus-visible,.navbtn:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.acctmenu{position:absolute;right:16px;top:60px;width:min(300px,calc(100vw - 32px));background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:14px;box-shadow:0 10px 30px rgba(2,12,43,.25);padding:12px;display:grid;gap:12px;z-index:1600}
+.acctmenu .who b{display:block}
+.acctmenu .row2{display:grid;gap:6px}
+.acctmenu .seg{width:100%}
+.acctmenu .seg button{flex:1}
+.topbar{position:sticky}
+.topbar-inner{position:relative}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 @media (min-width:760px){
   .map{height:280px}
@@ -247,20 +259,15 @@ a.spotrow{text-decoration:none}
   <div class="topbar-inner">
     <a class="brandlink" href="#ride" aria-label="BBT Ride home"><!--BBT_LOGO--></a>
     <span class="spacer"></span>
-    <span class="datachip" id="datachip">Loading…</span>
-    <button class="iconbtn" id="themebtn" type="button" aria-label="Toggle dark mode" title="Toggle dark mode">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
-    </button>
+    <nav class="topnav" aria-label="Main">
+      <a class="navbtn" href="#plan" data-nav="plan" title="Plan a ride"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M12 13v5M9.5 15.5h5"/></svg><span>Plan</span></a>
+      <a class="navbtn" href="#settings" data-nav="settings" title="Settings"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span>Settings</span></a>
+    </nav>
+    <button class="avatar" id="acctbtn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Account menu" title="Account">V</button>
   </div>
+  <div class="acctmenu" id="acctmenu" hidden></div>
 </header>
 <div class="stripe" aria-hidden="true"></div>
-<nav class="nav" aria-label="Main">
-  <div class="tabs" role="tablist" id="navtabs">
-    <a class="tab" href="#ride" data-nav="ride" role="tab">Ride</a>
-    <a class="tab" href="#plan" data-nav="plan" role="tab">Plan</a>
-    <a class="tab" href="#settings" data-nav="settings" role="tab">Settings</a>
-  </div>
-</nav>
 <main id="app" aria-live="polite"></main>
 
 <script type="application/json" id="seed">/*SEED_JSON*/</script>
@@ -383,13 +390,7 @@ async function loadForecast(){
     const s = toSeries(FALLBACK), series = {}; pts.forEach(p => series[p.key] = s);
     WX = { source: 'fallback', at: null, series, err: String(e && e.message || e) };
   }
-  updateChip(); render();
-}
-function updateChip(){
-  const el = document.getElementById('datachip');
-  if (WX.source === 'live') el.textContent = 'Live · ' + WX.at.toLocaleTimeString('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit' });
-  else if (WX.source === 'fallback') el.textContent = 'Sample data';
-  else el.textContent = 'Loading…';
+  render();
 }
 
 /* Fractional hourly index for a wall-clock date + minutes. */
@@ -1060,7 +1061,7 @@ function applyTheme(){ if (THEME === 'auto') document.documentElement.removeAttr
 function render(){
   maps.forEach(m => { try { m.remove(); } catch(e){} }); maps = [];
   const [page, arg] = (location.hash.slice(1) || 'ride').split('/');
-  document.querySelectorAll('[data-nav]').forEach(a => a.setAttribute('aria-selected', String(a.dataset.nav === page)));
+  document.querySelectorAll('[data-nav]').forEach(a => a.dataset.nav === page ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current'));
   const app = document.getElementById('app');
   if (WX.source === 'loading'){ app.innerHTML = `<div class="card empty muted">Loading forecast…</div>`; return; }
   const banner = WX.source === 'fallback' ? `<div class="banner" role="status">Live forecast unavailable (${esc(WX.err || 'offline')}). Showing the saved Open-Meteo sample from ${SEED.generated} for SUNY Purchase at every spot.</div>` : '';
@@ -1069,7 +1070,7 @@ function render(){
   if ((page === 'settings' && !can.settings()) || (page === 'plan' && !can.plan())){ location.hash = 'ride'; return; }
   const demo = `<div class="rolebar"><a class="tiny" href="#signin">Sign-in screen</a><span class="tiny muted">· view as</span><div class="seg" role="group" aria-label="Demo role">${ROLES.map(r => `<button type="button" data-role-set="${r}" aria-pressed="${ROLE === r}">${ROLE_LABEL[r]}</button>`).join('')}</div></div>`;
   const views = { ride: viewRide, plan: viewPlan, settings: viewSettings, signin: viewSignin };
-  document.querySelector('nav.nav').hidden = page === 'signin';
+  document.querySelector('.topnav').hidden = page === 'signin'; document.getElementById('acctbtn').hidden = page === 'signin'; closeAcct();
   app.innerHTML = page === 'signin' ? viewSignin() : demo + banner + (views[page] || viewRide)(arg);
   mount();
 }
@@ -1079,9 +1080,30 @@ function mount(){
     const r = routeById(el.dataset.mapRoute); mountRouteMap(el, r, r.pois.find(p => p.name === el.dataset.mapStop));
   });
 }
+// Account menu: who you are, per-rider preferences, sign out.
+function acctMenuHTML(){
+  const units = store.get('bbt.units', 'imperial');
+  return `<div class="who"><b>Vadim</b><span class="tiny muted">${ROLE_LABEL[ROLE]} · signed in with Google</span></div>
+    <div class="row2"><span class="tiny muted">Theme</span><div class="seg" role="group" aria-label="Theme">${['auto', 'light', 'dark'].map(t => `<button type="button" data-theme-set="${t}" aria-pressed="${THEME === t}">${t === 'auto' ? 'Auto' : t[0].toUpperCase() + t.slice(1)}</button>`).join('')}</div></div>
+    <div class="row2"><span class="tiny muted">Units</span><div class="seg" role="group" aria-label="Units">${['imperial', 'metric'].map(u => `<button type="button" data-units="${u}" aria-pressed="${units === u}">${u === 'imperial' ? '°F · mi' : '°C · km'}</button>`).join('')}</div>${units === 'metric' ? '<span class="tiny muted">Prototype shows imperial; metric display comes with the app.</span>' : ''}</div>
+    <a class="btn btn-outline btn-sm" href="#signin">Sign out</a>`;
+}
+function openAcct(){ const m = document.getElementById('acctmenu'); m.innerHTML = acctMenuHTML(); m.hidden = false; document.getElementById('acctbtn').setAttribute('aria-expanded', 'true'); }
+function closeAcct(){ const m = document.getElementById('acctmenu'); if (m && !m.hidden){ m.hidden = true; document.getElementById('acctbtn').setAttribute('aria-expanded', 'false'); } }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAcct(); });
 function toast(msg){ const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 2600); }
 
 document.addEventListener('click', e => {
+  if (e.target.closest('#acctbtn')){ document.getElementById('acctmenu').hidden ? openAcct() : closeAcct(); return; }
+  const am = e.target.closest('#acctmenu');
+  if (am){
+    const tb = e.target.closest('[data-theme-set]'), ub = e.target.closest('[data-units]');
+    if (tb){ THEME = tb.dataset.themeSet; store.set('bbt.theme', THEME); applyTheme(); render(); openAcct(); }
+    else if (ub){ store.set('bbt.units', ub.dataset.units); openAcct(); }
+    else if (e.target.closest('a')) closeAcct();
+    return;
+  }
+  closeAcct();
   const tg = e.target.closest('[data-toggle]');
   if (tg && !e.target.closest('a,.seg,.panel-s button')){ const k = tg.dataset.toggle, sec = document.querySelector(`[data-panel="${k}"]`), body = sec.querySelector('.panel-b'), btn = sec.querySelector('.panel-t');
     const open = body.hidden; body.hidden = !open; btn.setAttribute('aria-expanded', String(open)); const ps = store.get('bbt.panels', {}); ps[k] = open; store.set('bbt.panels', ps); if (open) mount(); return; }
@@ -1114,7 +1136,7 @@ document.addEventListener('click', e => {
     a.href = URL.createObjectURL(blob); a.download = `bbt-ride-${UI.cal.date}.ics`; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 2000); document.querySelector('.sheet')?.remove(); return;
   }
-  const el = e.target.closest('[data-route],[data-offset],[data-pday],[data-pick-spot],[data-plan-date],[data-pick],[data-role-set],#publish,#cancelride,#discard,#startover,[data-edit-ride],[data-reuse],#ns-open,#ns-save,#ns-cancel,#reset,#themebtn,#invite,[data-user-link],#signin-google,#signin-pass');
+  const el = e.target.closest('[data-route],[data-offset],[data-pday],[data-pick-spot],[data-plan-date],[data-pick],[data-role-set],#publish,#cancelride,#discard,#startover,[data-edit-ride],[data-reuse],#ns-open,#ns-save,#ns-cancel,#reset,#invite,[data-user-link],#signin-google,#signin-pass');
   if (!el) return;
   if (el.dataset.route != null){ UI.route = +el.dataset.route; render(); }
   else if (el.dataset.offset){ store.set('bbt.kitOffset', el.dataset.offset); render(); }
@@ -1153,7 +1175,6 @@ document.addEventListener('click', e => {
   else if (el.dataset.userLink){ const u = USERS[+el.dataset.userLink], kind = u.status === 'Invited' ? 'invite' : 'reset', link = `https://ride.bbt.team/${kind}/${Math.random().toString(36).slice(2, 10)}`;
     (navigator.clipboard ? navigator.clipboard.writeText(link) : Promise.reject()).then(() => toast(`${kind === 'invite' ? 'Invite' : 'Reset'} link copied (prototype)`), () => toast(link)); }
   else if (el.id === 'reset'){ S = Object.assign({}, DEFAULTS); store.del('bbt.settings'); render(); toast('Settings reset'); }
-  else if (el.id === 'themebtn'){ THEME = isDark() ? 'light' : 'dark'; store.set('bbt.theme', THEME); applyTheme(); render(); }
 });
 // Text inputs re-render on change (not every keystroke) except search boxes, which keep focus.
 document.addEventListener('input', e => {
