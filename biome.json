@@ -1,0 +1,18 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "files": {
+    "includes": [
+      "**",
+      "!prototype",
+      "!data",
+      "!brand",
+      "!public",
+      "!worker/worker-configuration.d.ts",
+      "!dist",
+      "!.wrangler"
+    ]
+  },
+  "formatter": { "indentStyle": "space", "lineWidth": 120 },
+  "linter": { "enabled": true },
+  "javascript": { "formatter": { "quoteStyle": "double" } }
+}
