@@ -6,7 +6,7 @@ Nothing here is ever committed. Values go into Cloudflare Worker secrets, GitHub
 |---|---|
 | 1. Cloudflare API token | Done: GitHub repository secrets + local `.env` |
 | 2. RideWithGPS credentials | Done: Worker secrets verified 2026-10-11 |
-| 3. Google sign-in | To do: create the OAuth client, store `GOOGLE_CLIENT_SECRET` |
+| 3. Google sign-in | Done 2026-10-11: app published, client created, `GOOGLE_CLIENT_SECRET` stored. Still needed: first Admin email |
 | 4. Web Push keys | When the app is built: generate and store `VAPID_PRIVATE_KEY` |
 
 ## 1. Cloudflare API token (for deploys)
@@ -90,6 +90,7 @@ Google keeps this under **Google Auth Platform** (APIs & Services → OAuth cons
    npx wrangler secret list --name bbt-ride     # should list 5 names
    ```
    `GOOGLE_CLIENT_ID` and `BOOTSTRAP_ADMIN_EMAIL` aren't secret; they go in `wrangler.toml` `[vars]`.
+   Client ID: `788843663115-civobe823j0r2vnkpgsjg7o8vqvik76c.apps.googleusercontent.com`
 
 "redirect_uri_mismatch" at sign-in means a redirect URI above doesn't match exactly (https, no trailing slash).
 
