@@ -1,9 +1,9 @@
-// GET /api/routes?q= (library search) and GET /api/routes/:id (one route).
+// GET /api/routes?q= (library search; the scheduled job fills the library) and GET /api/routes/:id (one route).
 import { Hono } from "hono";
 import type { RouteSummary } from "../../shared/api.ts";
 import type { Route } from "../../shared/ride.ts";
 import type { AppEnv } from "../app.ts";
-import { fillLibrary, getRoute } from "../rwgps.ts";
+import { getRoute } from "../rwgps.ts";
 import { fail } from "../util.ts";
 
 export const routes = new Hono<AppEnv>()
@@ -14,7 +14,6 @@ export const routes = new Hono<AppEnv>()
     )
       .bind(`%${q.replace(/[%_]/g, "")}%`)
       .all<{ json: string }>();
-    c.executionCtx.waitUntil(fillLibrary(c.env, 8)); // fetch library routes not seen yet, in the background
     return c.json<RouteSummary[]>(
       results.map(({ json }) => {
         const r = JSON.parse(json) as Route;

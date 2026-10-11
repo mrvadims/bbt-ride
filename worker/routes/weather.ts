@@ -14,12 +14,18 @@ interface SpotPoint {
   lng: number;
 }
 
-async function cached<T>(kv: KVNamespace, key: string, ttl: number, load: () => Promise<T>): Promise<T> {
-  const hit = await kv.get<T>(key, "json");
-  if (hit) return hit;
-  const value = await load();
-  await kv.put(key, JSON.stringify(value), { expirationTtl: ttl });
-  return value;
+/** KV cache that refreshes after `fresh` seconds but keeps the last good value for 6 h in case the upstream is down. */
+async function cached<T>(kv: KVNamespace, key: string, fresh: number, load: () => Promise<T>): Promise<T> {
+  const hit = await kv.get<{ at: number; value: T }>(key, "json");
+  if (hit && Date.now() - hit.at < fresh * 1000) return hit.value;
+  try {
+    const value = await load();
+    await kv.put(key, JSON.stringify({ at: Date.now(), value }), { expirationTtl: 6 * 3600 });
+    return value;
+  } catch (err) {
+    if (hit) return hit.value;
+    throw err;
+  }
 }
 
 /** One multi-location Open-Meteo request; `past_days=2` supplies recent rain and recorded weather. */
@@ -36,18 +42,17 @@ export async function fetchForecast(spots: SpotPoint[]): Promise<OpenMeteoRespon
     past_days: "2",
     forecast_days: "8",
   });
-  const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`);
-  if (!res.ok) fail(502, `Open-Meteo HTTP ${res.status}`);
-  const data = (await res.json()) as OpenMeteoResponse | OpenMeteoResponse[];
+  const res = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`).catch(() => null);
+  if (!res?.ok) fail(502, `Weather service unavailable${res ? ` (HTTP ${res.status})` : ""}`);
+  const data = (await (res as Response).json()) as OpenMeteoResponse | OpenMeteoResponse[];
   return Array.isArray(data) ? data : [data];
 }
 
 const ALERT_KINDS = /(Warning|Watch|Advisory)$/;
 async function fetchAlerts(s: SpotPoint): Promise<Alert[]> {
-  const res = await fetch(`https://api.weather.gov/alerts/active?point=${s.lat.toFixed(4)},${s.lng.toFixed(4)}`, {
-    headers: NWS_HEADERS,
-  });
-  if (!res.ok) return []; // alerts are a bonus; the forecast still works without them
+  const url = `https://api.weather.gov/alerts/active?point=${s.lat.toFixed(4)},${s.lng.toFixed(4)}`;
+  const res = await fetch(url, { headers: NWS_HEADERS }).catch(() => null);
+  if (!res?.ok) return []; // alerts are a bonus; the forecast still works without them
   const body = (await res.json()) as { features?: { properties: { event: string; headline: string | null } }[] };
   return (body.features ?? [])
     .map((f) => f.properties)

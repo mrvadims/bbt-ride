@@ -30,11 +30,10 @@ const put = (name: string, value: unknown) => {
   writeFileSync(file, JSON.stringify(value));
   wrangler("kv", "key", "put", name, "--path", file, "--binding", "CACHE", "--local");
 };
-put(`forecast:${key}`, { fetchedAt: new Date().toISOString(), data: spots.map(() => sample) });
-put(
-  `alerts:${key}`,
-  spots.map(() => []),
-);
+// worker/routes/weather.ts cache format: { at, value }; a far-future `at` keeps the sample "fresh".
+const far = Date.now() + 10 * 365 * 864e5;
+put(`forecast:${key}`, { at: far, value: { fetchedAt: new Date().toISOString(), data: spots.map(() => sample) } });
+put(`alerts:${key}`, { at: far, value: spots.map(() => []) });
 
 for (const id of [57406828, 57426135, 57215407, 37475253]) {
   const route = simplify(

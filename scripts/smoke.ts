@@ -6,6 +6,8 @@ import { createHash } from "node:crypto";
 const BASE = "http://localhost:8787";
 if (!BASE.includes("localhost")) throw new Error("local only");
 const stamp = Date.now().toString(36);
+// Sign-in is rate-limited per client IP; locally the IP comes from this header (Cloudflare sets it in production).
+const ip = `10.${Date.now() % 250}.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}`;
 let failures = 0;
 
 // biome-ignore lint/suspicious/noExplicitAny: responses are checked field by field below
@@ -20,7 +22,7 @@ function check(cond: unknown, what: string) {
 function client() {
   let cookie = "";
   return async (path: string, init: { method?: string; body?: unknown; origin?: string | null } = {}) => {
-    const headers: Record<string, string> = { "content-type": "application/json" };
+    const headers: Record<string, string> = { "content-type": "application/json", "cf-connecting-ip": ip };
     if (cookie) headers.cookie = cookie;
     if (init.origin !== null) headers.origin = init.origin ?? BASE;
     const res = await fetch(BASE + path, {
@@ -46,8 +48,6 @@ function sql(command: string) {
   execFileSync("npx", ["wrangler", "d1", "execute", "DB", "--local", "--command", command], { stdio: "pipe" });
 }
 const tokenFromUrl = (url: string) => url.split("/").pop() as string;
-
-sql(`delete from "rateLimit"`); // repeated runs from one IP would otherwise hit the sign-in limit
 
 // Seed an Admin invite directly (in production the first Admin signs in with Google as BOOTSTRAP_ADMIN_EMAIL).
 const adminToken = `smoke-admin-${stamp}`;
@@ -92,10 +92,12 @@ check(
 );
 
 const pw = client();
+const signIn = await pw("/api/auth/sign-in/username", {
+  body: { username: `admin${stamp}`, password: "correct horse battery" },
+});
 check(
-  (await pw("/api/auth/sign-in/username", { body: { username: `admin${stamp}`, password: "correct horse battery" } }))
-    .status === 200,
-  "sign in with username + password",
+  signIn.status === 200,
+  `sign in with username + password (${signIn.status} ${signIn.status === 200 ? "" : JSON.stringify(signIn.json)})`,
 );
 
 // Weather and routes (served from the local cache after scripts/dev-seed.ts; this container can't reach the APIs)

@@ -25,14 +25,19 @@ function authHeaders(env: Env): HeadersInit {
 }
 
 async function fetchRaw(env: Env, id: number): Promise<RwgpsRoute | null> {
-  const pub = await fetch(`https://ridewithgps.com/routes/${id}.json`, { headers: { Accept: "application/json" } });
-  const res = pub.ok
-    ? pub
-    : await fetch(`https://ridewithgps.com/api/v1/routes/${id}.json`, { headers: authHeaders(env) });
-  if (!res.ok) return null;
-  const body = (await res.json()) as RwgpsRoute | { route: RwgpsRoute };
-  const r = "route" in body ? body.route : body;
-  return r?.track_points?.length ? r : null;
+  try {
+    const pub = await fetch(`https://ridewithgps.com/routes/${id}.json`, { headers: { Accept: "application/json" } });
+    const res = pub.ok
+      ? pub
+      : await fetch(`https://ridewithgps.com/api/v1/routes/${id}.json`, { headers: authHeaders(env) });
+    if (!res.ok) return null;
+    const body = (await res.json()) as RwgpsRoute | { route: RwgpsRoute };
+    const r = "route" in body ? body.route : body;
+    return r?.track_points?.length ? r : null;
+  } catch (err) {
+    console.error(`RideWithGPS route ${id}:`, err); // network error: callers fall back to the cache
+    return null;
+  }
 }
 
 /** Thin the track to at most MAX_POINTS and place each POI at its nearest track point. */
@@ -112,5 +117,5 @@ export async function fillLibrary(env: Env, limit: number): Promise<void> {
   )
     .bind(limit)
     .all<{ id: number }>();
-  await Promise.all(results.map((r) => getRoute(env, r.id)));
+  await Promise.allSettled(results.map((r) => getRoute(env, r.id)));
 }

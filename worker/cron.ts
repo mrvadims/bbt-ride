@@ -71,5 +71,5 @@ export async function recordWeather(env: Env): Promise<void> {
 }
 
 export async function scheduled(env: Env): Promise<void> {
-  await Promise.allSettled([recordWeather(env), syncCaptainLibrary(env).then(() => fillLibrary(env, 20))]);
+  await Promise.allSettled([recordWeather(env), syncCaptainLibrary(env).then(() => fillLibrary(env, 40))]);
 }

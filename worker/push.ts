@@ -22,13 +22,15 @@ export async function notifyRide(env: Env, rideId: string, title: string, body: 
         expirationTime: null,
         keys: JSON.parse(s.keys_json) as { p256dh: string; auth: string },
       };
-      const res = await fetch(
-        s.endpoint,
-        await buildPushPayload({ data, options: { ttl: 24 * 60 * 60, urgency: "high" } }, sub, vapid),
-      );
-      // The push service says this device is gone: forget it.
-      if (res.status === 404 || res.status === 410)
-        await env.DB.prepare("delete from push_subscriptions where endpoint = ?").bind(s.endpoint).run();
+      try {
+        const payload = await buildPushPayload({ data, options: { ttl: 24 * 60 * 60, urgency: "high" } }, sub, vapid);
+        const res = await fetch(s.endpoint, payload);
+        // The push service says this device is gone: forget it.
+        if (res.status === 404 || res.status === 410)
+          await env.DB.prepare("delete from push_subscriptions where endpoint = ?").bind(s.endpoint).run();
+      } catch (err) {
+        console.error("push failed", err); // one bad subscription mustn't stop the others
+      }
     }),
   );
 }
