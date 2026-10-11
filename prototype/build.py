@@ -4,6 +4,7 @@
 Usage: python3 prototype/build.py
 """
 import json
+import re
 import pathlib
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -19,11 +20,13 @@ def main():
     src = (ROOT / "prototype/src/app.html").read_text()
     logo = (ROOT / "brand/web/bbt-logo.svg").read_text().strip()
     logo = logo.replace('<svg ', '<svg class="logo" ', 1)
-    out = (
-        src.replace("/*SEED_JSON*/", inline_json("data/seed.json"))
-        .replace("/*FALLBACK_JSON*/", inline_json("data/raw/om_purchase.json"))
-        .replace("<!--BBT_LOGO-->", logo)
-    )
+    # One pass, so a placeholder inside inlined data is never substituted.
+    parts = {
+        "/*SEED_JSON*/": inline_json("data/seed.json"),
+        "/*FALLBACK_JSON*/": inline_json("data/raw/om_purchase.json"),
+        "<!--BBT_LOGO-->": logo,
+    }
+    out = re.sub("|".join(map(re.escape, parts)), lambda m: parts[m.group(0)], src)
     dest = ROOT / "prototype/index.html"
     dest.write_text(out)
     print(f"wrote {dest.relative_to(ROOT)} ({len(out.encode()) // 1024} KB)")

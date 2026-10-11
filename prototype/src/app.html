@@ -37,7 +37,7 @@ html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;font-variant-numeric:tabular-nums}
 a{color:var(--link)}
 h1,h2,h3{margin:0;line-height:1.2}
-h1{font-size:20px} h2{font-size:16px} h3{font-size:14px}
+h1{font-size:20px} h2{font-size:16px}
 .muted{color:var(--muted)} .small{font-size:13px} .tiny{font-size:12px}
 /* Top bar: light blue, logo, 4px orange stripe directly underneath (no hairline). */
 .topbar{background:var(--bar);color:#fff;position:sticky;top:env(safe-area-inset-top,0px);z-index:1500}
@@ -185,6 +185,7 @@ textarea{min-height:80px;resize:vertical}
 .compose{display:grid;gap:8px;margin-top:10px}
 .compose textarea{min-height:64px}
 .wxi{width:22px;height:22px;display:block;margin:0 auto}
+p .wxi{display:inline-block;vertical-align:-6px;margin:0 6px 0 0}
 th.sky,td.sky{text-align:center}
 .notice{border-radius:12px;padding:10px 12px;margin:0 0 14px;background:var(--win);font-size:14px}
 .warn.big{margin:0 0 14px}
@@ -255,7 +256,7 @@ a.spotrow{text-decoration:none}
       <a class="navbtn" href="#plan" data-nav="plan" title="Plan a ride"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M12 13v5M9.5 15.5h5"/></svg><span>Plan</span></a>
       <a class="navbtn" href="#settings" data-nav="settings" title="Settings"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span>Settings</span></a>
     </nav>
-    <button class="avatar" id="acctbtn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="Account menu" title="Account">V</button>
+    <button class="avatar" id="acctbtn" type="button" aria-controls="acctmenu" aria-expanded="false" aria-label="Account menu" title="Account">V</button>
   </div>
   <div class="acctmenu" id="acctmenu" hidden></div>
 </header>
@@ -287,7 +288,6 @@ const DEFAULTS = {
   wetMm: 0.5, dryingMm: 0.1
 };
 let S = Object.assign({}, DEFAULTS, store.get('bbt.settings', {}));
-delete S.theme; // older prototype versions stored the theme here
 const saveSettings = () => store.set('bbt.settings', S);
 let THEME = store.get('bbt.theme', 'auto'); // per-rider: auto | light | dark
 
@@ -332,10 +332,18 @@ const PAST = [
 const pastRide = date => PAST.find(r => r.date === date);
 
 /* ---------- time helpers (all times are America/New_York wall-clock) ---------- */
-function nyNow(){
-  const p = Object.fromEntries(new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', hourCycle:'h23' })
-    .formatToParts(new Date()).map(x => [x.type, x.value]));
+const NY_FMT = new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', hourCycle:'h23' });
+function nyParts(t){
+  const p = Object.fromEntries(NY_FMT.formatToParts(t).map(x => [x.type, x.value]));
   return { date: `${p.year}-${p.month}-${p.day}`, min: (+p.hour) * 60 + (+p.minute) };
+}
+const nyNow = () => nyParts(new Date());
+// UTC instant of a New York wall-clock time (DST-aware): start from UTC, correct by the observed offset.
+function nyToUTC(date, min){
+  const [y, m, d] = date.split('-').map(Number), want = Date.UTC(y, m - 1, d, 0, Math.round(min));
+  let t = want;
+  for (let i = 0; i < 2; i++){ const p = nyParts(new Date(t)), [py, pm, pd] = p.date.split('-').map(Number); t += want - Date.UTC(py, pm - 1, pd, 0, p.min); }
+  return new Date(t);
 }
 const pad = n => String(n).padStart(2, '0');
 function addDays(d, n){ const t = new Date(d + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); }
@@ -346,7 +354,7 @@ function fmtTime(m){ m = Math.round(m); const h = Math.floor(m / 60) % 24, mm = 
 function fmtDur(h){ const m = Math.round(h * 60); return `${Math.floor(m / 60)}h ${pad(m % 60)}m`; }
 
 /* ---------- forecast data ---------- */
-const HOURLY = 'temperature_2m,apparent_temperature,precipitation,precipitation_probability,weather_code,cloud_cover,wind_speed_10m,wind_direction_10m,wind_gusts_10m,dew_point_2m,relative_humidity_2m,shortwave_radiation,is_day';
+const HOURLY = 'temperature_2m,apparent_temperature,precipitation,precipitation_probability,weather_code,cloud_cover,wind_speed_10m,wind_direction_10m,wind_gusts_10m,dew_point_2m,shortwave_radiation,is_day';
 let WX = { source: 'loading', series: {} };
 
 function toSeries(o){
@@ -354,15 +362,14 @@ function toSeries(o){
   h.time.forEach((t, i) => idx.set(t, i));
   return { time: h.time, idx, T: h.temperature_2m, app: h.apparent_temperature, p: h.precipitation, pp: h.precipitation_probability,
     code: h.weather_code, cloud: h.cloud_cover, ws: h.wind_speed_10m, wd: h.wind_direction_10m, wg: h.wind_gusts_10m,
-    dew: h.dew_point_2m, rh: h.relative_humidity_2m, sw: h.shortwave_radiation, day: h.is_day, daily: o.daily };
+    dew: h.dew_point_2m, sw: h.shortwave_radiation, day: h.is_day, daily: o.daily };
 }
-function poiFor(rt){ const r = routeById(rt.id); return r && rt.stop ? r.pois.find(p => p.name === rt.stop) : null; }
 
 async function loadForecast(){
   const pts = SPOTS.map(s => ({ key: s.id, lat: s.lat, lng: s.lng }));
   const url = 'https://api.open-meteo.com/v1/forecast?' + new URLSearchParams({
     latitude: pts.map(p => p.lat.toFixed(4)).join(','), longitude: pts.map(p => p.lng.toFixed(4)).join(','),
-    hourly: HOURLY, daily: 'sunrise,sunset', temperature_unit: 'fahrenheit', wind_speed_unit: 'mph', precipitation_unit: 'inch',
+    hourly: HOURLY, daily: 'sunrise', temperature_unit: 'fahrenheit', wind_speed_unit: 'mph', precipitation_unit: 'inch',
     timezone: TZ, past_days: '2', forecast_days: '7'
   });
   try {
@@ -383,6 +390,7 @@ async function loadForecast(){
 
 /* Fractional hourly index for a wall-clock date + minutes (looks up the hour itself, so DST days line up). */
 function fIdx(se, date, min){
+  if (!Number.isFinite(min)) return null;
   const h = Math.floor(min / 60), day0 = se.idx.get(date + 'T00:00');
   const i = se.idx.get(`${date}T${pad(h)}:00`) ?? (day0 == null ? null : day0 + h);
   if (i == null) return null;
@@ -426,7 +434,7 @@ function roadAt(se, f){
   }
   const raining = (se.p[Math.ceil(f)] || 0) >= 0.01;
   const state = raining || W >= S.wetMm ? 'Wet' : W >= S.dryingMm ? 'Drying' : 'Dry';
-  return { state, rainIn, sinceRain: lastRain == null ? null : f - lastRain, level: state === 'Wet' ? 2 : state === 'Drying' ? 1 : 0 };
+  return { state, rainIn, rained: lastRain != null, level: state === 'Wet' ? 2 : state === 'Drying' ? 1 : 0 };
 }
 const lvl3 = (v, c, n, higherWorse = true) => higherWorse ? (v >= n ? 2 : v >= c ? 1 : 0) : (v < n ? 2 : v < c ? 1 : 0);
 // Evaluate a ride window at a forecast point: stats plus a level (0 ok, 1 amber, 2 red) per factor.
@@ -628,10 +636,10 @@ function rainBarsSVG(se, date, startMin, endMin){
     g += `<rect x="${bx}" y="${P.t + yh * (1 - pp)}" width="${w}" height="${yh * pp}" fill="var(--chart-soft)"/>`;
     if (pr > 0) g += `<rect x="${bx + w * 0.2}" y="${P.t + yh * (1 - pr / maxP)}" width="${w * 0.6}" height="${yh * pr / maxP}" rx="1.5" fill="var(--chart)"/>`;
     const hr = +se.time[i].slice(11, 13);
-    if (hr % 3 === 0) g += `<text x="${x(i) + bw / 2}" y="${H - 6}" text-anchor="middle">${hr % 12 || 12}${hr < 12 ? 'a' : 'p'}</text>`;
+    if (hr % 3 === 0) g += `<text x="${x(i) + bw}" y="${H - 6}" text-anchor="middle">${hr % 12 || 12}${hr < 12 ? 'a' : 'p'}</text>`;
   }
   const now = nyNow(), fn = fIdx(se, now.date, now.min);
-  if (fn != null && fn >= i0 && fn <= i1 + 1){ const nx = x(fn) + bw / 2; g += `<line x1="${nx}" x2="${nx}" y1="${P.t}" y2="${H - P.b}" stroke="var(--text)" stroke-width="1.5"/><text x="${nx + 3}" y="${H - P.b - 4}" style="fill:var(--text)">now</text>`; }
+  if (fn != null && fn >= i0 && fn <= i1 + 1){ const nx = x(fn) + bw; g += `<line x1="${nx}" x2="${nx}" y1="${P.t}" y2="${H - P.b}" stroke="var(--text)" stroke-width="1.5"/><text x="${nx + 3}" y="${H - P.b - 4}" style="fill:var(--text)">now</text>`; }
   g += `<line x1="${P.l}" x2="${W - P.r}" y1="${H - P.b}" y2="${H - P.b}" stroke="var(--line)"/>`;
   g += `<text x="${P.l - 4}" y="${P.t + 8}" text-anchor="end">${maxP.toFixed(2)}"</text><text x="${P.l - 4}" y="${H - P.b}" text-anchor="end">0</text>`;
   return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Hourly rain from 12 hours before to 8 hours after roll-out">${g}</svg>
@@ -690,12 +698,12 @@ const mapDiv = (route, stopName) => `<div class="map" data-map-route="${route.id
 const wxEmpty = msg => `<section class="panel"><div class="panel-h"><span class="panel-t">Weather</span><div class="panel-s muted">${msg}</div></div></section>`;
 const wxSummary = st => `<b>${r0(st.tMin)}–${r0(st.tMax)}°</b> · feels ${r0(st.appMin)}–${r0(st.appMax)}° · wind ${r0(st.wsMax)} · rain ${r0(st.ppMax)}%`;
 function wxAppRow(spot, extra = ''){
-  const app = store.get('bbt.wxApp', 'nws');
+  const app = WX_APPS[store.get('bbt.wxApp')] ? store.get('bbt.wxApp') : 'nws';
   return `<div class="btnrow" style="margin-top:10px;align-items:center"><a class="btn btn-outline btn-sm" href="${WX_APPS[app].url(spot)}" target="_blank" rel="noopener">Full-day forecast in ${WX_APPS[app].name}</a>${extra}
     <label class="tiny muted" style="display:flex;align-items:center;gap:6px">Open in<select data-wx-app style="min-height:32px;padding:4px 8px;width:auto">${Object.entries(WX_APPS).map(([k, v]) => `<option value="${k}" ${k === app ? 'selected' : ''}>${v.name}</option>`).join('')}</select></label></div>`;
 }
 const hourRange = (se, ev, pace) => hourRows(se, Math.max(0, Math.floor(ev.f0) - 1), Math.ceil(ev.f1) + 3, ev.f0, ev.f1, pace);
-const roadNote = st => `roads ${st.road.state.toLowerCase()} (${st.road.sinceRain == null ? `no rain in ${S.lookback} h` : `${fmtIn(st.road.rainIn)} in last ${S.lookback} h`})`;
+const roadNote = st => `roads ${st.road.state.toLowerCase()} (${!st.road.rained ? `no rain in ${S.lookback} h` : `${fmtIn(st.road.rainIn)} in last ${S.lookback} h`})`;
 
 const WX_APPS = {
   nws: { name: 'NWS', url: s => `https://forecast.weather.gov/MapClick.php?lat=${s.lat}&lon=${s.lng}&FcstType=graphical` },
@@ -706,10 +714,11 @@ const WX_APPS = {
 const hm = min => { const m = Math.round(min); return [pad(Math.floor(m / 60)), pad(m % 60)]; };
 const calStamp = (date, min) => `${date.replace(/-/g, '')}T${hm(min).join('')}00`;
 function gcalLink(c){ return 'https://calendar.google.com/calendar/render?' + new URLSearchParams({ action: 'TEMPLATE', text: c.title, dates: `${calStamp(c.date, c.start)}/${calStamp(c.date, c.end)}`, ctz: TZ, location: c.location, details: c.details }); }
+const utcStamp = (date, min) => nyToUTC(date, min).toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z';
 function icsText(c){
   const e = v => String(v).replace(/[\\,;]/g, m => '\\' + m).replace(/\n/g, '\\n');
   return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//BBT//Ride//EN', 'BEGIN:VEVENT', `UID:bbt-${c.date}@ride.bbt.team`, `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').slice(0, 15)}Z`,
-    `DTSTART;TZID=${TZ}:${calStamp(c.date, c.start)}`, `DTEND;TZID=${TZ}:${calStamp(c.date, c.end)}`, `SUMMARY:${e(c.title)}`, `LOCATION:${e(c.location)}`, `DESCRIPTION:${e(c.details)}`, 'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
+    `DTSTART:${utcStamp(c.date, c.start)}`, `DTEND:${utcStamp(c.date, c.end)}`, `SUMMARY:${e(c.title)}`, `LOCATION:${e(c.location)}`, `DESCRIPTION:${e(c.details)}`, 'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
 }
 function outlookLink(c, host){
   const iso = m => `${c.date}T${hm(m).join(':')}:00`;
@@ -763,7 +772,7 @@ function ridersPanel(ride, date, past){
   const R = rsvpFor(date, ride), all = R.people.concat(R.me ? [{ name: 'You', status: R.me, route: R.myRoute, me: true }] : []);
   const ins = all.filter(p => p.status === 'in'), outs = all.filter(p => p.status === 'out');
   const nMsg = R.msgs.reduce((n, m) => n + 1 + m.replies.length, 0);
-  const btns = past ? '' : `<div class="seg rsvp" role="group" aria-label="Your RSVP"><button type="button" data-rsvp="in" aria-pressed="${R.me === 'in'}">In</button><button type="button" data-rsvp="out" aria-pressed="${R.me === 'out'}">Out</button></div>`;
+  const btns = past ? '' : `<div class="seg" role="group" aria-label="Your RSVP"><button type="button" data-rsvp="in" aria-pressed="${R.me === 'in'}">In</button><button type="button" data-rsvp="out" aria-pressed="${R.me === 'out'}">Out</button></div>`;
   const routePick = R.me === 'in' && ride.routes.length > 1 ? `<div class="seg" role="group" aria-label="Your route" style="margin-top:6px">${ride.routes.map(r => `<button type="button" data-rsvp-route="${esc(r.label)}" aria-pressed="${R.myRoute === r.label}">${esc(r.label)}</button>`).join('')}</div>` : '';
   const alt = ride.routes.length > 1, person = p => `<span class="person${p.me ? ' me' : ''}">${esc(p.name)}${alt && p.status === 'in' && p.route ? ` <span class="muted">· ${esc(p.route)}</span>` : ''}</span>`;
   const msg = (m, isReply) => `<div class="msg${isReply ? ' reply' : ''}${m.sys ? ' sys' : ''}"><div class="meta"><b>${esc(m.name)}</b> <span class="muted">${m.at}</span></div><p>${esc(m.text)}</p>
@@ -783,7 +792,7 @@ function rideBody(ride, date, opts = {}){
   const kp = opts.preview ? 'pv-' : '';
   const ri = Math.min(UI.route, ride.routes.length - 1), rt = ride.routes[opts.preview ? 0 : ri], route = routeById(rt.id), spot = spotById(ride.spot);
   const pace = ride.pace || S.pace;
-  const t = rideTimes(route, { time: ride.time, pace, stop: rt.stop }), poi = poiFor(rt);
+  const t = rideTimes(route, { time: ride.time, pace, stop: rt.stop }), poi = t.stop && t.stop.poi;
   const se = WX.series[spot.id], ev = se && evaluate(se, date, t.start, t.end - t.start, pace), st = ev && ev.st;
   const cal = { date, start: t.start, end: t.end, title: `BBT ride: ${route.name}`, location: `${spot.name} (${spot.maps_url})`,
     details: `${ride.routes.map(r => `${r.label}: ${routeById(r.id).name} — ${routeById(r.id).url}`).join('\n')}\nParking: ${spot.note}${ride.notes ? `\n\n${ride.notes}` : ''}` };
@@ -810,7 +819,7 @@ function rideBody(ride, date, opts = {}){
   if (opts.past){
     const o = ride.obs;
     weather = o ? panel('weather', 'Weather', `<b>${r0(o.T)}°</b> · feels ${r0(o.app)}° · wind ${r0(o.ws)} · ${o.rain ? fmtIn(o.rain) + ' rain' : 'no rain'} · roads ${o.road.toLowerCase()}<div class="tiny muted">Observed at roll-out</div>`,
-      `<p class="small" style="margin:0">${wxIcon(o.code).replace('class="wxi"', 'class="wxi" style="display:inline-block;vertical-align:-6px;margin:0 6px 0 0"')}${wxLabel(o.code)} · ${r0(o.T)}° (real feel ${r0(o.app)}°, bike feel ${r0(bikeFeel(o.T, o.ws, o.app, pace))}°) · wind ${r0(o.ws)} mph, gusts ${r0(o.wg)} · ${o.rain ? fmtIn(o.rain) + ' rain in the ' + S.lookback + ' h before' : 'no rain'} · roads ${o.road.toLowerCase()}</p>
+      `<p class="small" style="margin:0">${wxIcon(o.code)}${wxLabel(o.code)} · ${r0(o.T)}° (real feel ${r0(o.app)}°, bike feel ${r0(bikeFeel(o.T, o.ws, o.app, pace))}°) · wind ${r0(o.ws)} mph, gusts ${r0(o.wg)} · ${o.rain ? fmtIn(o.rain) + ' rain in the ' + S.lookback + ' h before' : 'no rain'} · roads ${o.road.toLowerCase()}</p>
        <p class="tiny muted" style="margin:6px 0 0">Saved from NWS station observations after the ride.</p>`)
       : wxEmpty('No observations saved.');
   } else if (ev){
@@ -861,7 +870,7 @@ function pastList(){
   list.forEach(r => { const m = new Date(r.date + 'T12:00:00Z').toLocaleDateString('en-US', { timeZone: 'UTC', month: 'long', year: 'numeric' }); (byMonth[m] = byMonth[m] || []).push(r); });
   const rows = Object.entries(byMonth).map(([m, rs]) => `<div class="kicker" style="margin:14px 0 6px">${m}</div><div class="spotlist">${rs.map(r => {
       const o = r.obs, names = r.routes.map(x => routeById(x.id).name).join(' / ');
-      return `<a class="spotrow pastrow" href="#ride/past/${r.date}"><span class="spotrow-b"><b>${dayLabel(r.date)} · ${esc(spotById(r.spot).name)}</b><span class="small">${esc(names)}</span>
+      return `<a class="spotrow" href="#ride/past/${r.date}"><span class="spotrow-b"><b>${dayLabel(r.date)} · ${esc(spotById(r.spot).name)}</b><span class="small">${esc(names)}</span>
         <span class="small muted">${r.cancelled ? '<span class="pill lv2" style="font-size:11px;padding:0 7px">Cancelled</span> ' : `${r.riders.in.length} rode · `}${o ? `${r0(o.T)}°, feels ${r0(o.app)}° · wind ${r0(o.ws)} · roads ${o.road.toLowerCase()}` : ''}</span></span></a>`; }).join('')}</div>`).join('');
   return rows || '<p class="muted small" style="margin-top:12px">No past rides match.</p>';
 }
@@ -883,15 +892,15 @@ function viewRide(arg){
 
 // Start-spot picker (Plan → Meet): one compact row per spot to compare at a glance; the chosen spot gets a detail panel.
 function spotRow(sp, date, startMin, durMin){
-  const se = WX.series[sp.id], ev = se && evaluate(se, date, startMin, durMin, P.pace || S.pace), chosen = P.spot === sp.id;
+  const se = WX.series[sp.id], ev = se && evaluate(se, date, startMin, durMin, P.pace), chosen = P.spot === sp.id;
   const body = ev ? `${wxSummary(ev.st)}${(c => c ? `<span class="chips">${c}</span>` : '')(warnChips(warnList(ev, se, date, startMin)))}` : '<span class="muted">No forecast for this date yet.</span>';
   return `<button type="button" class="spotrow" role="radio" aria-checked="${chosen}" data-pick-spot="${sp.id}"><span class="radio-dot" aria-hidden="true"></span><span class="spotrow-b"><b>${esc(sp.name)}</b><span class="small">${body}</span></span></button>`;
 }
 function spotDetail(sp, date, startMin, durMin){
-  const se = WX.series[sp.id], ev = se && evaluate(se, date, startMin, durMin, P.pace || S.pace);
+  const se = WX.series[sp.id], ev = se && evaluate(se, date, startMin, durMin, P.pace);
   const radar = `https://www.rainviewer.com/map.html?loc=${sp.lat},${sp.lng},9&oFa=0&oC=1&oU=0&oCS=1&oF=0&oAP=1&c=3&o=83&lm=1&layer=radar&sm=1&sn=1`;
   const wx = ev ? `<p class="small" style="margin:0 0 8px">Bike feel ${r0(ev.st.feelMin)}–${r0(ev.st.feelMax)}° · gusts ${r0(ev.st.wgMax)} mph from ${compass(ev.st.dir)} · ${fmtIn(ev.st.rain)} rain · ${roadNote(ev.st)}</p>
-     <div class="sub-h" style="margin-top:4px">Rain −12 h → +8 h</div>${rainBarsSVG(se, date, startMin, startMin + durMin)}${hourRange(se, ev, P.pace || S.pace)}` : '';
+     <div class="sub-h" style="margin-top:4px">Rain −12 h → +8 h</div>${rainBarsSVG(se, date, startMin, startMin + durMin)}${hourRange(se, ev, P.pace)}` : '';
   return panel('spotdetail', 'Details', `${esc(sp.name)} · weather, parking`,
     `${wx}${wxAppRow(sp, `<a class="btn btn-outline btn-sm" href="${radar}" target="_blank" rel="noopener">Radar</a>`)}
      <div class="sub"><div class="sub-h">Parking</div><p>${esc(sp.note || 'No notes yet.')}</p><div class="btnrow"><a class="btn btn-outline btn-sm" href="${esc(sp.maps_url)}" target="_blank" rel="noopener">Open in Google Maps</a></div></div>`,
@@ -899,7 +908,10 @@ function spotDetail(sp, date, startMin, durMin){
 }
 // New spot: name + Google Maps link (or "lat, lng") + parking notes. The live app resolves short links server-side.
 function parseLatLng(v){
-  const m = String(v).match(/@(-?\d+\.\d+),(-?\d+\.\d+)/) || String(v).match(/[?&](?:q|query|ll|destination)=(-?\d+\.\d+)(?:,|%2C)\s*(-?\d+\.\d+)/i) || String(v).trim().match(/^(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)$/);
+  // Pin first (!3d…!4d…), then a query or search path, then the map centre (@lat,lng), then plain "lat, lng".
+  const v2 = String(v).trim(), n = '(-?\\d+\\.\\d+)';
+  const m = v2.match(new RegExp(`!3d${n}!4d${n}`)) || v2.match(new RegExp(`(?:[?&](?:q|query|ll|destination)=|/search/)${n}(?:,|%2C)[\\s+]*${n}`, 'i'))
+    || v2.match(new RegExp(`@${n},${n}`)) || v2.match(new RegExp(`^${n}\\s*,\\s*${n}$`));
   return m ? { lat: +m[1], lng: +m[2] } : null;
 }
 function addSpotForm(){
@@ -922,9 +934,8 @@ function saveNewSpot(){
   P.spot = id; P.newSpot = null; render(); toast(`${name} added (this session only).`);
 }
 
-/* Plan a ride: editor state autosaves as a draft (bbt.draft) until it is published or discarded. */
+/* Plan a ride: the form autosaves as a draft (bbt.draft; live app: per editor in D1) until it is published or cleared. No Save draft button. */
 const P = { editing: null, date: null, time: null, spot: null, newSpot: null, route: null, alt: null, altOn: false, labelA: 'Full', labelB: 'Short', stop: null, pace: null, notes: '', q: '', qAlt: '' };
-// Draft autosave: the editor's form survives reloads (live app: saved per editor in D1). No Save draft button.
 const DRAFT_KEYS = ['editing', 'date', 'time', 'spot', 'route', 'alt', 'altOn', 'labelA', 'labelB', 'stop', 'pace', 'notes', 'q', 'qAlt'];
 const P0 = Object.fromEntries(DRAFT_KEYS.map(k => [k, P[k]]));
 Object.assign(P, store.get('bbt.draft', {}));
@@ -943,7 +954,7 @@ function loadPlan(r, date, editing){
 // The ride the form describes, or null until it has a spot and a route.
 function planDraft(){
   if (!P.route || !P.spot) return null;
-  const rts = [{ label: P.altOn ? P.labelA : 'Main', id: P.route, stop: P.stop || null }];
+  const rts = [{ label: P.altOn && P.alt ? P.labelA : 'Main', id: P.route, stop: P.stop || null }];
   if (P.altOn && P.alt) rts.push({ label: P.labelB, id: P.alt, stop: routeById(P.alt).pois.some(p => p.name === P.stop) ? P.stop : null });
   return { date: P.date, time: P.time, spot: P.spot, pace: P.pace, routes: rts, notes: P.notes || '' };
 }
@@ -964,15 +975,14 @@ function searchResults(q, which){
   const id = parseRouteInput(q);
   if (id && !routeById(id)) return `<div class="results"><div style="padding:10px" class="small muted">Route ${id} isn’t in the prototype’s seed. The live app fetches <code>/routes/${id}.json</code> (works for public routes, no key).</div></div>`;
   const s = q.trim().toLowerCase();
-  const list = ROUTES.filter(r => !s || id === r.id || r.name.toLowerCase().includes(s) || String(r.id).includes(s)).sort((a, b) => (b.nearest_spot === P.spot) - (a.nearest_spot === P.spot));
-  if (!list.length) return `<div class="results"><div style="padding:10px" class="small muted">No match in the 4 seeded routes. Live: captain library + BBT club library.</div></div>`;
+  const list = ROUTES.filter(r => !s || id === r.id || r.name.toLowerCase().includes(s) || String(r.id).includes(s)).sort((a, b) => (nearestSpot(b).id === P.spot) - (nearestSpot(a).id === P.spot));
+  if (!list.length) return `<div class="results"><div style="padding:10px" class="small muted">No match in the ${ROUTES.length} seeded routes. Live: captain library + BBT club library.</div></div>`;
   const cur = which === 'alt' ? P.alt : P.route;
-  return `<div class="results" role="listbox">${list.map(r => `<button type="button" role="option" data-pick="${which}" data-id="${r.id}" aria-selected="${r.id === cur}"><span><b>${esc(r.name)}</b><br><span class="tiny muted">#${r.id} · ${r.nearest_spot === P.spot ? 'starts here' : 'starts at ' + esc(spotById(r.nearest_spot).name)}</span></span><span class="small muted">${r0(r.distance_m / MI)} mi · ${r0(r.elevation_gain_m * FT).toLocaleString()} ft</span></button>`).join('')}</div>`;
+  return `<div class="results" role="listbox">${list.map(r => `<button type="button" role="option" data-pick="${which}" data-id="${r.id}" aria-selected="${r.id === cur}"><span><b>${esc(r.name)}</b><br><span class="tiny muted">#${r.id} · ${nearestSpot(r).id === P.spot ? 'starts here' : 'starts at ' + esc(nearestSpot(r).name)}</span></span><span class="small muted">${r0(r.distance_m / MI)} mi · ${r0(r.elevation_gain_m * FT).toLocaleString()} ft</span></button>`).join('')}</div>`;
 }
-function nearestSpot(route){
-  const [la, ln] = route.track[0];
-  return SPOTS.map(s => ({ s, d: haversine(la, ln, s.lat, s.lng) })).sort((a, b) => a.d - b.d)[0];
-}
+// Distance (m) from a route's first track point to a spot; the nearest spot is where the route starts.
+const startDist = (route, sp) => haversine(route.track[0][0], route.track[0][1], sp.lat, sp.lng);
+const nearestSpot = route => SPOTS.reduce((a, b) => startDist(route, b) < startDist(route, a) ? b : a);
 function publishBar(){
   const orig = P.editing && rideOn(P.editing), onDate = rideOn(P.date), clash = onDate && onDate !== orig ? onDate : null;
   const label = orig ? 'Update ride' : clash ? 'Replace ride' : 'Publish';
@@ -982,9 +992,10 @@ function publishBar(){
 function viewPlan(){
   if (!can.plan()) return `<section class="panel empty"><p><b>Editors only.</b></p><p class="muted small">Your role is View. Ask an admin for the Edit role to plan rides.</p></section>`;
   const weekend = weekendDates();
+  if (P.date && P.date < firstDay()) P.date = null; // stale draft
   P.date = P.date || nextFreeWeekendDay(); P.time = P.time || S.rollout; P.pace = P.pace || S.pace;
   const route = P.route && routeById(P.route);
-  if (route && !P.spot) P.spot = nearestSpot(route).s.id;
+  if (route && !P.spot) P.spot = nearestSpot(route).id;
   const pois = route ? route.pois.slice().sort((a, b) => (/coffee|food/.test(b.type) - /coffee|food/.test(a.type)) || a.route_d_m - b.route_d_m) : [];
   if (route && P.stop === null){ const c = pois.find(p => /coffee|food/.test(p.type)); P.stop = c ? c.name : ''; }
   const startMin = hhmmToMin(P.time), k = 1 + (S.regroupPct || 0) / 100;
@@ -993,7 +1004,8 @@ function viewPlan(){
   const durMin = tr ? tr.end - tr.start : S.durationH * 60;
   const poiRows = pois.map(p => { const mile = p.route_d_m / MI, eta = startMin + mile / P.pace * 60 * k;
     return `<label class="radio"><input type="radio" name="stop" value="${esc(p.name)}" ${P.stop === p.name ? 'checked' : ''}><span><b>${esc(p.name)}</b> <span class="tag">${esc(p.type)}</span><br><span class="small muted">mile ${mile.toFixed(1)} · ≈ ${fmtTime(eta)}${p.off_route_m > 50 ? ` · ${r0(p.off_route_m)} m off route` : ''}</span></span></label>`; }).join('');
-  const far = route && P.spot && route.nearest_spot !== P.spot ? (() => { const sp = spotById(P.spot), d = haversine(route.track[0][0], route.track[0][1], sp.lat, sp.lng); return `<p class="tiny" style="margin:0;color:var(--cau-fg)">This route starts ${(d / MI).toFixed(1)} mi from ${esc(sp.name)}.</p>`; })() : '';
+  const farM = route && P.spot ? startDist(route, spotById(P.spot)) : 0;
+  const far = farM > 0.3 * MI ? `<p class="tiny" style="margin:0;color:var(--cau-fg)">This route starts ${(farM / MI).toFixed(1)} mi from ${esc(spotById(P.spot).name)}.</p>` : '';
 
   const meetS = section('Meet', `${planDayTabs(weekend, P.date)}
     <div class="row"><label class="field">Date (any day)<input type="date" id="p-date" value="${P.date}" min="${firstDay()}"></label><label class="field">Roll-out<input type="time" id="p-time" value="${P.time}" step="900"></label></div>
@@ -1070,6 +1082,13 @@ function viewSettings(){
 
 /* ---------- router + events ---------- */
 function applyTheme(){ if (THEME === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', THEME); }
+// Re-renders replace the DOM, so remember the focused control by id or its first data-* attribute.
+function focusKey(el){
+  if (!el || el === document.body) return null;
+  if (el.id) return '#' + CSS.escape(el.id);
+  const a = el.getAttributeNames().find(n => n.startsWith('data-'));
+  return a ? `[${a}="${el.getAttribute(a).replace(/["\\]/g, '\\$&')}"]` : null;
+}
 function render(){
   maps.forEach(m => { try { m.remove(); } catch(e){} }); maps = [];
   const [page, arg] = (location.hash.slice(1) || 'ride').split('/');
@@ -1083,10 +1102,10 @@ function render(){
   const demo = `<div class="rolebar"><a class="tiny" href="#signin">Sign-in screen</a><span class="tiny muted">· view as</span><div class="seg" role="group" aria-label="Demo role">${ROLES.map(r => `<button type="button" data-role-set="${r}" aria-pressed="${ROLE === r}">${ROLE_LABEL[r]}</button>`).join('')}</div></div>`;
   const views = { ride: viewRide, plan: viewPlan, settings: viewSettings };
   document.querySelector('.topnav').hidden = page === 'signin'; document.getElementById('acctbtn').hidden = page === 'signin'; closeAcct();
-  const focusId = document.activeElement && document.activeElement.id;
+  const focusSel = focusKey(document.activeElement);
   app.innerHTML = page === 'signin' ? viewSignin() : demo + banner + (views[page] || viewRide)(arg);
   mount();
-  if (focusId) document.getElementById(focusId)?.focus({ preventScroll: true });
+  if (focusSel) document.querySelector(focusSel)?.focus({ preventScroll: true });
 }
 function mount(){
   document.querySelectorAll('[data-map-route]').forEach(el => {
@@ -1104,7 +1123,15 @@ function acctMenuHTML(){
 }
 function openAcct(){ const m = document.getElementById('acctmenu'); m.innerHTML = acctMenuHTML(); m.hidden = false; document.getElementById('acctbtn').setAttribute('aria-expanded', 'true'); }
 function closeAcct(){ const m = document.getElementById('acctmenu'); if (m && !m.hidden){ m.hidden = true; document.getElementById('acctbtn').setAttribute('aria-expanded', 'false'); } }
-document.addEventListener('keydown', e => { if (e.key === 'Escape'){ closeAcct(); closeSheet(); } });
+document.addEventListener('keydown', e => {
+  const sheet = document.querySelector('.sheet');
+  if (e.key === 'Escape'){ if (!document.getElementById('acctmenu').hidden){ closeAcct(); document.getElementById('acctbtn').focus(); } closeSheet(); }
+  else if (e.key === 'Tab' && sheet){ // keep focus inside the open sheet
+    const f = [...sheet.querySelectorAll('a[href],button,textarea')], first = f[0], last = f[f.length - 1];
+    if (e.shiftKey && document.activeElement === first){ last.focus(); e.preventDefault(); }
+    else if (!e.shiftKey && document.activeElement === last){ first.focus(); e.preventDefault(); }
+  }
+});
 function toast(msg){ const t = document.createElement('div'); t.className = 'toast'; t.setAttribute('role', 'status'); t.textContent = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 2600); }
 
 document.addEventListener('click', e => {
@@ -1157,7 +1184,7 @@ document.addEventListener('click', e => {
   else if (el.dataset.offset){ store.set('bbt.kitOffset', el.dataset.offset); render(); }
   else if (el.dataset.pday){ P.date = el.dataset.pday; render(); }
   else if (el.dataset.pickSpot){ P.spot = el.dataset.pickSpot; render(); }
-  else if (el.dataset.planDate){ P.date = el.dataset.planDate; }
+  else if (el.dataset.planDate){ if (P.editing) clearDraft(); P.date = el.dataset.planDate; saveDraft(); }
   else if (el.dataset.pick){ const id = +el.dataset.id; if (el.dataset.pick === 'alt'){ P.alt = id; P.qAlt = routeById(id).name; } else { P.route = id; P.q = routeById(id).name; P.stop = null; } render(); }
   else if (el.id === 'publish'){
     const draft = planDraft();
@@ -1182,7 +1209,7 @@ document.addEventListener('click', e => {
   else if (el.id === 'ns-open'){ P.newSpot = { name: '', link: '', note: '', msg: '' }; render(); document.getElementById('ns-name')?.focus(); }
   else if (el.id === 'ns-save') saveNewSpot();
   else if (el.id === 'ns-cancel'){ P.newSpot = null; render(); }
-  else if (el.id === 'cancelride'){ const r = rideOn(P.editing); r.cancelled = !r.cancelled; postSystem(P.editing, r, r.cancelled ? 'Ride cancelled.' : 'Ride is back on.'); UI.day = P.editing; clearDraft(); location.hash = 'ride/' + UI.day; toast(r.cancelled ? 'Ride cancelled' : 'Ride restored'); }
+  else if (el.id === 'cancelride'){ const r = rideOn(P.editing); r.cancelled = !r.cancelled; postSystem(P.editing, r, r.cancelled ? 'Ride cancelled.' : 'Ride is back on.'); render(); toast(r.cancelled ? 'Ride cancelled. Riders see it now; your other edits are still unsaved.' : 'Ride restored'); }
   else if (el.id === 'discard' || el.id === 'startover'){ clearDraft(); render(); }
   else if (el.dataset.editRide){ loadPlan(rideOn(el.dataset.editRide), el.dataset.editRide, el.dataset.editRide); }
   else if (el.dataset.reuse){ loadPlan(pastRide(el.dataset.reuse), nextFreeWeekendDay(), null); toast('Plan copied from ' + dayLabel(el.dataset.reuse)); }
@@ -1195,18 +1222,18 @@ document.addEventListener('click', e => {
     (navigator.clipboard ? navigator.clipboard.writeText(link) : Promise.reject()).then(() => toast(`${kind === 'invite' ? 'Invite' : 'Reset'} link copied (prototype)`), () => toast(link)); }
   else if (el.id === 'reset'){ S = Object.assign({}, DEFAULTS); store.del('bbt.settings'); render(); toast('Settings reset'); }
 });
-// Text inputs re-render on change (not every keystroke) except search boxes, which keep focus.
+// Typing updates state (and the draft) without re-rendering; search boxes refresh only their result list.
 document.addEventListener('input', e => {
   const t = e.target;
   if (t.id === 'p-q' || t.id === 'p-qalt'){
-    const which = t.id === 'p-q' ? 'main' : 'alt'; if (which === 'main') P.q = t.value; else P.qAlt = t.value;
+    const which = t.id === 'p-q' ? 'main' : 'alt'; if (which === 'main') P.q = t.value; else P.qAlt = t.value; saveDraft();
     const id = parseRouteInput(t.value);
     if (id && routeById(id)){ if (which === 'main'){ P.route = id; P.stop = null; } else P.alt = id; render(); const n = document.getElementById(t.id); if (n){ n.focus(); n.setSelectionRange(n.value.length, n.value.length); } return; }
     const box = t.closest('.fieldbox').querySelector('.results'); if (box) box.outerHTML = searchResults(t.value, which);
   }
   if (t.id === 'past-q'){ UI.pastQ = t.value; document.getElementById('past-list').innerHTML = pastList(); return; }
   if (t.id === 'msg-new' || t.id.startsWith('reply-')){ UI.compose[t.id] = t.value; return; }
-  if (t.id === 'p-notes') P.notes = t.value;
+  if (t.id === 'p-notes'){ P.notes = t.value; saveDraft(); }
   if (P.newSpot && t.id === 'ns-name') P.newSpot.name = t.value;
   if (P.newSpot && t.id === 'ns-link') P.newSpot.link = t.value;
   if (P.newSpot && t.id === 'ns-note') P.newSpot.note = t.value;
@@ -1215,7 +1242,10 @@ document.addEventListener('change', e => {
   const t = e.target;
   if (t.dataset.wxApp != null){ store.set('bbt.wxApp', t.value); render(); return; }
   if (t.dataset.userRole != null){ USERS[+t.dataset.userRole].role = t.value; render(); toast('Role updated (prototype).'); return; }
-  if (t.dataset.set){ const k = t.dataset.set; S[k] = k === 'rollout' ? t.value : (isNaN(parseFloat(t.value)) ? DEFAULTS[k] : parseFloat(t.value)); saveSettings(); render(); return; }
+  if (t.dataset.set){ // empty or out-of-range values fall back to the default
+    const k = t.dataset.set, v = parseFloat(t.value), positive = ['pace', 'lookback', 'durationH'].includes(k);
+    S[k] = k === 'rollout' ? (t.value || DEFAULTS.rollout) : Number.isFinite(v) && (positive ? v > 0 : v >= 0) ? v : DEFAULTS[k];
+    saveSettings(); render(); return; }
   switch (t.id){
     case 'p-date': P.date = t.value; break;
     case 'p-time': P.time = t.value || S.rollout; break;
@@ -1233,6 +1263,7 @@ document.addEventListener('change', e => {
 let pointerDown = false, renderPending = false;
 function renderSoon(){ if (pointerDown) renderPending = true; else render(); }
 document.addEventListener('pointerdown', () => { pointerDown = true; }, true);
+document.addEventListener('pointercancel', () => { pointerDown = false; }, true);
 document.addEventListener('pointerup', () => { pointerDown = false; if (renderPending){ renderPending = false; setTimeout(render); } }, true);
 let lastW = chartW();
 window.addEventListener('resize', () => { if (chartW() !== lastW){ lastW = chartW(); render(); } });
