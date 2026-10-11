@@ -44,7 +44,7 @@ async function summaries(db: D1Database, where: string, binds: unknown[], order 
   const [routes, rsvps, msgs, updates] = await db.batch<Record<string, unknown>>([
     db
       .prepare(
-        `select ride_id, label, rwgps_route_id, stop_poi from ride_routes where ride_id in (${marks}) order by ride_id, sort`,
+        `select rr.ride_id, rr.label, rr.rwgps_route_id, rr.stop_poi, rc.name from ride_routes rr left join route_cache rc on rc.rwgps_route_id = rr.rwgps_route_id where rr.ride_id in (${marks}) order by rr.ride_id, rr.sort`,
       )
       .bind(...ids),
     db
@@ -75,13 +75,10 @@ async function summaries(db: D1Database, where: string, binds: unknown[], order 
       pace: r.pace_mph,
       notes: r.notes,
       status: r.status,
-      routes: by<{ label: string; rwgps_route_id: number; stop_poi: string | null }>(routes?.results, r.id).map(
-        (x) => ({
-          label: x.label,
-          routeId: x.rwgps_route_id,
-          stop: x.stop_poi,
-        }),
-      ),
+      routes: by<{ label: string; rwgps_route_id: number; stop_poi: string | null; name: string | null }>(
+        routes?.results,
+        r.id,
+      ).map((x) => ({ label: x.label, routeId: x.rwgps_route_id, stop: x.stop_poi, name: x.name })),
       counts: {
         in: counts.find((x) => x.status === "in")?.n ?? 0,
         out: counts.find((x) => x.status === "out")?.n ?? 0,

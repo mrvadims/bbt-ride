@@ -112,7 +112,7 @@ describe("kit chart", () => {
     const base = series(24, { T: rising, app: rising });
     const ev = evaluate(base, "2026-10-10", 8 * 60, 180, 17, S);
     expect(ev?.st.warms).toBe(true);
-    expect(kitAdvice(must(ev).st, DEFAULT_KIT, "avg", S).shed).toMatch(/^Warms up/);
+    expect(kitAdvice(must(ev).st, DEFAULT_KIT, "avg", S).shed?.to.name).toBeDefined();
     const cooling = series(24, { T: Array.from({ length: 24 }, (_, i) => 80 - i * 2) });
     const ev2 = evaluate(cooling, "2026-10-10", 8 * 60, 180, 17, S);
     expect(kitAdvice(must(ev2).st, DEFAULT_KIT, "avg", S).shed).toBeNull();
@@ -123,10 +123,10 @@ describe("warnings", () => {
   it("shows nothing for a clean forecast and thunder replaces rain", () => {
     const clean = series(24);
     const ev = must(evaluate(clean, "2026-10-10", 9 * 60, 180, 17, S));
-    expect(warnings(ev, clean, "2026-10-10", 9 * 60, S)).toEqual([]);
+    expect(warnings(ev, clean, "2026-10-10", 9 * 60)).toEqual([]);
     const storm = series(24, { code: Array(24).fill(95), pp: Array(24).fill(40) });
-    const w = warnings(must(evaluate(storm, "2026-10-10", 9 * 60, 180, 17, S)), storm, "2026-10-10", 9 * 60, S);
-    expect(w.map((x) => x.short)).toEqual(["Thunder"]);
+    const w = warnings(must(evaluate(storm, "2026-10-10", 9 * 60, 180, 17, S)), storm, "2026-10-10", 9 * 60);
+    expect(w.map((x) => x.kind)).toEqual(["thunder"]);
   });
   it("evaluates the saved Open-Meteo sample", () => {
     const se = toSeries(fallback as unknown as OpenMeteoResponse);

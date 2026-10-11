@@ -49,6 +49,9 @@ function sql(command: string) {
 }
 const tokenFromUrl = (url: string) => url.split("/").pop() as string;
 
+// Leftover test spots from an aborted run would change the cached-forecast key; keep the spot set stable.
+sql("update spots set archived = 1 where name like 'Test spot %'");
+
 // Seed an Admin invite directly (in production the first Admin signs in with Google as BOOTSTRAP_ADMIN_EMAIL).
 const adminToken = `smoke-admin-${stamp}`;
 const adminEmail = `admin-${stamp}@example.test`;
@@ -144,13 +147,14 @@ check(
   (await rider(`/api/spots/${spot.json.id}`, { method: "PATCH", body: { archived: true } })).status === 403,
   "only admins archive spots",
 );
+const archived = await admin(`/api/spots/${spot.json.id}`, { method: "PATCH", body: { archived: true } });
 check(
-  (await admin(`/api/spots/${spot.json.id}`, { method: "PATCH", body: { archived: true } })).json?.archived === true,
-  "admin archives the test spot",
+  archived.json?.archived === true,
+  `admin archives the test spot (${archived.status} ${archived.json?.archived === true ? "" : JSON.stringify(archived.json).slice(0, 200)})`,
 );
 
-// Rides: a date far enough ahead that no other test ride uses it
-const day = new Date(Date.now() + (30 + Math.floor(Math.random() * 300)) * 864e5).toISOString().slice(0, 10);
+// Rides: a future date no earlier run used
+const day = new Date(Date.now() + (400 + (Math.floor(Date.now() / 60000) % 20000)) * 864e5).toISOString().slice(0, 10); // unique per minute
 const plan = {
   date: day,
   rollout: "08:30",

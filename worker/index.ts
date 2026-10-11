@@ -14,7 +14,9 @@ import { weather } from "./routes/weather.ts";
 
 const app = new Hono<AppEnv>().basePath("/api");
 
-app.onError((err, c) => {
+app.onError(async (err, c) => {
+  // Read any unread request body before replying, so a rejected upload doesn't leave the connection half-read.
+  if (!c.req.raw.bodyUsed) await c.req.raw.arrayBuffer().catch(() => undefined);
   if (err instanceof HTTPException) return c.json({ error: err.message }, err.status);
   console.error(err);
   return c.json({ error: "Something went wrong" }, 500);

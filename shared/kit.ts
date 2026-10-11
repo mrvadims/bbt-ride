@@ -1,6 +1,6 @@
 // Kit chart: bands on minimum bike feel (after the rider's offset), plus add-ons (DESIGN.md → Kit chart).
 import { type Settings, SHED_DEG, WIND_VEST_MPH } from "./settings.ts";
-import { fmtIn, type WindowStats } from "./weather.ts";
+import type { WindowStats } from "./weather.ts";
 
 export interface KitBand {
   minFeel: number; // lowest bike feel for this band, °F; the last band uses -99
@@ -64,15 +64,16 @@ export type KitOffset = keyof typeof KIT_OFFSETS;
 export const kitBand = (kit: KitBand[], feel: number): KitBand =>
   kit.find((b) => feel >= b.minFeel) ?? (kit[kit.length - 1] as KitBand);
 
-export interface KitAddOn {
-  name: string;
-  why: string;
-  short: string; // for the one-line hint
-}
+export type KitAddOn =
+  | { kind: "rainJacket"; pp: number; rain: number }
+  | { kind: "fenders"; road: "Drying" | "Wet" }
+  | { kind: "windVest"; ws: number }
+  | { kind: "thunder" };
+
 export interface KitAdvice {
-  band: KitBand;
+  band: KitBand; // dress for the coldest part of the ride
   addOns: KitAddOn[];
-  shed: string | null;
+  shed: { spread: number; to: KitBand } | null; // it warms up: pack layers to shed down to `to`
   offset: number;
 }
 
@@ -81,28 +82,12 @@ export function kitAdvice(st: WindowStats, kit: KitBand[], offset: KitOffset, s:
   const band = kitBand(kit, st.feelMin + off);
   const warmest = kitBand(kit, st.feelMax + off);
   const addOns: KitAddOn[] = [];
-  if (st.ppMax >= s.rainProbCaution || st.rain >= s.rainAmtCaution) {
-    addOns.push({
-      name: "Packable rain jacket",
-      why: `${Math.round(st.ppMax)}% chance of rain, ${fmtIn(st.rain)} expected`,
-      short: "rain jacket",
-    });
-  }
-  if (st.road.state !== "Dry") {
-    addOns.push({
-      name: "Clip-on fenders + shoe covers",
-      why: `roads ${st.road.state.toLowerCase()} at roll-out`,
-      short: "fenders",
-    });
-  }
-  if (st.wsMax >= WIND_VEST_MPH && !band.items.includes("Wind vest")) {
-    addOns.push({ name: "Wind vest", why: `wind up to ${Math.round(st.wsMax)} mph`, short: "wind vest" });
-  }
-  if (st.thunder) addOns.push({ name: "Rethink the ride", why: "thunderstorms in the window", short: "thunder" });
+  if (st.ppMax >= s.rainProbCaution || st.rain >= s.rainAmtCaution)
+    addOns.push({ kind: "rainJacket", pp: st.ppMax, rain: st.rain });
+  if (st.road.state !== "Dry") addOns.push({ kind: "fenders", road: st.road.state });
+  if (st.wsMax >= WIND_VEST_MPH && !band.items.includes("Wind vest")) addOns.push({ kind: "windVest", ws: st.wsMax });
+  if (st.thunder) addOns.push({ kind: "thunder" });
   const spread = st.feelMax - st.feelMin;
-  const shed =
-    st.warms && warmest !== band && spread >= SHED_DEG
-      ? `Warms up ${Math.round(spread)}° — dress for ${band.name.toLowerCase()} and pack layers to shed down to ${warmest.name.toLowerCase()}.`
-      : null;
+  const shed = st.warms && warmest !== band && spread >= SHED_DEG ? { spread, to: warmest } : null;
   return { band, addOns, shed, offset: off };
 }

@@ -1,7 +1,7 @@
 // Weather algorithms (DESIGN.md → Algorithms). Inputs are Open-Meteo hourly values in °F, mph and inches,
 // America/New_York local time. precipitation at hour h is the total for the hour ending at h.
 import { LOW_LIGHT_MIN, type Settings } from "./settings.ts";
-import { fmtTime, hhmmToMin, pad } from "./time.ts";
+import { hhmmToMin, pad } from "./time.ts";
 
 export const MM_PER_IN = 25.4;
 export const HOURLY_VARS = [
@@ -258,80 +258,36 @@ export interface Alert {
   level: 1 | 2; // warning = red, advisory or watch = amber
 }
 
-export interface Warning {
-  level: 1 | 2;
-  short: string; // chip text
-  title: string;
-  detail: string;
-}
+/** A condition that needs attention; the client turns it into text in the rider's units. */
+export type Warning = { level: 1 | 2 } & (
+  | { kind: "alert"; event: string; headline: string }
+  | { kind: "lowLight"; sunrise: number }
+  | { kind: "road"; state: RoadState; endState: RoadState; rainIn: number }
+  | { kind: "cold"; feel: number }
+  | { kind: "heat"; app: number }
+  | { kind: "wind"; ws: number; wg: number; dir: number }
+  | { kind: "thunder"; rain: number }
+  | { kind: "rain"; pp: number; rain: number }
+);
 
 const COMPASS = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
 export const compass = (deg: number): string => COMPASS[Math.round((((deg % 360) + 360) % 360) / 22.5) % 16] ?? "N";
-export const fmtIn = (v: number): string => `${v < 0.005 ? "0" : v < 0.1 ? v.toFixed(2) : v.toFixed(1)}"`;
-const r0 = Math.round;
 
 /** Only conditions that need attention, most severe first. Shared by the ride page and Plan's spot list. */
-export function warnings(
-  ev: Evaluation,
-  se: Series,
-  date: string,
-  startMin: number,
-  s: Settings,
-  alerts: Alert[] = [],
-): Warning[] {
+export function warnings(ev: Evaluation, se: Series, date: string, startMin: number, alerts: Alert[] = []): Warning[] {
   const st = ev.st;
-  const out: Warning[] = alerts.map((a) => ({ level: a.level, short: a.event, title: a.event, detail: a.headline }));
+  const out: Warning[] = alerts.map((a) => ({ level: a.level, kind: "alert", event: a.event, headline: a.headline }));
   const sunrise = se.sunrise.get(date);
-  if (sunrise != null && startMin < sunrise + LOW_LIGHT_MIN) {
-    out.push({
-      level: 1,
-      short: "Low light",
-      title: "Low light at roll-out",
-      detail: `Sunrise ${fmtTime(sunrise)}; bring front and rear lights`,
-    });
-  }
-  for (const f of ev.factors) {
-    if (!f.level) continue;
-    const l = f.level;
-    if (f.k === "Road") {
-      const later = st.roadEnd.state !== st.road.state ? `; ${st.roadEnd.state.toLowerCase()} by the finish` : "";
-      out.push({
-        level: l,
-        short: `Roads ${st.road.state.toLowerCase()}`,
-        title: `Roads ${st.road.state.toLowerCase()} at roll-out`,
-        detail: `${fmtIn(st.road.rainIn)} of rain in the last ${s.lookback} h${later}`,
-      });
-    } else if (f.k === "Cold") {
-      out.push({
-        level: l,
-        short: `Cold ${r0(st.feelMin)}°`,
-        title: `Cold: bike feel down to ${r0(st.feelMin)}°`,
-        detail: "Dress for the start; see What to wear",
-      });
-    } else if (f.k === "Heat") {
-      out.push({
-        level: l,
-        short: `Hot ${r0(st.appMax)}°`,
-        title: `Hot: real feel up to ${r0(st.appMax)}°`,
-        detail: "Bring extra water",
-      });
-    } else if (f.k === "Wind") {
-      out.push({
-        level: l,
-        short: `Wind ${r0(st.wsMax)}/${r0(st.wgMax)}`,
-        title: `Windy: ${r0(st.wsMax)} mph, gusts ${r0(st.wgMax)}`,
-        detail: `From the ${compass(st.dir)}`,
-      });
-    } else if (st.thunder) {
-      out.push({ level: 2, short: "Thunder", title: "Thunderstorms possible", detail: `${fmtIn(st.rain)} expected` });
-    } else {
-      out.push({
-        level: l,
-        short: `Rain ${r0(st.ppMax)}%`,
-        title: `Rain: ${r0(st.ppMax)}% chance`,
-        detail: `${fmtIn(st.rain)} expected during the ride`,
-      });
-    }
+  if (sunrise != null && startMin < sunrise + LOW_LIGHT_MIN) out.push({ level: 1, kind: "lowLight", sunrise });
+  for (const { k, level } of ev.factors) {
+    if (!level) continue;
+    if (k === "Road")
+      out.push({ level, kind: "road", state: st.road.state, endState: st.roadEnd.state, rainIn: st.road.rainIn });
+    else if (k === "Cold") out.push({ level, kind: "cold", feel: st.feelMin });
+    else if (k === "Heat") out.push({ level, kind: "heat", app: st.appMax });
+    else if (k === "Wind") out.push({ level, kind: "wind", ws: st.wsMax, wg: st.wgMax, dir: st.dir });
+    else if (st.thunder) out.push({ level: 2, kind: "thunder", rain: st.rain });
+    else out.push({ level, kind: "rain", pp: st.ppMax, rain: st.rain });
   }
   return out.sort((a, b) => b.level - a.level);
 }

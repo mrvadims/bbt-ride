@@ -46,7 +46,7 @@ export interface RideSummary {
   pace: number;
   notes: string;
   status: "published" | "cancelled";
-  routes: RideRoute[];
+  routes: (RideRoute & { name: string | null })[]; // name from the route cache
   lastUpdate: { at: string; text: string } | null;
   counts: { in: number; out: number; messages: number };
   observed: RecordedWeather | null;
