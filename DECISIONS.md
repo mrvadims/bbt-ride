@@ -50,4 +50,4 @@ Every open question from the design review, with what was decided. Details live 
 - **Nearest spot.** Use the route's first track point to find the nearest start spot (the seed file's RWGPS start point differs by about 45 m).
 
 ## Still to do (outside the code)
-- Send the first Admin's email (`BOOTSTRAP_ADMIN_EMAIL`). The Google OAuth client is done (SETUP.md §3).
+- Nothing. Accounts and secrets are in place (SETUP.md); the Web Push key pair is generated when the app is built (SETUP.md §4).
