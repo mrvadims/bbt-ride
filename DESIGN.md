@@ -255,7 +255,7 @@ Never in the repo, the built assets, or any response to the browser. All third-p
 | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` | GitHub repository secrets (Actions deploy) and your local `.env` (manual deploys) | `wrangler deploy`, D1 migrations |
 
 - Local development: Worker secrets in `.dev.vars`, Cloudflare credentials in `.env` (both git-ignored); `.dev.vars.example` lists the names with empty values.
-- Verified 2026-10-11: `RWGPS_API_KEY`, `RWGPS_API_SECRET`, `RWGPS_AUTH_TOKEN`, `SESSION_SECRET` are set on the `bbt-ride` Worker. `GOOGLE_CLIENT_SECRET` was stored on 2026-10-11 (not yet confirmed with `wrangler secret list`). `VAPID_PRIVATE_KEY` is generated when the app is built.
+- Verified 2026-10-11 with `wrangler secret list`: `GOOGLE_CLIENT_SECRET`, `RWGPS_API_KEY`, `RWGPS_API_SECRET`, `RWGPS_AUTH_TOKEN`, `SESSION_SECRET` are set on the `bbt-ride` Worker. `VAPID_PRIVATE_KEY` is generated when the app is built.
 - Worker secrets are write-only: once set, Cloudflare never shows them again; rotate by running `wrangler secret put` with the new value.
 - The browser calls `/api/routes/:id` and `/api/routes/search`; the Worker adds the RWGPS credentials and caches results in D1 `route_cache`.
 

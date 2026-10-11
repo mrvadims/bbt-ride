@@ -6,7 +6,7 @@ Nothing here is ever committed. Values go into Cloudflare Worker secrets, GitHub
 |---|---|
 | 1. Cloudflare API token | Done: GitHub repository secrets + local `.env` |
 | 2. RideWithGPS credentials | Done: Worker secrets verified 2026-10-11 |
-| 3. Google sign-in | Done 2026-10-11: app published, client created, `GOOGLE_CLIENT_SECRET` stored, first Admin chosen |
+| 3. Google sign-in | Done 2026-10-11: app published, client created, `GOOGLE_CLIENT_SECRET` stored (verified), first Admin chosen |
 | 4. Web Push keys | When the app is built: generate and store `VAPID_PRIVATE_KEY` |
 
 ## 1. Cloudflare API token (for deploys)
