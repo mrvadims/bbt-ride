@@ -1,6 +1,12 @@
 # Setup — accounts, tokens and secrets
 
-Nothing here is ever committed. Values go into Cloudflare Worker secrets or the Claude Code environment, never into the repo or chat.
+Nothing here is ever committed. Values go into Cloudflare Worker secrets, GitHub repository secrets, or your local `.env` / `.dev.vars` (both git-ignored), never into the repo or chat.
+
+| Step | Status |
+|---|---|
+| 1. Cloudflare API token | Done: GitHub repository secrets + local `.env` |
+| 2. RideWithGPS credentials | Done: Worker secrets verified 2026-10-11 |
+| 3. Google sign-in | To do: create the OAuth client, store `GOOGLE_CLIENT_SECRET` |
 
 ## 1. Cloudflare API token (for deploys)
 
@@ -30,23 +36,33 @@ Nothing here is ever committed. Values go into Cloudflare Worker secrets or the 
 
 No DNS permission on purpose. When the Worker is ready, attach `ride.bbt.team` once by hand: Workers & Pages → bbt-ride → Settings → Domains & Routes → Add → Custom domain. Cloudflare creates the DNS record for you, and the deploy token never needs DNS edit rights.
 
-**Where to put it:** in this Claude Code cloud environment's settings (cloud environment menu in the session title bar → Edit), add `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` under Network secrets, or as environment variables if that section isn't offered. A new session picks them up. Don't paste them into chat.
+**Where to put it:**
+- GitHub: repository → Settings → Secrets and variables → Actions → add `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. The deploy workflow uses these.
+- Your laptop: a `.env` file in the repo folder (git-ignored), read by Wrangler:
+  ```
+  CLOUDFLARE_API_TOKEN=your-token
+  CLOUDFLARE_ACCOUNT_ID=your-account-id
+  ```
+- Don't put them in the Claude environment's variables (visible to anyone using the environment) or in chat.
+- Check: `npx wrangler whoami` should show your account. "Invalid access token" means the value in `.env` is wrong or a stale `CLOUDFLARE_API_TOKEN` is set in your shell.
 
 ## 2. RideWithGPS credentials (API key, secret, auth token)
 
 These are stored as **Cloudflare Worker secrets**. Only the Worker reads them; the browser never sees them.
 
-From your own terminal, in the repo, after `wrangler login` (or with the token above):
+From your own terminal, in the repo folder (Wrangler uses the token in `.env`):
 ```
-npx wrangler secret put RWGPS_API_KEY
-npx wrangler secret put RWGPS_API_SECRET
-npx wrangler secret put RWGPS_AUTH_TOKEN
+npx wrangler secret put RWGPS_API_KEY    --name bbt-ride
+npx wrangler secret put RWGPS_API_SECRET --name bbt-ride
+npx wrangler secret put RWGPS_AUTH_TOKEN --name bbt-ride
+openssl rand -base64 32 | npx wrangler secret put SESSION_SECRET --name bbt-ride
+npx wrangler secret list --name bbt-ride     # names only
 ```
 Each command prompts for the value, so it never lands in shell history or the repo. Secrets are write-only: Cloudflare won't show them again. To rotate, run the same command with the new value.
 
-For local development, put the same three names in `.dev.vars` (already git-ignored). `.dev.vars.example` lists the names with empty values.
+The first `secret put` offers to create the empty `bbt-ride` Worker; the first deploy replaces its code and keeps the secrets.
 
-The Worker needs to exist before `wrangler secret put` works, so this happens right after the first deploy. Until then, keep the values in your password manager.
+For local development, put the same names in `.dev.vars` (git-ignored). `.dev.vars.example` lists them with empty values.
 
 ## 3. Google sign-in (OAuth client)
 
@@ -55,9 +71,8 @@ The Worker needs to exist before `wrangler secret put` works, so this happens ri
 3. **Credentials → Create credentials → OAuth client ID → Web application.**
    - Authorized JavaScript origins: `https://ride.bbt.team`, `http://localhost:8787`
    - Authorized redirect URIs: `https://ride.bbt.team/auth/callback`, `http://localhost:8787/auth/callback`
-4. Store the values:
+4. Store the secret:
    ```
-   npx wrangler secret put GOOGLE_CLIENT_SECRET
-   npx wrangler secret put SESSION_SECRET      # any 32+ random bytes, e.g. `openssl rand -base64 32`
+   npx wrangler secret put GOOGLE_CLIENT_SECRET --name bbt-ride
    ```
    `GOOGLE_CLIENT_ID` and `BOOTSTRAP_ADMIN_EMAIL` aren't secret; they go in `wrangler.toml` `[vars]`.

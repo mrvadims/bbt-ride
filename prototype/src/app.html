@@ -77,7 +77,7 @@ main{max-width:1200px;margin:0 auto;padding:16px 16px 48px}
 .profile{width:100%;height:auto;display:block;margin-top:8px}
 .pill{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:3px 10px;font-size:13px;font-weight:700;white-space:nowrap}
 .pill svg{width:12px;height:12px}
-.lv0{background:var(--go-bg);color:var(--go-fg)} .lv1{background:var(--cau-bg);color:var(--cau-fg)} .lv2{background:var(--no-bg);color:var(--no-fg)}
+.lv1{background:var(--cau-bg);color:var(--cau-fg)} .lv2{background:var(--no-bg);color:var(--no-fg)}
 .tablewrap{overflow-x:auto;margin:10px -14px -4px;padding:0 14px}
 table{border-collapse:collapse;width:100%;font-size:13px}
 th,td{padding:6px 6px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line)}
@@ -280,10 +280,12 @@ const DEFAULTS = {
   feelCaution: 40, feelNoGo: 32, heatCaution: 92, heatNoGo: 100,
   windCaution: 15, windNoGo: 22, gustCaution: 25, gustNoGo: 35,
   rainProbCaution: 30, rainProbNoGo: 60, rainAmtCaution: 0.01, rainAmtNoGo: 0.05,
-  wetMm: 0.5, dryingMm: 0.1, theme: 'auto'
+  wetMm: 0.5, dryingMm: 0.1
 };
 let S = Object.assign({}, DEFAULTS, store.get('bbt.settings', {}));
+delete S.theme; // older prototype versions stored the theme here
 const saveSettings = () => store.set('bbt.settings', S);
+let THEME = store.get('bbt.theme', 'auto'); // per-rider: auto | light | dark
 
 /* ---------- roles (demo switcher; live app reads the signed-in user's role from D1) ---------- */
 const ROLES = ['view', 'edit', 'admin'], ROLE_LABEL = { view: 'View', edit: 'Edit', admin: 'Admin' };
@@ -298,7 +300,8 @@ const USERS = [
 /* ---------- sample published rides ---------- */
 const SPOTS = SEED.spots;
 const ROUTES = SEED.routes;
-const rideOn = date => RIDES.find(r => r.date ? r.date === date : r.day === dow(date) && !RIDES.some(x => x.date === date));
+// Sample rides use a weekday (day) and appear only on the current weekend; published rides carry a date.
+const rideOn = date => RIDES.find(r => r.date ? r.date === date : r.day === dow(date) && weekendDates().some(w => w.date === date) && !RIDES.some(x => x.date === date));
 const spotById = id => SPOTS.find(s => s.id === id);
 const routeById = id => ROUTES.find(r => r.id === +id);
 const RIDES = [
@@ -336,7 +339,6 @@ function addDays(d, n){ const t = new Date(d + 'T00:00:00Z'); t.setUTCDate(t.get
 const dow = d => new Date(d + 'T00:00:00Z').getUTCDay();
 function dayLabel(d, long){ return new Date(d + 'T12:00:00Z').toLocaleDateString('en-US', { timeZone: 'UTC', weekday: long ? 'long' : 'short', month: 'short', day: 'numeric' }); }
 const hhmmToMin = s => { const [h, m] = s.split(':').map(Number); return h * 60 + m; };
-const minToHHMM = m => `${pad(Math.floor(m / 60) % 24)}:${pad(Math.round(m % 60))}`;
 function fmtTime(m){ m = Math.round(m); const h = Math.floor(m / 60) % 24, mm = m % 60; return `${h % 12 || 12}:${pad(mm)} ${h < 12 ? 'AM' : 'PM'}`; }
 function fmtDur(h){ const m = Math.round(h * 60); return `${Math.floor(m / 60)}h ${pad(m % 60)}m`; }
 
@@ -355,7 +357,6 @@ function forecastPoints(){
   const pts = SPOTS.map(s => ({ key: s.id, lat: s.lat, lng: s.lng }));
   return pts;
 }
-const poiKey = p => 'poi:' + p.name;
 function poiFor(rt){ const r = routeById(rt.id); return r && rt.stop ? r.pois.find(p => p.name === rt.stop) : null; }
 
 async function loadForecast(){
@@ -449,11 +450,11 @@ function evaluate(se, date, startMin, durMin, pace){
     wsMax: mx('ws'), wgMax: mx('wg'), ppMax: mx('pp'), rain, dir: near(se.wd, f0), road, roadEnd,
     thunder: v.some(x => x.code >= 95), code: near(se.code, (f0 + f1) / 2) };
   const factors = [
-    { k: 'Road', level: road.level, val: road.state, why: road.state === 'Dry' ? (road.rainIn > 0 ? `${fmtIn(road.rainIn)} in last ${S.lookback}h, dried` : `no rain in last ${S.lookback}h`) : `${fmtIn(road.rainIn)} in last ${S.lookback}h` },
-    { k: 'Cold', level: lvl3(st.feelMin, S.feelCaution, S.feelNoGo, false), val: `${r0(st.feelMin)}° bike feel`, why: `min over ride; caution < ${S.feelCaution}°` },
-    { k: 'Heat', level: lvl3(st.appMax, S.heatCaution, S.heatNoGo), val: `${r0(st.appMax)}° real feel`, why: `max; caution ≥ ${S.heatCaution}°` },
-    { k: 'Wind', level: Math.max(lvl3(st.wsMax, S.windCaution, S.windNoGo), lvl3(st.wgMax, S.gustCaution, S.gustNoGo)), val: `${r0(st.wsMax)} / ${r0(st.wgMax)} mph`, why: 'sustained / gusts' },
-    { k: 'Rain', level: st.thunder ? 2 : Math.max(lvl3(st.ppMax, S.rainProbCaution, S.rainProbNoGo), lvl3(rain, S.rainAmtCaution, S.rainAmtNoGo)), val: `${r0(st.ppMax)}% · ${fmtIn(rain)}`, why: st.thunder ? 'thunderstorms forecast' : 'max chance · total' }
+    { k: 'Road', level: road.level },
+    { k: 'Cold', level: lvl3(st.feelMin, S.feelCaution, S.feelNoGo, false) },
+    { k: 'Heat', level: lvl3(st.appMax, S.heatCaution, S.heatNoGo) },
+    { k: 'Wind', level: Math.max(lvl3(st.wsMax, S.windCaution, S.windNoGo), lvl3(st.wgMax, S.gustCaution, S.gustNoGo)) },
+    { k: 'Rain', level: st.thunder ? 2 : Math.max(lvl3(st.ppMax, S.rainProbCaution, S.rainProbNoGo), lvl3(rain, S.rainAmtCaution, S.rainAmtNoGo)) }
   ];
   const level = Math.max(...factors.map(x => x.level));
   return { level, factors, st, f0, f1 };
@@ -587,7 +588,7 @@ function trackSVG(route, stopPoi){
   return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Route outline"><path d="${d}" fill="none" stroke="var(--primary)" stroke-width="3" stroke-linejoin="round"/>
     <circle cx="${sx}" cy="${sy}" r="7" fill="var(--primary)" stroke="#fff" stroke-width="2"/>${stop}</svg>`;
 }
-function isDark(){ return S.theme === 'dark' || (S.theme === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches); }
+function isDark(){ return THEME === 'dark' || (THEME === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches); }
 function tileLayer(){
   return isDark()
     ? L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 18, attribution: '© OpenStreetMap © CARTO' })
@@ -646,7 +647,7 @@ function hourRows(se, date, fromF, toF, winF0, winF1, pace){
 /* ---------- views ---------- */
 const UI = { day: null, route: 0 };
 
-// Warnings: only conditions that need attention. Shared by the ride page (boxes) and the board (chips).
+// Warnings: only conditions that need attention. Shared by the ride page (boxes) and Plan's spot list (chips).
 function warnList(ev, se, date, startMin){
   const st = ev.st, out = [];
   const sr = se && sunriseMin(se, date);
@@ -952,7 +953,7 @@ function nearestSpot(route){
   return SPOTS.map(s => ({ s, d: haversine(la, ln, s.lat, s.lng) })).sort((a, b) => a.d - b.d)[0];
 }
 function publishBar(){
-  const orig = P.editing && rideOn(P.editing), clash = RIDES.find(r => (r.date === P.date || (!r.date && r.day === dow(P.date) && !RIDES.some(x => x.date === P.date))) && r !== orig);
+  const orig = P.editing && rideOn(P.editing), onDate = rideOn(P.date), clash = onDate && onDate !== orig ? onDate : null;
   const label = orig ? 'Update ride' : clash ? 'Replace ride' : 'Publish';
   return `${clash ? `<p class="tiny" style="margin:12px 0 0;color:var(--cau-fg)">A ride is already posted for ${dayLabel(P.date)}. ${orig ? 'Updating' : 'Publishing'} replaces it.</p>` : ''}
     <div class="btnrow" style="margin-top:12px"><button class="btn btn-primary" type="button" id="publish">${label}</button>${orig ? `<button class="btn btn-outline" type="button" id="cancelride">${orig.cancelled ? 'Restore ride' : 'Cancel ride'}</button>` : ''}</div>`;
@@ -1035,11 +1036,10 @@ function viewSettings(){
 }
 
 /* ---------- router + events ---------- */
-function applyTheme(){ if (S.theme === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', S.theme); }
+function applyTheme(){ if (THEME === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', THEME); }
 function render(){
   maps.forEach(m => { try { m.remove(); } catch(e){} }); maps = [];
   const [page, arg] = (location.hash.slice(1) || 'ride').split('/');
-  if (page === 'spot' || page === 'board'){ location.replace(can.plan() ? '#plan' : '#ride'); return; }
   document.querySelectorAll('[data-nav]').forEach(a => a.setAttribute('aria-selected', String(a.dataset.nav === page)));
   const app = document.getElementById('app');
   if (WX.source === 'loading'){ app.innerHTML = `<div class="card empty muted">Loading forecast…</div>`; return; }
@@ -1128,8 +1128,8 @@ document.addEventListener('click', e => {
   else if (el.id === 'invite'){ const em = document.getElementById('u-email'), rl = document.getElementById('u-role');
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em.value)){ toast('Enter a valid email address.'); return; }
     USERS.push({ name: '—', email: em.value.trim().toLowerCase(), role: rl.value, status: 'Invited' }); render(); toast('Invited (prototype: no email sent).'); }
-  else if (el.id === 'reset'){ S = Object.assign({}, DEFAULTS); store.del('bbt.settings'); applyTheme(); render(); toast('Settings reset'); }
-  else if (el.id === 'themebtn'){ S.theme = isDark() ? 'light' : 'dark'; saveSettings(); applyTheme(); render(); }
+  else if (el.id === 'reset'){ S = Object.assign({}, DEFAULTS); store.del('bbt.settings'); render(); toast('Settings reset'); }
+  else if (el.id === 'themebtn'){ THEME = isDark() ? 'light' : 'dark'; store.set('bbt.theme', THEME); applyTheme(); render(); }
 });
 // Text inputs re-render on change (not every keystroke) except search boxes, which keep focus.
 document.addEventListener('input', e => {
@@ -1166,7 +1166,7 @@ document.addEventListener('change', e => {
 let lastW = chartW();
 window.addEventListener('resize', () => { if (chartW() !== lastW){ lastW = chartW(); render(); } });
 window.addEventListener('hashchange', () => { render(); window.scrollTo(0, 0); });
-matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (S.theme === 'auto') render(); });
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (THEME === 'auto') render(); });
 applyTheme(); render(); loadForecast();
 </script>
 </body>

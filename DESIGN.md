@@ -1,6 +1,6 @@
 # BBT Ride Weather — Design
 
-Status: **in design** — clickable prototype at `prototype/index.html`. Last updated 2026-10-09.
+Status: **design complete** — clickable prototype at `prototype/index.html`; decisions in `DECISIONS.md`. Last updated 2026-10-11.
 URL: **ride.bbt.team**
 
 ## Purpose
@@ -15,9 +15,9 @@ Sign-in is required. Users sign in with Google (OpenID Connect, handled by the W
 
 | Role | Can do |
 |------|--------|
-| **View** (default) | View rides, weekend board, spot detail, forecasts |
-| **Edit** | View + create, edit, publish and archive rides; manage spots |
-| **Admin** | Edit + change team settings (thresholds, defaults, kit chart) and manage users |
+| **View** (default) | See upcoming and past rides with their weather; RSVP and post messages |
+| **Edit** | View + plan, publish, edit and cancel rides; add start spots; delete any message |
+| **Admin** | Edit + team settings (defaults, thresholds, kit chart), spots management, and users |
 
 - An Admin invites a user by email and picks a role (View by default). The invite is a row in `users` with status `invited`.
 - On first Google sign-in, the Worker matches the verified Google email (`email_verified = true`) to an invited row, stores the Google `sub`, and marks it `active`. Later sign-ins match on `sub`, so an email change at Google doesn't lock anyone out.
@@ -48,23 +48,22 @@ audit_log(id, user_id, action, entity, entity_id, diff_json, at)
 
 ## v1 scope
 
-### Rides (viewer home)
+### Rides (home)
 - Editor plans a ride on **any date** (weekend or weekday): date, roll-out time, start spot, avg pace, notes, and one or more routes. Publish (form autosaves; see Plan a ride).
   - Usually one route; occasionally a labeled alternate (e.g., "Full" / "Short") sharing the same spot and time.
 - Home shows upcoming published rides as date tabs: this Saturday and Sunday always, plus any other day that has a published ride. The tab carries the date; the page doesn't repeat it.
 - Ride page = warnings (only when something needs attention) + a stack of collapsible panels. Each collapsed header is the briefing; tapping it expands detail. Open/closed state is remembered per rider; panels start open on desktop.
   - **Meet** — collapsed: roll-out time · spot name (links to Google Maps). Expanded: estimated time back (moving + regroup buffer + coffee stop, and the time without the stop), parking notes, Open in Google Maps, and "+ Calendar", which opens a picker: Google Calendar, Apple Calendar (.ics), Outlook.com, Outlook (work or school), Other (.ics). The .ics is served by `/api/rides/:id.ics`; event = meet → back, location = parking pin, routes and notes in the description).
   - **Route** — collapsed: route name (opens RWGPS) · distance · climbing, plus the Full/Short switcher. Expanded: map, elevation profile, coffee stop (name links to Maps, mile, ETA, length; labeled optional; no separate forecast), "Open in RWGPS".
-  - **Weather** — collapsed: temp range · real feel range · wind · rain chance, a warning count if any, and a one-line kit hint. Expanded: ride-window summary (bike feel, gusts, rain total, roads), hourly table from 1 h before roll-out to 3 h after the estimated return (ride window shaded; Sky column uses icons for clear, partly cloudy, overcast, fog, drizzle, rain, showers, snow and thunder, with a moon for clear night hours and the label on hover and for screen readers), a "Full-day forecast" button that opens the rider's chosen weather source (NWS, Weather.com, Windy or Google; choice saved in their browser), then What to wear (Run cold / Avg / Run hot).
+  - **Weather** — collapsed: temp range · real feel range · wind · rain chance, and a one-line kit hint. Expanded: ride-window summary (bike feel, gusts, rain total, roads), hourly table from 1 h before roll-out to 3 h after the estimated return (ride window shaded; Sky column uses icons for clear, partly cloudy, overcast, fog, drizzle, rain, showers, snow and thunder, with a moon for clear night hours and the label on hover and for screen readers), a "Full-day forecast" button that opens the rider's chosen weather source (NWS, Weather.com, Windy or Google; choice saved in their browser), then What to wear (Run cold / Avg / Run hot).
   - **Notes** — only if the ride has notes; collapsed shows the first line.
   - **Riders** — collapsed: "5 in · 1 out · 3 messages" plus **In / Out** buttons, so riders answer without opening the panel; the Full / Short choice appears only when the ride has an alternate route and only after tapping In; Out never asks for a route. Expanded: who's in (with their route) and out, and a message thread for the ride: anyone can post, reply to a message (one level), and see everyone's messages. All signed-in roles can RSVP and post. Authors can edit or delete their own messages; Edit and Admin can delete any (moderation). The page refreshes RSVPs and messages every 30 s while open.
   - **Share** icon next to the day tabs: uses the phone's share sheet (Web Share API) with a text brief (date, meet time and Maps link, routes with RWGPS links, coffee stop, time back, weather, notes) plus the ride link; falls back to a copy-to-clipboard sheet. The ride link requires sign-in.
   - Warnings: wet/drying roads, cold, heat, wind, rain, thunder, low light (roll-out within 30 min of sunrise), and **active NWS alerts** for the spot's forecast zone (warnings red, advisories and watches amber; from api.weather.gov, cached by the Worker). No Go badge.
-- Route picker: search RWGPS routes from the captain's personal library **and** the BBT club library, or paste a RWGPS link. Suggest start spot by nearest saved spot to route start.
-  - "Open in RWGPS" works for viewers only if the route is public or shared; map/stats render regardless.
+- "Open in RWGPS" works for riders only if the route is public or shared with them; the map and stats render regardless.
 - **Coffee / muffin stop (optional)** — a ride can have an optional mid-ride stop.
-  - Auto-suggested from the route's RWGPS POIs (`poi_type_name` = `coffee` or `food`); editor confirms, picks another POI, or adds one manually (name + Google Maps link).
-  - Ride page shows: name, mile marker, ETA (roll-out + distance ÷ pace), stop length (default 20 min, shifts the rest of the ride window), "Open in Maps", and an "optional" label. No separate stop forecast (decided 2026-10-11).
+  - Auto-suggested from the route's RWGPS POIs (`poi_type_name` = `coffee` or `food`); the editor confirms, picks another POI, or chooses no stop.
+  - Ride page shows: name, mile marker, ETA (see ETA math), stop length (default 20 min, shifts the rest of the ride window), "Open in Maps", and an "optional" label. No separate stop forecast (decided 2026-10-11).
 - **Past rides** — a **Past** tab after the date tabs on the Ride page (all roles). Newest first, grouped by month; each row shows date, start spot, route(s), how many rode, and the observed conditions at roll-out (temp, real feel, wind, roads), with a red "Cancelled" tag where it applies. A search box filters by route or spot.
   - Opening a past ride shows the same panels, read-only: Meet and Route as published, **Weather = observed** (saved from NWS station observations once the ride window has passed, not the old forecast), Notes, and Riders (who rode, who was out, and the full message thread; RSVP and posting are off).
   - Editors get **Reuse this plan**, which copies the ride into Plan on the next free weekend day.
@@ -78,7 +77,7 @@ audit_log(id, user_id, action, entity, entity_id, diff_json, at)
 - **Manage (Admin):** a Spots panel in Settings to rename, edit notes, move the pin, or archive. Archived spots drop out of the pick list but stay on past rides.
 
 ### What to wear
-- Default team kit chart keyed on **bike feel** + wind + rain + road wetness; editors can tune.
+- Team kit chart keyed on **bike feel**, with add-ons for rain, wind and road wetness (see Kit chart); Admins edit it in Settings.
 - Per-rider offset (runs cold / avg / hot, ±5°) stored in that rider's browser.
 - Shedding hints when temp rises during the ride; fenders when roads damp.
 
@@ -89,15 +88,15 @@ Every setting lives in the `settings` table and is edited on the Settings tab; n
 - **Road wetness:** look-back hours, Wet / Drying film thresholds.
 - **Warnings:** amber and red thresholds for cold (bike feel), heat (real feel), wind, gusts, rain chance, rain amount.
 - **Kit chart:** bands and items (`kit_bands`).
-- Units: imperial by default; each rider can switch to metric (°C, km/h, km, m, mm) from a units toggle in the header. Thresholds are stored in imperial and converted for display.
+- **Spots:** rename, edit notes, move the pin, archive (see Spots).
 
-Per-rider preferences stay in the rider's browser: theme (header toggle), **units (imperial / metric)**, Run cold / Avg / Run hot, weather source, which panels are open.
+Team settings are stored in imperial units. Per-rider preferences stay in the rider's browser: theme (header toggle), **units** (imperial by default; metric shows °C, km/h, km, m, mm), Run cold / Avg / Run hot, weather source, and which panels are open.
 
 ### Plan a ride (Edit and Admin)
 Planning is one top-to-bottom flow in the same panel style, mirroring the ride page. There is no separate Weekend page; navigation is Ride / Plan / Settings (View riders see Ride only).
 1. **Meet:** Sat / Sun tabs or any date, and roll-out time.
 2. **Start spot:** a compact pick list, one row per spot: name, temp · real feel · wind · rain for the weather window, and warning chips only when something needs attention. Tap a row to select it. The selected spot gets a collapsed **Details** panel below: bike feel, gusts, rain and road state; rain bars −12 h → +8 h; hourly table (1 h before → 3 h after); Full-day forecast and Radar; parking notes and Google Maps. The weather window is the default length (Settings) until a route is picked, then the route's actual ride time. The last row is **Add a start spot** (see Spots).
-3. **Route:** routes that start at the chosen spot are listed first ("starts here"), plus search or a pasted RWGPS link; a note appears if the route starts away from the spot. Optional alternate route with labels, coffee stop from the route's POIs, pace. Picking a route first (before a spot) selects its nearest spot.
+3. **Route:** routes that start at the chosen spot are listed first ("starts here"), then the captain's RWGPS library and the BBT club library via search, or a pasted RWGPS link; a note appears if the route starts away from the spot. Optional alternate route with labels, coffee stop from the route's POIs, pace. Picking a route first (before a spot) selects its nearest spot.
 4. **Notes.**
 5. **Preview:** the actual ride-page warnings and panels for the draft, then **Publish**.
 
@@ -110,7 +109,7 @@ Drafts and changes:
   - **Cancel ride** marks it cancelled without deleting it: a red "Ride cancelled" banner on the ride page, a "Ride cancelled" message in the thread, and "CANCELLED:" at the start of the shared text. **Restore ride** undoes it.
 
 ### Notifications (v1)
-- Only when a published ride is **updated** (date, time, spot, route, coffee stop) or **cancelled / restored**. No notifications for chat messages or replies; no RSVP reminders or deadlines.
+- Only when a published ride is **updated** (any change that shows the "Updated" note) or **cancelled / restored**. No notifications for chat messages or replies; no RSVP reminders or deadlines.
 - Channels: Web Push for riders who install the app and opt in; email (opt-in) otherwise. Sent by the Worker on Update ride / Cancel ride.
 
 ### Metrics
@@ -132,13 +131,13 @@ Both use `fill="currentColor"` so they can switch between navy, white, and orang
 | BBT Orange | `#FF3115` | Accent only: stripe under top bar, active tab underline. Not used for buttons |
 | BBT Dark Blue | `#020C2B` | Dark-mode page background |
 | Logo navy | `#03144D` | Primary text on light; dark-mode cards |
+| BBT Transition Blue | `#041DB2` | Charts (rain bars, elevation profile) |
 
-Navy roles confirmed 2026-10-09: `#020C2B` background, `#03144D` text/cards; `#1C367B` is not used.
-| BBT Transition Blue | `#041DB2` | Secondary accent (charts, selected states) |
+Navy roles confirmed 2026-10-09: `#020C2B` background, `#03144D` text and cards; `#1C367B` is not used.
 
-- **Top bar:** white bike logo (`bbt-logo.svg`, ~32px tall) on Light Blue, with a 4px orange stripe directly underneath (no separator). Same bar in light and dark mode. Orange and light blue are nearly equal in brightness (1.25:1); if the edge shimmers on real phones, fall back to a 2px white hairline between them.
+- **Top bar:** white bike logo (`bbt-logo.svg`, ~32px tall) on Light Blue, with a 4px orange stripe directly underneath (no separator). Same bar in light and dark mode; checked on a phone 2026-10-11, no hairline needed. No text next to the logo.
 
-- Go / Caution / No-go use separate green / amber / red tinted pills (with icon + label) so No-go never reads as brand orange.
+- Warnings use amber and red tinted pills and boxes (icon + label), never brand orange. There is no green "Go" state; a clean forecast shows nothing.
 - Light and dark mode both supported; dark mode is navy-based, not gray.
 - PWA icons (180/192/512) generated from the wordmark at build time.
 
@@ -168,7 +167,7 @@ Output:
 | **Drying** | `0.1 ≤ W < 0.5 mm` | Amber |
 | **Dry** | `W < 0.1 mm` | none |
 
-Also shown: rain total in the look-back window and hours since the last measurable rain (≥ 0.005"). The warning uses the state at roll-out; the ride page also notes if the state changes by the finish. Coefficients are a first guess to be tuned against real Saturdays (see QUESTIONS.md).
+Also shown: rain total in the look-back window. The warning uses the state at roll-out and notes if it changes by the finish. Coefficients are a first guess, to be tuned against real rides (compare the warning with what the team found).
 
 ### Bike feel
 Wind chill using the relative airflow a rider feels. Over a loop the rider meets the wind from every angle, so the average airflow is approximated as `V = √(pace² + wind²)` (17 mph pace + 10 mph wind → 19.7 mph).
@@ -227,13 +226,14 @@ Mile markers come from the POI's distance along the RWGPS track (nearest track p
 
 ## Prototype
 `prototype/index.html` — one self-contained file (inline CSS/JS, Leaflet 1.9.4 from cdnjs). Built from `prototype/src/app.html` by `python3 prototype/build.py`, which inlines `data/seed.json`, the fallback forecast `data/raw/om_purchase.json`, and the logo.
-- Fetches Open-Meteo live in the browser for the 3 spots + coffee-stop POIs (one multi-location request, `past_days=2`). On failure it uses the embedded sample and shows a banner.
-- Screens: Ride (date tabs, Meet / Route / Weather / Notes panels, share, calendar), Plan a ride (mock; spot comparison → route → preview that reuses the ride panels), Settings (panels; stored in this browser). A View / Edit / Admin switcher demonstrates roles.
+- Fetches Open-Meteo live in the browser for the start spots (one multi-location request, `past_days=2`). On failure it uses the embedded sample (SUNY Purchase, Oct 7–11) for every spot and shows a banner.
+- Screens: Ride (date tabs + Past; Meet / Route / Weather / Notes / Riders panels; share, calendar, edit), Plan (spot comparison → route → preview that reuses the ride panels; autosaved draft), Settings (panels). A View / Edit / Admin switcher demonstrates roles.
+- Prototype-only: everything you change lives in this browser or this session; sample rides, riders, messages and past rides are examples. Not in the prototype: NWS alerts, the metric toggle, Spots management, message edit/delete, notifications.
 - Without Leaflet (offline/CDN blocked) maps fall back to an SVG route outline.
 
 ## Data sources
 - **Forecast:** Open-Meteo (free, no key) — HRRR (3 km, 15-min) + NBM for US; past hours for road-dryness.
-- **Observed:** nearest NWS station observations; RainViewer radar tiles.
+- **Observed and alerts:** nearest NWS station observations (saved on past rides) and NWS active alerts (api.weather.gov, no key). Radar: link to RainViewer.
 - **Routes:** RideWithGPS API v1 (API key + secret + auth token, stored as Worker secrets; see Secrets). To verify at build time: listing club/organization routes via the API; paste-link fallback always works.
 
 ## Secrets
@@ -244,23 +244,24 @@ Never in the repo, the built assets, or any response to the browser. All third-p
 | `RWGPS_API_KEY`, `RWGPS_API_SECRET`, `RWGPS_AUTH_TOKEN` | Cloudflare Worker secrets (`wrangler secret put …`) | Worker → RideWithGPS |
 | `GOOGLE_CLIENT_ID` (not secret), `GOOGLE_CLIENT_SECRET` | Worker variable / Worker secret | Google sign-in |
 | `SESSION_SECRET` (random 32 bytes) | Worker secret | Signing OAuth `state` / CSRF tokens |
-| `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` | Claude Code cloud environment secret (and your own machine for manual deploys) | `wrangler deploy`, D1 migrations |
+| `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` | GitHub repository secrets (Actions deploy) and your local `.env` (manual deploys) | `wrangler deploy`, D1 migrations |
 
-- Local development: `.dev.vars` (git-ignored) with the same names; a committed `.dev.vars.example` lists the names with empty values.
+- Local development: Worker secrets in `.dev.vars`, Cloudflare credentials in `.env` (both git-ignored); `.dev.vars.example` lists the names with empty values.
+- Verified 2026-10-11: `RWGPS_API_KEY`, `RWGPS_API_SECRET`, `RWGPS_AUTH_TOKEN`, `SESSION_SECRET` are set on the `bbt-ride` Worker. `GOOGLE_CLIENT_SECRET` is pending the Google OAuth client.
 - Worker secrets are write-only: once set, Cloudflare never shows them again; rotate by running `wrangler secret put` with the new value.
 - The browser calls `/api/routes/:id` and `/api/routes/search`; the Worker adds the RWGPS credentials and caches results in D1 `route_cache`.
 
 ## Architecture
 - Cloudflare Worker + static assets (React + TypeScript + Vite) on ride.bbt.team.
-- D1: spots, rides, route cache, settings, kit chart. KV: forecast cache.
+- D1: the tables in Data model. KV: forecast and NWS alert cache.
 - Every route requires a session (Google sign-in); API routes enforce View / Edit / Admin server-side.
+- Deploys: GitHub Actions on merge to `main` (runs D1 migrations, then `wrangler deploy`), using the repository's Cloudflare secrets. `ride.bbt.team` is attached once by hand in the Cloudflare dashboard.
 
 ## Backlog (post-v1)
-1. **RWGPS route weather** (phase 2) — forecast at each point by ETA; head/tail/crosswind per segment.
-2. **Shareable ride brief** — public link + copyable text.
-3. **WhatsApp integration** (or other messenger) — post ride brief to group chat.
-4. **Morning-of push alert** — PWA push N hours before ride. Chat-message notifications stay out (decided 2026-10-11).
-5. **Model comparison** — HRRR vs NBM vs ECMWF agreement/confidence.
+1. **Route weather** — forecast at points along the route by ETA; head/tail/crosswind per segment.
+2. **WhatsApp integration** (or another messenger) — post the ride brief to the group chat.
+3. **Morning-of push alert** — PWA push N hours before the ride.
+4. **Model comparison** — HRRR vs NBM vs ECMWF agreement as a confidence hint.
 
 ## Seed data
 `data/seed.json` (built 2026-10-08 from public sources; raw responses in `data/raw/`):
@@ -271,5 +272,5 @@ Never in the repo, the built assets, or any response to the browser. All third-p
 
 Verified 2026-10-08: public route JSON (`/routes/{id}.json`) needs no key; listing a user's routes (`/users/{id}/routes.json`) returns 403 without auth; Open-Meteo `best_match`, `gfs_hrrr`, `ncep_nbm_conus`, `minutely_15`, `past_days` all work for these spots; NWS points API works (grid OKX).
 
-## Open questions
-See `QUESTIONS.md`.
+## Decisions
+See `DECISIONS.md`.
