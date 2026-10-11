@@ -132,7 +132,7 @@ export const rsvpInput = z.object({
 });
 export const messageInput = z.object({
   body: z.string().trim().min(1).max(2000),
-  parentId: z.string().nullable().default(null),
+  parentId: z.string().max(64).nullable().default(null),
 });
 export const messageEdit = z.object({ body: z.string().trim().min(1).max(2000) });
 
@@ -163,7 +163,17 @@ export const linkAccept = z.object({
     .optional(),
   password: z.string().min(10).max(128),
 });
+// Browsers' push services (Chrome/Android, Firefox, Safari/iOS, Edge).
+const PUSH_HOSTS =
+  /^(fcm\.googleapis\.com|updates\.push\.services\.mozilla\.com|[a-z0-9-]+\.push\.services\.mozilla\.com|web\.push\.apple\.com|[a-z0-9-]+\.notify\.windows\.com)$/;
 export const pushSubscription = z.object({
-  endpoint: z.string().url().max(1000),
+  endpoint: z
+    .string()
+    .url()
+    .max(1000)
+    .refine((u) => {
+      const url = new URL(u);
+      return url.protocol === "https:" && PUSH_HOSTS.test(url.hostname);
+    }, "Not a browser push service"),
   keys: z.object({ p256dh: z.string().max(200), auth: z.string().max(100) }),
 });

@@ -53,7 +53,8 @@ export function Riders({ ride, me, past }: { ride: RideDetail; me: Me; past: boo
 
   const msg = (m: Message, isReply: boolean) => {
     const canEdit = m.kind === "user" && !m.deleted && m.authorId === me.id && !past;
-    const canDelete = m.kind === "user" && !m.deleted && (m.authorId === me.id || me.role !== "view");
+    // Authors delete their own on upcoming rides; editors and admins can always delete (moderation).
+    const canDelete = m.kind === "user" && !m.deleted && (me.role !== "view" || (m.authorId === me.id && !past));
     return (
       <div key={m.id} className={`msg${isReply ? " reply" : ""}${m.kind !== "user" ? " sys" : ""}`}>
         <div className="meta">

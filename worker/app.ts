@@ -16,15 +16,10 @@ export type AppEnv = { Bindings: Env; Variables: { auth: Auth; user: SessionUser
 
 const RANK: Record<Role, number> = { view: 0, edit: 1, admin: 2 };
 
-// One Better Auth instance per isolate and environment.
-const instances = new WeakMap<Env, Auth>();
+// A Better Auth instance per request: it initializes lazily, and the Workers runtime doesn't let one request
+// use I/O objects (database connections, promises) created while serving another.
 export const withAuth = createMiddleware<AppEnv>(async (c, next) => {
-  let auth = instances.get(c.env);
-  if (!auth) {
-    auth = createAuth(c.env);
-    instances.set(c.env, auth);
-  }
-  c.set("auth", auth);
+  c.set("auth", createAuth(c.env));
   await next();
 });
 

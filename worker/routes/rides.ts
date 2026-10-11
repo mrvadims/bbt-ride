@@ -172,6 +172,8 @@ async function changes(db: D1Database, a: RideSummary, b: RideInput): Promise<st
   const aStop = a.routes[0]?.stop ?? null;
   const bStop = bRoutes[0]?.stop ?? null;
   if (aStop !== bStop) out.push(bStop ? `coffee stop ${bStop}` : "no coffee stop");
+  else if ((a.routes[1]?.stop ?? null) !== (bRoutes[1]?.stop ?? null))
+    out.push(`${bRoutes[1]?.label ?? "alternate"} coffee stop updated`);
   if (a.notes !== b.notes) out.push("notes updated");
   return out;
 }
@@ -241,7 +243,8 @@ export const rides = new Hono<AppEnv>()
     const user = c.get("user");
     const clash = cur.status === "published" ? await publishedOn(c.env.DB, input.date, id) : null;
     if (clash && !input.replace) fail(409, "A ride is already posted for that date");
-    const what = await changes(c.env.DB, cur, input);
+    // Only a published ride announces changes; editing a cancelled ride stays quiet until it's restored.
+    const what = cur.status === "published" ? await changes(c.env.DB, cur, input) : [];
     const now = nowIso();
     await c.env.DB.batch([
       ...(clash
@@ -272,6 +275,7 @@ export const rides = new Hono<AppEnv>()
     const user = c.get("user");
     const [cur] = await summaries(c.env.DB, "r.id = ?", [id]);
     if (!cur) return fail(404, "Ride not found");
+    if (cur.date < nyNow().date) fail(409, "Past rides can't be changed");
     if (cur.status === "cancelled") return c.json(await detail(c.env.DB, id));
     await c.env.DB.batch([
       c.env.DB.prepare("update rides set status = 'cancelled', updated_by = ?, updated_at = ? where id = ?").bind(
@@ -293,6 +297,7 @@ export const rides = new Hono<AppEnv>()
     const user = c.get("user");
     const [cur] = await summaries(c.env.DB, "r.id = ?", [id]);
     if (!cur) return fail(404, "Ride not found");
+    if (cur.date < nyNow().date) fail(409, "Past rides can't be changed");
     if (cur.status === "published") return c.json(await detail(c.env.DB, id));
     if (await publishedOn(c.env.DB, cur.date)) fail(409, "Another ride is posted for that date");
     await c.env.DB.batch([
@@ -358,11 +363,14 @@ export const rides = new Hono<AppEnv>()
 // Editing and deleting a message: authors edit their own; authors, editors and admins delete (soft delete).
 export const messages = new Hono<AppEnv>()
   .patch("/:id", zValidator("json", messageEdit), async (c) => {
-    const m = await c.env.DB.prepare("select ride_id, user_id, deleted_at from messages where id = ?")
+    const m = await c.env.DB.prepare(
+      "select m.ride_id, m.user_id, m.deleted_at, r.date from messages m join rides r on r.id = m.ride_id where m.id = ?",
+    )
       .bind(c.req.param("id"))
-      .first<{ ride_id: string; user_id: string | null; deleted_at: string | null }>();
+      .first<{ ride_id: string; user_id: string | null; deleted_at: string | null; date: string }>();
     if (!m || m.deleted_at) return fail(404, "Message not found");
     if (m.user_id !== c.get("user").id) fail(403, "Only the author can edit a message");
+    if (m.date < nyNow().date) fail(409, "Messages on past rides can't be edited");
     await c.env.DB.prepare("update messages set body = ?, edited_at = ? where id = ?")
       .bind(c.req.valid("json").body, nowIso(), c.req.param("id"))
       .run();
@@ -370,11 +378,15 @@ export const messages = new Hono<AppEnv>()
   })
   .delete("/:id", async (c) => {
     const user = c.get("user");
-    const m = await c.env.DB.prepare("select ride_id, user_id, kind from messages where id = ?")
+    const m = await c.env.DB.prepare(
+      "select m.ride_id, m.user_id, m.kind, r.date from messages m join rides r on r.id = m.ride_id where m.id = ?",
+    )
       .bind(c.req.param("id"))
-      .first<{ ride_id: string; user_id: string | null; kind: string }>();
+      .first<{ ride_id: string; user_id: string | null; kind: string; date: string }>();
     if (m?.kind !== "user") return fail(404, "Message not found");
-    if (m.user_id !== user.id && !can(user, "edit")) fail(403, "Only the author or an editor can delete a message");
+    // Authors delete their own on upcoming rides; editors and admins can always delete (moderation).
+    if (!can(user, "edit") && (m.user_id !== user.id || m.date < nyNow().date))
+      fail(403, "You can't delete this message");
     await c.env.DB.batch([
       c.env.DB.prepare("update messages set body = '', deleted_at = ? where id = ?").bind(nowIso(), c.req.param("id")),
       ...(m.user_id !== user.id ? [audit(c.env.DB, user.id, "delete", "message", c.req.param("id"))] : []),

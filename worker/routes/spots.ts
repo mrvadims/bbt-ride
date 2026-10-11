@@ -8,7 +8,7 @@ import { type AppEnv, requireRole } from "../app.ts";
 import { audit, fail, newId, nowIso } from "../util.ts";
 
 // A pasted link is kept only if it points at Google Maps; otherwise the spot gets a coordinates link.
-const MAPS_HOSTS = /^(www\.)?(google\.[a-z.]+|maps\.google\.[a-z.]+|maps\.app\.goo\.gl|goo\.gl)$/;
+const MAPS_HOSTS = /^((www\.)?google\.com|maps\.google\.com|maps\.app\.goo\.gl)$/;
 function safeMapsUrl(link: string, lat: number, lng: number): string {
   try {
     const u = new URL(link);
@@ -34,8 +34,9 @@ export const spots = new Hono<AppEnv>()
     const url = new URL(c.req.valid("json").url);
     if (url.protocol !== "https:" || url.hostname !== "maps.app.goo.gl")
       fail(400, "Only maps.app.goo.gl links need resolving");
-    const res = await fetch(url, { redirect: "manual" });
-    const location = res.headers.get("location") ?? "";
+    const res = await fetch(url, { redirect: "manual", signal: AbortSignal.timeout(5000) }).catch(() => null);
+    await res?.body?.cancel();
+    const location = res?.headers.get("location") ?? "";
     const ll = parseLatLng(decodeURIComponent(location));
     return ll ? c.json({ ...ll, url: url.toString() }) : fail(400, "Couldn't find a pin in that link");
   })

@@ -5,7 +5,7 @@ import { z } from "zod";
 import { type AppEnv, requireRole } from "../app.ts";
 import { nowIso } from "../util.ts";
 
-const draftInput = z.object({ rideId: z.string().nullable(), form: z.record(z.string(), z.unknown()) });
+const draftInput = z.object({ rideId: z.string().max(64).nullable(), form: z.record(z.string(), z.unknown()) });
 
 export const drafts = new Hono<AppEnv>()
   .use(requireRole("edit"))
@@ -16,7 +16,10 @@ export const drafts = new Hono<AppEnv>()
     return c.json(row ? { rideId: row.ride_id, form: JSON.parse(row.form_json) } : null);
   })
   .put("/", zValidator("json", draftInput), async (c) => {
-    const { rideId, form } = c.req.valid("json");
+    const { rideId: asked, form } = c.req.valid("json");
+    // The ride being edited may have been deleted meanwhile; keep the draft, drop the link.
+    const rideId =
+      asked && (await c.env.DB.prepare("select 1 from rides where id = ?").bind(asked).first()) ? asked : null;
     const json = JSON.stringify(form);
     if (json.length > 20_000) return c.json({ error: "Draft too large" }, 400);
     await c.env.DB.prepare(

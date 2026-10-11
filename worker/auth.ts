@@ -7,6 +7,16 @@ import { nowIso } from "./util.ts";
 
 const DAY = 24 * 60 * 60;
 const NOT_INVITED = "Not invited — ask a team admin";
+const RESERVED_NAMES = /^(ride update|former member)$/i; // labels the app uses for system posts
+
+/** Display names are shown to the whole team: 1–80 characters and not a system label. */
+function checkName(name: unknown): string | undefined {
+  if (name === undefined) return undefined;
+  const n = String(name).trim().replace(/\s+/g, " ");
+  if (!n || n.length > 80 || RESERVED_NAMES.test(n))
+    throw new APIError("BAD_REQUEST", { message: "Use a name of 1–80 characters." });
+  return n;
+}
 
 /** The role a new account gets: from an open invite for its email, or Admin for the bootstrap email. */
 async function invitedRole(env: Env, email: string): Promise<Role | null> {
@@ -58,7 +68,13 @@ export function createAuth(env: Env) {
             const email = user.email.toLowerCase();
             const role = await invitedRole(env, email);
             if (!role) throw new APIError("FORBIDDEN", { message: NOT_INVITED });
-            return { data: { ...user, email, role, image: null, emailVerified: true } };
+            // Google supplies the name, so tidy it rather than refuse the sign-in.
+            let name = String(user.name ?? "")
+              .trim()
+              .replace(/\s+/g, " ")
+              .slice(0, 80);
+            if (!name || RESERVED_NAMES.test(name)) name = email.split("@")[0] ?? "Rider";
+            return { data: { ...user, name, email, role, image: null, emailVerified: true } };
           },
           after: async (user) => {
             await env.DB.prepare("update links set used_at = ? where kind = 'invite' and email = ? and used_at is null")
@@ -66,7 +82,12 @@ export function createAuth(env: Env) {
               .run();
           },
         },
-        update: { before: async (user) => ({ data: { ...user, image: null } }) },
+        update: {
+          before: async (user) => {
+            const name = checkName(user.name);
+            return { data: { ...user, ...(name !== undefined && { name }), image: null } };
+          },
+        },
       },
       account: { create: { before: withoutTokens }, update: { before: withoutTokens } },
     },

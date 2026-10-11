@@ -249,23 +249,31 @@ export function PlanPage() {
       return setForm({ ...base, ...fromRide(sourceRide, sourceRide.date, sourceRide.id, team.settings.pace) });
     if (reuseId && sourceRide)
       return setForm({ ...base, ...fromRide(sourceRide, nextFreeDay(), null, team.settings.pace) });
-    api<{ rideId: string | null; form: Partial<Form> } | null>("/draft").then((d) => {
-      const restored = { ...base, ...(d?.form ?? {}) };
-      if (restored.date < today) restored.date = base.date; // stale draft
-      if (query.get("date")) Object.assign(restored, { date: query.get("date"), editing: null });
-      setForm(restored);
-    });
+    api<{ rideId: string | null; form: Partial<Form> } | null>("/draft")
+      .then((d) => {
+        const restored = { ...base, ...(d?.form ?? {}) };
+        if (restored.date < today) restored.date = base.date; // stale draft
+        if (query.get("date")) Object.assign(restored, { date: query.get("date"), editing: null });
+        setForm(restored);
+      })
+      .catch(() => setForm(base));
   });
 
-  // Autosave the draft (debounced).
+  // Autosave the draft (debounced). The last save is kept so dropping the draft can wait for it.
+  const saving = useRef<Promise<unknown>>(Promise.resolve());
   useEffect(() => {
     if (!form) return;
-    const t = setTimeout(
-      () => api("/draft", { method: "PUT", body: { rideId: form.editing, form } }).catch(() => undefined),
-      800,
-    );
+    const t = setTimeout(() => {
+      saving.current = api("/draft", { method: "PUT", body: { rideId: form.editing, form } }).catch(() => undefined);
+    }, 800);
     return () => clearTimeout(t);
   }, [form]);
+  /** Stops autosave (clearing the form cancels the pending timer), waits for a save in flight, then deletes the draft. */
+  const dropDraft = async () => {
+    setForm(null);
+    await saving.current;
+    await api("/draft", { method: "DELETE" });
+  };
 
   const set = useCallback((patch: Partial<Form>) => setForm((f) => (f ? { ...f, ...patch } : f)), []);
   const route = useRoute(form?.routeId).data;
@@ -288,8 +296,8 @@ export function PlanPage() {
   useEffect(() => {
     if (!form || !route || !spots) return;
     const patch: Partial<Form> = {};
-    if (!form.spotId) {
-      const active = spots.filter((s) => !s.archived);
+    const active = spots.filter((s) => !s.archived);
+    if (!form.spotId && active.length) {
       patch.spotId = active.reduce(
         (a, b) => (startDistance(route, b) < startDistance(route, a) ? b : a),
         active[0] as SpotWithState,
@@ -347,7 +355,7 @@ export function PlanPage() {
         : api<RideDetail>("/rides", { body });
     },
     onSuccess: async (ride) => {
-      await api("/draft", { method: "DELETE" });
+      await dropDraft();
       await qc.invalidateQueries({ queryKey: ["rides"] });
       qc.setQueryData(["ride", ride.id], ride);
       navigate(`/ride/${ride.date}`);
@@ -364,9 +372,8 @@ export function PlanPage() {
     onError: (e) => setError(e.message),
   });
   const clear = async () => {
-    await api("/draft", { method: "DELETE" });
+    await dropDraft();
     loaded.current = false;
-    setForm(null);
     navigate("/plan", true);
   };
 
@@ -396,7 +403,9 @@ export function PlanPage() {
         type="button"
         className="spotrow"
         role="radio"
+        data-spot={sp.id}
         aria-checked={form.spotId === sp.id}
+        tabIndex={form.spotId === sp.id || (!form.spotId && sp.id === active[0]?.id) ? 0 : -1}
         onClick={() => set({ spotId: sp.id })}
       >
         <span className="radio-dot" aria-hidden="true" />
@@ -522,7 +531,21 @@ export function PlanPage() {
             <div className="field" style={{ marginBottom: -4 }}>
               Start spot · weather {fmtTime(startMin)}–{fmtTime(startMin + durMin)}
             </div>
-            <div className="spotlist" role="radiogroup" aria-label="Start spot">
+            <div
+              className="spotlist"
+              role="radiogroup"
+              aria-label="Start spot"
+              onKeyDown={(e) => {
+                if (!["ArrowDown", "ArrowUp"].includes(e.key) || !active.length) return;
+                e.preventDefault();
+                const i = active.findIndex((x) => x.id === form.spotId);
+                const next = active[
+                  (i + (e.key === "ArrowDown" ? 1 : active.length - 1)) % active.length
+                ] as SpotWithState;
+                set({ spotId: next.id });
+                (e.currentTarget.querySelector(`[data-spot="${next.id}"]`) as HTMLElement | null)?.focus();
+              }}
+            >
               {active.map(spotRow)}
               {addingSpot ? (
                 <AddSpot
@@ -663,8 +686,9 @@ export function PlanPage() {
                   min={10}
                   max={25}
                   step={0.5}
-                  value={form.pace}
-                  onChange={(e) => set({ pace: Math.min(25, Math.max(10, Number(e.target.value) || s.pace)) })}
+                  defaultValue={form.pace}
+                  key={form.pace}
+                  onBlur={(e) => set({ pace: Math.min(25, Math.max(10, Number(e.target.value) || s.pace)) })}
                 />
               </label>
               <span />

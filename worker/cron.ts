@@ -68,5 +68,9 @@ export async function recordWeather(env: Env): Promise<void> {
 }
 
 export async function scheduled(env: Env): Promise<void> {
-  await Promise.allSettled([recordWeather(env), syncCaptainLibrary(env).then(() => fillLibrary(env, 40))]);
+  const results = await Promise.allSettled([
+    recordWeather(env),
+    syncCaptainLibrary(env).then(() => fillLibrary(env, 40)),
+  ]);
+  for (const r of results) if (r.status === "rejected") console.error("scheduled job:", r.reason);
 }

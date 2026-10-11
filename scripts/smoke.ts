@@ -115,6 +115,20 @@ check(
   "route library search",
 );
 
+// Review fixes: names, push endpoints
+check(
+  (await rider("/api/auth/update-user", { body: { name: "x".repeat(200) } })).status === 400,
+  "names over 80 characters refused",
+);
+check(
+  (await rider("/api/auth/update-user", { body: { name: "Ride update" } })).status === 400,
+  "system labels refused as names",
+);
+const evilPush = await rider("/api/push", {
+  body: { endpoint: "https://evil.example/collect", keys: { p256dh: "x", auth: "y" } },
+});
+check(evilPush.status === 400, "push endpoints must be a browser push service");
+
 // Settings
 check((await admin("/api/settings", { method: "PUT", body: { pace: 99 } })).status === 400, "invalid setting refused");
 check(
@@ -135,6 +149,14 @@ check(
   spot.status === 201 && spot.json.maps_url.startsWith("https://www.google.com/maps/search/"),
   "unsafe link replaced by a coordinates link",
 );
+const fakeMaps = await admin("/api/spots", {
+  body: { name: `Fake maps ${stamp}`, link: "https://google.evil.com/@41.2,-73.7", note: "" },
+});
+check(
+  fakeMaps.json?.maps_url?.startsWith("https://www.google.com/maps/search/"),
+  "look-alike Maps domain replaced by a coordinates link",
+);
+await admin(`/api/spots/${fakeMaps.json.id}`, { method: "PATCH", body: { archived: true } });
 check(
   (await admin("/api/spots", { body: { name: `test SPOT ${stamp}`, link: "41.1, -73.7", note: "" } })).status === 409,
   "duplicate spot name refused",
@@ -154,7 +176,7 @@ check(
 );
 
 // Rides: a future date no earlier run used
-const day = new Date(Date.now() + (400 + (Math.floor(Date.now() / 60000) % 20000)) * 864e5).toISOString().slice(0, 10); // unique per minute
+const day = new Date(Date.now() + (400 + (Math.floor(Date.now() / 1000) % 90000)) * 864e5).toISOString().slice(0, 10); // unique per second
 const plan = {
   date: day,
   rollout: "08:30",
@@ -168,7 +190,10 @@ const plan = {
 };
 check((await rider("/api/rides", { body: plan })).status === 403, "rider can't publish");
 const pub = await admin("/api/rides", { body: plan });
-check(pub.status === 201 && pub.json.status === "published", "admin publishes a ride");
+check(
+  pub.status === 201 && pub.json.status === "published",
+  `admin publishes a ride (${pub.status} ${pub.status === 201 ? "" : JSON.stringify(pub.json)})`,
+);
 const id = pub.json.id;
 check((await admin("/api/rides", { body: plan })).status === 409, "second ride on the same date needs replace");
 
@@ -201,6 +226,7 @@ check(
 c = (await admin(`/api/rides/${id}`, { method: "PUT", body: { ...plan, rollout: "09:00", notes: "still cancelled?" } }))
   .json;
 check(c.status === "cancelled", "editing a cancelled ride keeps it cancelled");
+check(c.lastUpdate?.text === upd.json.lastUpdate?.text, "editing a cancelled ride posts no update");
 check(
   (await rider(`/api/rides/${id}/rsvp`, { method: "PUT", body: { status: "out", routeLabel: null } })).status === 409,
   "no RSVP on a cancelled ride",

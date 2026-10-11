@@ -175,13 +175,17 @@ export const links = new Hono<AppEnv>()
         password: hash,
       });
     } else {
+      // Claim the reset link atomically, so it can't be used twice at once.
+      const claim = await c.env.DB.prepare("update links set used_at = ? where token_hash = ? and used_at is null")
+        .bind(nowIso(), link.token_hash)
+        .run();
+      if (claim.meta.changes !== 1) return fail(404, "This link was already used.");
       const userId = link.user_id as string;
       if (await ctx.internalAdapter.findCredentialAccount(userId))
         await ctx.internalAdapter.updatePassword(userId, hash);
       else
         await ctx.internalAdapter.linkAccount({ userId, providerId: "credential", accountId: userId, password: hash });
       await ctx.internalAdapter.deleteUserSessions(userId); // sign out everywhere else
-      await c.env.DB.prepare("update links set used_at = ? where token_hash = ?").bind(nowIso(), link.token_hash).run();
     }
     // Sign in with the new password; the response carries the session cookie.
     return c.get("auth").api.signInEmail({ body: { email: link.email, password }, asResponse: true });

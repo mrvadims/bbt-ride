@@ -40,7 +40,7 @@ export const push = new Hono<AppEnv>()
   .post("/", zValidator("json", pushSubscription), async (c) => {
     const { endpoint, keys } = c.req.valid("json");
     await c.env.DB.prepare(
-      "insert into push_subscriptions (endpoint, user_id, keys_json, created_at) values (?, ?, ?, ?) on conflict (endpoint) do update set user_id = excluded.user_id, keys_json = excluded.keys_json",
+      "insert into push_subscriptions (endpoint, user_id, keys_json, created_at) values (?, ?, ?, ?) on conflict (endpoint) do update set keys_json = excluded.keys_json where push_subscriptions.user_id = excluded.user_id",
     )
       .bind(endpoint, c.get("user").id, JSON.stringify(keys), nowIso())
       .run();

@@ -1,6 +1,9 @@
 // Worker entry: /api/auth/* (Better Auth) and /api/* (the app's JSON API). Everything else is static assets.
+
+import { APIError } from "better-auth/api";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
+import { secureHeaders } from "hono/secure-headers";
 import { type AppEnv, requireSession, sameOrigin, withAuth } from "./app.ts";
 import { scheduled } from "./cron.ts";
 import { push } from "./push.ts";
@@ -18,11 +21,15 @@ app.onError(async (err, c) => {
   // Read any unread request body before replying, so a rejected upload doesn't leave the connection half-read.
   if (!c.req.raw.bodyUsed) await c.req.raw.arrayBuffer().catch(() => undefined);
   if (err instanceof HTTPException) return c.json({ error: err.message }, err.status);
+  if (err instanceof APIError) return c.json({ error: err.message }, err.statusCode as 400);
+  if (String(err).includes("UNIQUE constraint failed"))
+    return c.json({ error: "That was just taken by someone else. Reload and try again." }, 409);
   console.error(err);
   return c.json({ error: "Something went wrong" }, 500);
 });
 app.notFound((c) => c.json({ error: "Not found" }, 404));
 
+app.use(secureHeaders()); // nosniff, frame and referrer protections on API responses
 app.use(withAuth);
 app.on(["GET", "POST"], "/auth/*", (c) => c.get("auth").handler(c.req.raw)); // Better Auth checks its own origins
 app.use(sameOrigin);
