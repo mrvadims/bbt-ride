@@ -27,7 +27,7 @@ Sign-in is required. Two ways to sign in, both on the same account: **Continue w
 - **Usernames:** each account has an email (needed for invites and notifications); a username is optional, and sign-in accepts either.
 - **Sessions:** Better Auth's database sessions in an `HttpOnly; Secure; SameSite=Lax` cookie, 30-day sliding expiry. The role is read on each request, so a role change or disabling takes effect immediately.
 - Every API route checks the role server-side; the UI only hides what the role can't do.
-- **Bootstrap:** the first Admin's email comes from the `BOOTSTRAP_ADMIN_EMAIL` Worker variable; the first migration creates that invite as Admin.
+- **Bootstrap:** while no Admin exists, the Worker treats `BOOTSTRAP_ADMIN_EMAIL` (a Worker variable) as an Admin invite, so that person can sign in with Google or set a password.
 - **No public pages:** every page, including a shared ride link, requires sign-in. The shared text carries the essentials (time, place, route links).
 - **Audit:** `audit_log` records who changed rides, settings and users, and when.
 
@@ -35,10 +35,10 @@ Sign-in is required. Two ways to sign in, both on the same account: **Continue w
 ```
 -- Better Auth core tables (user, session, account, verification), with our extra fields on user:
 user(id, email UNIQUE, email_verified, name, username UNIQUE NULL, role CHECK(role IN ('view','edit','admin')) DEFAULT 'view',
-     status CHECK(status IN ('active','disabled')), created_at, updated_at)
+     status CHECK(status IN ('active','disabled')), failed_logins DEFAULT 0, locked_until NULL, created_at, updated_at)
 session(id, user_id, token, expires_at, ip_address, user_agent, created_at, updated_at)
 account(id, user_id, provider_id ('google' | 'credential'), account_id, password NULL, created_at, updated_at)  -- one row per sign-in method
-verification(id, identifier, value, expires_at)                                                              -- invite and reset links
+verification(id, identifier, value, expires_at)                                                              -- password reset links
 invites(token PRIMARY KEY, email, role, invited_by, expires_at, used_at NULL)
 settings(key PRIMARY KEY, value_json, updated_by, updated_at)        -- one row per setting
 kit_bands(id, min_feel_f, name, items_json, sort)                    -- editable kit chart
@@ -60,7 +60,7 @@ audit_log(id, user_id, action, entity, entity_id, diff_json, at)
   - Usually one route; occasionally a labeled alternate (e.g., "Full" / "Short") sharing the same spot and time.
 - Home shows upcoming published rides as date tabs: this Saturday and Sunday always, plus any other day that has a published ride. The tab carries the date; the page doesn't repeat it.
 - Ride page = warnings (only when something needs attention) + a stack of collapsible panels. Each collapsed header is the briefing; tapping it expands detail. Open/closed state is remembered per rider; panels start open on desktop.
-  - **Meet** — collapsed: roll-out time · spot name (links to Google Maps). Expanded: estimated time back (moving + regroup buffer + coffee stop, and the time without the stop), parking notes, Open in Google Maps, and "+ Calendar", which opens a picker: Google Calendar, Apple Calendar (.ics), Outlook.com, Outlook (work or school), Other (.ics). The .ics is served by `/api/rides/:id.ics`; event = meet → back, location = parking pin, routes and notes in the description).
+  - **Meet** — collapsed: roll-out time · spot name (links to Google Maps). Expanded: estimated time back (moving + regroup buffer + coffee stop, and the time without the stop), parking notes, Open in Google Maps, and "+ Calendar", which opens a picker: Google Calendar, Apple Calendar (.ics), Outlook.com, Outlook (work or school), Other (.ics). The .ics is served by `/api/rides/:id.ics`; event = meet → back, location = parking pin, routes and notes in the description.
   - **Route** — collapsed: route name (opens RWGPS) · distance · climbing, plus the Full/Short switcher. Expanded: map, elevation profile, coffee stop (name links to Maps, mile, ETA, length; labeled optional; no separate forecast), "Open in RWGPS".
   - **Weather** — collapsed: temp range · real feel range · wind · rain chance, and a one-line kit hint. Expanded: ride-window summary (bike feel, gusts, rain total, roads), hourly table from 1 h before roll-out to 3 h after the estimated return (ride window shaded; Sky column uses icons for clear, partly cloudy, overcast, fog, drizzle, rain, showers, snow and thunder, with a moon for clear night hours and the label on hover and for screen readers), a "Full-day forecast" button that opens the rider's chosen weather source (NWS, Weather.com, Windy or Google; choice saved in their browser), then What to wear (Run cold / Avg / Run hot).
   - **Notes** — only if the ride has notes; collapsed shows the first line.
@@ -89,7 +89,7 @@ audit_log(id, user_id, action, entity, entity_id, diff_json, at)
 - Shedding hints when temp rises during the ride; fenders when roads damp.
 
 ### Settings (Admin only, stored in D1)
-Every setting lives in the `settings` table and is edited on the Settings tab; nothing is hard-coded except first-run defaults. Collapsible panels, each with a one-line summary of the current values:
+Every setting lives in the `settings` table and is edited on the Settings page (gear icon); nothing is hard-coded except first-run defaults. Collapsible panels, each with a one-line summary of the current values:
 - **Users:** invite by email with a role (copy invite link), change roles, disable, create a password reset link; shows each user's sign-in methods.
 - **Ride defaults:** roll-out **8:30**, weather window 3 h (used before a route is picked), pace 17 mph, coffee stop **20 min** (typical 15–20), regroup buffer **5 %** of moving time.
 - **Road wetness:** look-back hours, Wet / Drying film thresholds.
@@ -191,7 +191,7 @@ The NWS formula is only defined for T ≤ 50 °F. Above that we take the chill d
 Display: range over the ride window (min–max), next to temp and real feel.
 
 ### Warnings (amber / red)
-Evaluated on 15-minute samples across the ride window. Each factor gets a level: none, amber (caution) or red (no-go). Only factors with a level are shown, as warnings on the ride page and chips on the Plan page's spot panels; there is no overall Go badge. Defaults (editable in Settings):
+Evaluated on 15-minute samples across the ride window. Each factor gets a level: none, amber (caution) or red (no-go). Only factors with a level are shown, as warnings on the ride page and chips in Plan's start-spot list; there is no overall Go badge. Defaults (editable in Settings):
 
 | Factor | Measure | Amber | Red |
 |---|---|---|---|
@@ -235,7 +235,7 @@ Mile markers come from the POI's distance along the RWGPS track (nearest track p
 `prototype/index.html` — one self-contained file (inline CSS/JS, Leaflet 1.9.4 from cdnjs). Built from `prototype/src/app.html` by `python3 prototype/build.py`, which inlines `data/seed.json`, the fallback forecast `data/raw/om_purchase.json`, and the logo.
 - Fetches Open-Meteo live in the browser for the start spots (one multi-location request, `past_days=2`). On failure it uses the embedded sample (SUNY Purchase, Oct 7–11) for every spot and shows a banner.
 - Screens: Sign-in (Google + password), Ride (date tabs + Past; Meet / Route / Weather / Notes / Riders panels; share, calendar, edit), Plan (spot comparison → route → preview that reuses the ride panels; autosaved draft), Settings (panels, incl. Users with invite and reset links). A View / Edit / Admin switcher and a "Sign-in screen" link sit below the top bar.
-- Prototype-only: everything you change lives in this browser or this session; sample rides, riders, messages and past rides are examples. Not in the prototype: NWS alerts, the metric toggle, Spots management, message edit/delete, notifications.
+- Prototype-only: everything you change lives in this browser or this session; sample rides, riders, messages and past rides are examples. Not in the prototype: NWS alerts, metric display (the Units choice is saved, values stay imperial), Spots management, message edit/delete, notifications, observed weather from NWS (past rides use sample values).
 - Without Leaflet (offline/CDN blocked) maps fall back to an SVG route outline.
 
 ## Data sources

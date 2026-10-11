@@ -11,7 +11,7 @@
   --bg:#F3F6FA; --card:#FFFFFF; --card2:#F7F9FC; --text:#03144D; --muted:#56638A; --line:#DCE3EE;
   --primary:#0077D1; --primary-hover:#0067B5; --on-primary:#FFFFFF; --link:#0067B5;
   --chart:#041DB2; --chart-soft:rgba(4,29,178,.12); --win:rgba(0,119,209,.10); --win-line:#0077D1;
-  --go-bg:#E2F5E9; --go-fg:#126B3B; --cau-bg:#FFF1D1; --cau-fg:#875400; --no-bg:#FCE3E3; --no-fg:#A11C1C;
+  --cau-bg:#FFF1D1; --cau-fg:#875400; --no-bg:#FCE3E3; --no-fg:#A11C1C;
   --shadow:0 1px 2px rgba(3,20,77,.06),0 2px 8px rgba(3,20,77,.05);
   --sun:#F2A900; --cloud:#E4E9F2; --cloud-edge:#8C98B8; --rain:#0077D1;
   color-scheme:light;
@@ -21,7 +21,7 @@
     --bg:#020C2B; --card:#03144D; --card2:#061B5C; --text:#EAF0FF; --muted:#9DABD1; --line:#1B2B68;
     --primary:#0077D1; --primary-hover:#1A88DB; --link:#4DA3FF;
     --chart:#7FB2FF; --chart-soft:rgba(127,178,255,.18); --win:rgba(77,163,255,.14); --win-line:#4DA3FF;
-    --go-bg:rgba(52,199,120,.16); --go-fg:#7FE0A8; --cau-bg:rgba(255,190,40,.16); --cau-fg:#FFD27A; --no-bg:rgba(255,90,90,.18); --no-fg:#FFA3A3;
+    --cau-bg:rgba(255,190,40,.16); --cau-fg:#FFD27A; --no-bg:rgba(255,90,90,.18); --no-fg:#FFA3A3;
     --shadow:none; --sun:#FFC53D; --cloud:#3A4C86; --cloud-edge:#A9B6DA; --rain:#4DA3FF; color-scheme:dark;
   }
 }
@@ -29,7 +29,7 @@
   --bg:#020C2B; --card:#03144D; --card2:#061B5C; --text:#EAF0FF; --muted:#9DABD1; --line:#1B2B68;
   --primary:#0077D1; --primary-hover:#1A88DB; --link:#4DA3FF;
   --chart:#7FB2FF; --chart-soft:rgba(127,178,255,.18); --win:rgba(77,163,255,.14); --win-line:#4DA3FF;
-  --go-bg:rgba(52,199,120,.16); --go-fg:#7FE0A8; --cau-bg:rgba(255,190,40,.16); --cau-fg:#FFD27A; --no-bg:rgba(255,90,90,.18); --no-fg:#FFA3A3;
+  --cau-bg:rgba(255,190,40,.16); --cau-fg:#FFD27A; --no-bg:rgba(255,90,90,.18); --no-fg:#FFA3A3;
   --shadow:none; --sun:#FFC53D; --cloud:#3A4C86; --cloud-edge:#A9B6DA; --rain:#4DA3FF; color-scheme:dark;
 }
 *{box-sizing:border-box}
@@ -43,7 +43,7 @@ h1{font-size:20px} h2{font-size:16px} h3{font-size:14px}
 .topbar{background:var(--bar);color:#fff;position:sticky;top:env(safe-area-inset-top,0px);z-index:1500}
 .topbar-inner{max-width:1200px;margin:0 auto;height:56px;display:flex;align-items:center;gap:10px;padding:0 16px}
 .topbar .logo{height:32px;width:auto;color:#fff;display:block}
-.brandlink{display:flex;align-items:center;gap:10px;color:#fff;text-decoration:none}
+.brandlink{display:flex;align-items:center;color:#fff;text-decoration:none}
 .topbar .spacer{flex:1}
 .iconbtn{background:transparent;border:0;color:#fff;width:36px;height:36px;border-radius:8px;display:grid;place-items:center;cursor:pointer}
 .iconbtn:hover{background:rgba(255,255,255,.15)}
@@ -56,7 +56,6 @@ main{max-width:1200px;margin:0 auto;padding:16px 16px 48px}
 .daytabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:-4px 0 14px}
 .daytabs .tab{padding:10px 12px 8px}
 .banner{border-radius:10px;padding:10px 12px;margin:0 0 14px;font-size:13px;background:var(--cau-bg);color:var(--cau-fg)}
-.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;box-shadow:var(--shadow);margin-bottom:14px;min-width:0}
 .kicker{font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--muted)}
 .btn{appearance:none;display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:10px;border:1px solid transparent;padding:9px 14px;font:inherit;font-weight:600;cursor:pointer;text-decoration:none;min-height:40px}
 .btn-primary{background:var(--primary);color:var(--on-primary)}
@@ -82,12 +81,8 @@ th{font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted
 tr.inwin td{background:var(--win)}
 tr.now td:first-child{box-shadow:inset 3px 0 0 var(--win-line)}
 .arrow{display:inline-block;width:12px;height:12px;vertical-align:-1px}
-.list{list-style:none;margin:0;padding:0}
-.list li{display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)}
-.list li:last-child{border-bottom:0}
 .tag{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border:1px solid var(--line);color:var(--muted);border-radius:6px;padding:1px 6px}
 .notes{white-space:pre-wrap;margin:0}
-.grid{display:grid;gap:14px}
 .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:14px}
 label.field{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;color:var(--muted);min-width:0}
 input,select,textarea{font:inherit;color:var(--text);background:var(--card);border:1px solid var(--line);border-radius:9px;padding:8px 10px;min-height:40px;width:100%}
@@ -106,7 +101,6 @@ textarea{min-height:80px;resize:vertical}
 .chart text{fill:var(--muted);font-size:11px}
 .legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--muted);margin-top:6px}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
-.empty{text-align:center;padding:32px 16px}
 .wear-list{margin:6px 0 0;padding-left:18px}
 .wear-list li{margin:3px 0}
 .addon{margin-top:10px;padding:8px 10px;border-radius:10px;background:var(--card2);font-size:13px}
@@ -116,7 +110,6 @@ textarea{min-height:80px;resize:vertical}
 .warn svg{width:14px;height:14px;flex:none;margin-top:3px}
 .warn b{display:block}
 .warn span{font-size:13px;opacity:.85}
-@media (min-width:760px){.kv.kv4{grid-template-columns:repeat(4,1fr)}}
 .panels{display:grid;gap:10px}
 .panel{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);min-width:0}
 .panel-h{display:grid;grid-template-columns:66px minmax(0,1fr) 16px;gap:10px;align-items:start;padding:13px 14px;cursor:pointer}
@@ -220,7 +213,6 @@ a.spotrow{text-decoration:none}
 .acctmenu .row2{display:grid;gap:6px}
 .acctmenu .seg{width:100%}
 .acctmenu .seg button{flex:1}
-.topbar{position:sticky}
 .topbar-inner{position:relative}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 @media (min-width:760px){
@@ -317,10 +309,10 @@ const rideOn = date => RIDES.find(r => r.date ? r.date === date : r.day === dow(
 const spotById = id => SPOTS.find(s => s.id === id);
 const routeById = id => ROUTES.find(r => r.id === +id);
 const RIDES = [
-  { day: 6, time: '08:30', spot: 'suny-purchase', pace: 17, stopMin: 20,
+  { day: 6, time: '08:30', spot: 'suny-purchase', pace: 17,
     routes: [ { label: 'Full', id: 57406828, stop: 'Tazza Cafe' }, { label: 'Short', id: 57426135, stop: 'Tazza Cafe' } ],
     notes: 'Regroup at the top of every climb. Short group splits at Kensico and meets us at Tazza.\nBring lights — low sun on the reservoir roads before 9.' },
-  { day: 0, time: '08:30', spot: 'armonk', pace: 17, stopMin: 20,
+  { day: 0, time: '08:30', spot: 'armonk', pace: 17,
     routes: [ { label: 'Main', id: 57215407, stop: 'BreadsNBakes' } ],
     notes: 'Showers possible after noon — we roll on time and skip the stop if the radar looks bad.' }
 ];
@@ -356,7 +348,7 @@ function fmtDur(h){ const m = Math.round(h * 60); return `${Math.floor(m / 60)}h
 
 /* ---------- forecast data ---------- */
 const HOURLY = 'temperature_2m,apparent_temperature,precipitation,precipitation_probability,weather_code,cloud_cover,wind_speed_10m,wind_direction_10m,wind_gusts_10m,dew_point_2m,relative_humidity_2m,shortwave_radiation,is_day';
-let WX = { source: 'loading', at: null, series: {} };
+let WX = { source: 'loading', series: {} };
 
 function toSeries(o){
   const h = o.hourly, idx = new Map();
@@ -365,14 +357,10 @@ function toSeries(o){
     code: h.weather_code, cloud: h.cloud_cover, ws: h.wind_speed_10m, wd: h.wind_direction_10m, wg: h.wind_gusts_10m,
     dew: h.dew_point_2m, rh: h.relative_humidity_2m, sw: h.shortwave_radiation, day: h.is_day, daily: o.daily };
 }
-function forecastPoints(){
-  const pts = SPOTS.map(s => ({ key: s.id, lat: s.lat, lng: s.lng }));
-  return pts;
-}
 function poiFor(rt){ const r = routeById(rt.id); return r && rt.stop ? r.pois.find(p => p.name === rt.stop) : null; }
 
 async function loadForecast(){
-  const pts = forecastPoints();
+  const pts = SPOTS.map(s => ({ key: s.id, lat: s.lat, lng: s.lng }));
   const url = 'https://api.open-meteo.com/v1/forecast?' + new URLSearchParams({
     latitude: pts.map(p => p.lat.toFixed(4)).join(','), longitude: pts.map(p => p.lng.toFixed(4)).join(','),
     hourly: HOURLY, daily: 'sunrise,sunset', temperature_unit: 'fahrenheit', wind_speed_unit: 'mph', precipitation_unit: 'inch',
@@ -385,10 +373,10 @@ async function loadForecast(){
     let data = await res.json(); if (!Array.isArray(data)) data = [data];
     if (data.length !== pts.length || !data[0].hourly) throw new Error('unexpected shape');
     const series = {}; pts.forEach((p, i) => series[p.key] = toSeries(data[i]));
-    WX = { source: 'live', at: new Date(), series };
+    WX = { source: 'live', series };
   } catch (e) {
     const s = toSeries(FALLBACK), series = {}; pts.forEach(p => series[p.key] = s);
-    WX = { source: 'fallback', at: null, series, err: String(e && e.message || e) };
+    WX = { source: 'fallback', series, err: String(e && e.message || e) };
   }
   render();
 }
@@ -439,7 +427,7 @@ function roadAt(se, f){
   return { state, W, rainIn, sinceRain: lastRain == null ? null : f - lastRain, raining, level: state === 'Wet' ? 2 : state === 'Drying' ? 1 : 0 };
 }
 const lvl3 = (v, c, n, higherWorse = true) => higherWorse ? (v >= n ? 2 : v >= c ? 1 : 0) : (v < n ? 2 : v < c ? 1 : 0);
-// Evaluate a ride window at a forecast point; worst factor wins.
+// Evaluate a ride window at a forecast point: stats plus a level (0 ok, 1 amber, 2 red) per factor.
 function evaluate(se, date, startMin, durMin, pace){
   const f0 = fIdx(se, date, startMin), f1 = fIdx(se, date, startMin + durMin);
   if (f0 == null || f1 == null) return null;
@@ -462,8 +450,7 @@ function evaluate(se, date, startMin, durMin, pace){
     { k: 'Wind', level: Math.max(lvl3(st.wsMax, S.windCaution, S.windNoGo), lvl3(st.wgMax, S.gustCaution, S.gustNoGo)) },
     { k: 'Rain', level: st.thunder ? 2 : Math.max(lvl3(st.ppMax, S.rainProbCaution, S.rainProbNoGo), lvl3(rain, S.rainAmtCaution, S.rainAmtNoGo)) }
   ];
-  const level = Math.max(...factors.map(x => x.level));
-  return { level, factors, st, f0, f1 };
+  return { factors, st, f0, f1 };
 }
 // Kit chart: bands on bike feel (after rider offset), plus add-ons.
 const KIT = [
@@ -915,7 +902,7 @@ function saveNewSpot(){
   P.spot = id; P.newSpot = null; render(); toast(`${name} added (this session only).`);
 }
 
-/* Plan-a-ride editor: mock, nothing is persisted. */
+/* Plan a ride: editor state autosaves as a draft (bbt.draft) until it is published or discarded. */
 const P = { editing: null, date: null, time: null, spot: null, newSpot: null, route: null, alt: null, altOn: false, labelA: 'Full', labelB: 'Short', stop: null, pace: null, notes: '', q: '', qAlt: '' };
 // Draft autosave: the editor's form survives reloads (live app: saved per editor in D1). No Save draft button.
 const DRAFT_KEYS = ['editing', 'date', 'time', 'spot', 'route', 'alt', 'altOn', 'labelA', 'labelB', 'stop', 'pace', 'notes', 'q', 'qAlt'];
@@ -1063,7 +1050,7 @@ function render(){
   const [page, arg] = (location.hash.slice(1) || 'ride').split('/');
   document.querySelectorAll('[data-nav]').forEach(a => a.dataset.nav === page ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current'));
   const app = document.getElementById('app');
-  if (WX.source === 'loading'){ app.innerHTML = `<div class="card empty muted">Loading forecast…</div>`; return; }
+  if (WX.source === 'loading'){ app.innerHTML = `<div class="panel empty muted">Loading forecast…</div>`; return; }
   const banner = WX.source === 'fallback' ? `<div class="banner" role="status">Live forecast unavailable (${esc(WX.err || 'offline')}). Showing the saved Open-Meteo sample from ${SEED.generated} for SUNY Purchase at every spot.</div>` : '';
   document.querySelector('[data-nav="plan"]').hidden = !can.plan();
   document.querySelector('[data-nav="settings"]').hidden = !can.settings();

@@ -7,7 +7,7 @@ Every open question from the design review, with what was decided. Details live 
 |---|---|---|
 | Navy | `#020C2B` dark-mode background; `#03144D` text on light and dark-mode cards; `#1C367B` not used | 2026-10-09 |
 | Header | Light-blue bar, white bike logo, 4px orange stripe directly under it, no hairline (checked on a phone), no text next to the logo | 2026-10-11 |
-| Navigation | No tab row. Top bar: logo (home = Ride), Plan and Settings icons for roles that have them, account menu (theme, units, sign out) | 2026-10-12 |
+| Navigation | No tab row. Top bar: logo (home = Ride), Plan and Settings icons for roles that have them, account menu (theme, units, sign out) | 2026-10-11 |
 
 ## Weather model
 | Topic | Decision | Date |
