@@ -21,7 +21,8 @@ Sign-in is required. Users sign in with Google (OpenID Connect, handled by the W
 
 - An Admin invites a user by email and picks a role (View by default). The invite is a row in `users` with status `invited`.
 - On first Google sign-in, the Worker matches the verified Google email (`email_verified = true`) to an invited row, stores the Google `sub`, and marks it `active`. Later sign-ins match on `sub`, so an email change at Google doesn't lock anyone out.
-- A Google account not in `users` gets a "Not invited — ask a team admin" page. No row is created.
+- A Google account not in `users` gets a "Not invited — ask a team admin" page. No row is created and there is no request-access flow; an Admin invites by email. (Decided 2026-10-11.)
+- No public pages: every page, including a shared ride link, requires sign-in. The shared text carries the essentials (time, place, route links). (Decided 2026-10-11.)
 - Sessions: an opaque random session ID in an `HttpOnly; Secure; SameSite=Lax` cookie, stored in D1 `sessions` (30-day sliding expiry). Role is re-read from `users` on each request, so a role change or removal takes effect immediately.
 - Every API route checks the role server-side; the UI only hides what the role can't do.
 - Bootstrap: the first Admin's email comes from the `BOOTSTRAP_ADMIN_EMAIL` Worker variable and is inserted as an active Admin by the first migration run.
@@ -53,17 +54,17 @@ audit_log(id, user_id, action, entity, entity_id, diff_json, at)
 - Home shows upcoming published rides as date tabs: this Saturday and Sunday always, plus any other day that has a published ride. The tab carries the date; the page doesn't repeat it.
 - Ride page = warnings (only when something needs attention) + a stack of collapsible panels. Each collapsed header is the briefing; tapping it expands detail. Open/closed state is remembered per rider; panels start open on desktop.
   - **Meet** — collapsed: roll-out time · spot name (links to Google Maps). Expanded: estimated time back (moving + regroup buffer + coffee stop, and the time without the stop), parking notes, Open in Google Maps, and "+ Calendar", which opens a picker: Google Calendar, Apple Calendar (.ics), Outlook.com, Outlook (work or school), Other (.ics). The .ics is served by `/api/rides/:id.ics`; event = meet → back, location = parking pin, routes and notes in the description).
-  - **Route** — collapsed: route name (opens RWGPS) · distance · climbing, plus the Full/Short switcher. Expanded: map, elevation profile, coffee stop (name links to Maps, mile, ETA, length, weather there; labeled optional), "Open in RWGPS".
+  - **Route** — collapsed: route name (opens RWGPS) · distance · climbing, plus the Full/Short switcher. Expanded: map, elevation profile, coffee stop (name links to Maps, mile, ETA, length; labeled optional; no separate forecast), "Open in RWGPS".
   - **Weather** — collapsed: temp range · real feel range · wind · rain chance, a warning count if any, and a one-line kit hint. Expanded: ride-window summary (bike feel, gusts, rain total, roads), hourly table from 1 h before roll-out to 3 h after the estimated return (ride window shaded; Sky column uses icons for clear, partly cloudy, overcast, fog, drizzle, rain, showers, snow and thunder, with a moon for clear night hours and the label on hover and for screen readers), a "Full-day forecast" button that opens the rider's chosen weather source (NWS, Weather.com, Windy or Google; choice saved in their browser), then What to wear (Run cold / Avg / Run hot).
   - **Notes** — only if the ride has notes; collapsed shows the first line.
   - **Riders** — collapsed: "5 in · 1 out · 3 messages" plus **In / Out** buttons, so riders answer without opening the panel; the Full / Short choice appears only when the ride has an alternate route and only after tapping In; Out never asks for a route. Expanded: who's in (with their route) and out, and a message thread for the ride: anyone can post, reply to a message (one level), and see everyone's messages. All signed-in roles can RSVP and post. Authors can edit or delete their own messages; Edit and Admin can delete any (moderation). The page refreshes RSVPs and messages every 30 s while open.
   - **Share** icon next to the day tabs: uses the phone's share sheet (Web Share API) with a text brief (date, meet time and Maps link, routes with RWGPS links, coffee stop, time back, weather, notes) plus the ride link; falls back to a copy-to-clipboard sheet. The ride link requires sign-in.
-  - Warnings: wet/drying roads, cold, heat, wind, rain, thunder, and low light (roll-out within 30 min of sunrise). No Go badge.
+  - Warnings: wet/drying roads, cold, heat, wind, rain, thunder, low light (roll-out within 30 min of sunrise), and **active NWS alerts** for the spot's forecast zone (warnings red, advisories and watches amber; from api.weather.gov, cached by the Worker). No Go badge.
 - Route picker: search RWGPS routes from the captain's personal library **and** the BBT club library, or paste a RWGPS link. Suggest start spot by nearest saved spot to route start.
   - "Open in RWGPS" works for viewers only if the route is public or shared; map/stats render regardless.
 - **Coffee / muffin stop (optional)** — a ride can have an optional mid-ride stop.
   - Auto-suggested from the route's RWGPS POIs (`poi_type_name` = `coffee` or `food`); editor confirms, picks another POI, or adds one manually (name + Google Maps link).
-  - Ride page shows: name, mile marker, ETA (roll-out + distance ÷ pace), stop length (default 20 min, shifts the rest of the ride window), weather at the stop, "Open in Maps", and an "optional" label.
+  - Ride page shows: name, mile marker, ETA (roll-out + distance ÷ pace), stop length (default 20 min, shifts the rest of the ride window), "Open in Maps", and an "optional" label. No separate stop forecast (decided 2026-10-11).
 - **Archive** — past rides list (date, route(s), spot, recorded conditions at roll-out); "reuse this plan".
 
 ### Spots
@@ -85,9 +86,9 @@ Every setting lives in the `settings` table and is edited on the Settings tab; n
 - **Road wetness:** look-back hours, Wet / Drying film thresholds.
 - **Warnings:** amber and red thresholds for cold (bike feel), heat (real feel), wind, gusts, rain chance, rain amount.
 - **Kit chart:** bands and items (`kit_bands`).
-- Units: °F/mph for v1.
+- Units: imperial by default; each rider can switch to metric (°C, km/h, km, m, mm) from a units toggle in the header. Thresholds are stored in imperial and converted for display.
 
-Per-rider preferences stay in the rider's browser: theme (header toggle), Run cold / Avg / Run hot, weather source, which panels are open.
+Per-rider preferences stay in the rider's browser: theme (header toggle), **units (imperial / metric)**, Run cold / Avg / Run hot, weather source, which panels are open.
 
 ### Plan a ride (Edit and Admin)
 Planning is one top-to-bottom flow in the same panel style, mirroring the ride page. There is no separate Weekend page; navigation is Ride / Plan / Settings (View riders see Ride only).
@@ -104,6 +105,10 @@ Drafts and changes:
   - RSVPs and messages are kept (moved along if the date changes).
   - If something riders care about changed (date, roll-out, start spot, route, coffee stop, notes), the ride page shows "Updated 9:12 PM · roll-out 8:30 → 9:00 AM" and the same text is posted to the Riders thread as a "Ride update" message.
   - **Cancel ride** marks it cancelled without deleting it: a red "Ride cancelled" banner on the ride page, a "Ride cancelled" message in the thread, and "CANCELLED:" at the start of the shared text. **Restore ride** undoes it.
+
+### Notifications (v1)
+- Only when a published ride is **updated** (date, time, spot, route, coffee stop) or **cancelled / restored**. No notifications for chat messages or replies; no RSVP reminders or deadlines.
+- Channels: Web Push for riders who install the app and opt in; email (opt-in) otherwise. Sent by the Worker on Update ride / Cancel ride.
 
 ### Metrics
 - **Real feel** — standard apparent temperature.
@@ -215,7 +220,7 @@ ETA at mile m    = roll-out + (m ÷ pace) × k               (Tazza, mile 24.4 �
 after the stop   = + stop length (default 20 min)
 ride window      = roll-out → roll-out + moving time × k + stop (8:30 → 11:41)
 ```
-Mile markers come from the POI's distance along the RWGPS track (nearest track point). The regroup buffer is an Admin setting; 0 % gives pure moving time. Weather at the stop is the forecast at the POI's coordinates at its ETA.
+Mile markers come from the POI's distance along the RWGPS track (nearest track point). The regroup buffer is an Admin setting; 0 % gives pure moving time. There is no separate coffee-stop forecast; per-point route weather is Phase 2.
 
 ## Prototype
 `prototype/index.html` — one self-contained file (inline CSS/JS, Leaflet 1.9.4 from cdnjs). Built from `prototype/src/app.html` by `python3 prototype/build.py`, which inlines `data/seed.json`, the fallback forecast `data/raw/om_purchase.json`, and the logo.
@@ -251,7 +256,7 @@ Never in the repo, the built assets, or any response to the browser. All third-p
 1. **RWGPS route weather** (phase 2) — forecast at each point by ETA; head/tail/crosswind per segment.
 2. **Shareable ride brief** — public link + copyable text.
 3. **WhatsApp integration** (or other messenger) — post ride brief to group chat.
-4. **Morning-of push alert** — PWA push N hours before ride; also optional pushes for new messages and replies to you.
+4. **Morning-of push alert** — PWA push N hours before ride. Chat-message notifications stay out (decided 2026-10-11).
 5. **Model comparison** — HRRR vs NBM vs ECMWF agreement/confidence.
 
 ## Seed data

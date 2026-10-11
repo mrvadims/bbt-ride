@@ -335,9 +335,6 @@ function toSeries(o){
 }
 function forecastPoints(){
   const pts = SPOTS.map(s => ({ key: s.id, lat: s.lat, lng: s.lng }));
-  RIDES.forEach(r => r.routes.forEach(rt => {
-    const p = poiFor(rt); if (p && !pts.some(x => x.key === poiKey(p))) pts.push({ key: poiKey(p), lat: p.lat, lng: p.lng });
-  }));
   return pts;
 }
 const poiKey = p => 'poi:' + p.name;
@@ -765,11 +762,9 @@ function rideBody(ride, date, opts = {}){
   const switcher = !opts.preview && ride.routes.length > 1 ? `<div class="seg" role="group" aria-label="Route">${ride.routes.map((r, i) => `<button type="button" data-route="${i}" aria-pressed="${i === ri}">${esc(r.label)} · ${r0(routeById(r.id).distance_m / MI)} mi</button>`).join('')}</div>` : '';
   let stopHTML = '';
   if (poi){
-    const ps = WX.series[poiKey(poi)], f = ps && fIdx(ps, date, t.stop.eta);
-    const w = f != null ? { T: at(ps.T, f), app: at(ps.app, f), ws: at(ps.ws, f), pp: near(ps.pp, f), code: near(ps.code, f) } : null;
     stopHTML = `<div class="sub"><div class="sub-h">Coffee stop <span class="tag">optional</span></div>
       <p><a href="${mapsLink(poi.lat, poi.lng)}" target="_blank" rel="noopener"><b>${esc(poi.name)}</b></a> · mile ${t.stop.mile.toFixed(1)} · ≈ ${fmtTime(t.stop.eta)} · ${t.stop.len} min</p>
-      ${w ? `<p class="small muted">${r0(w.T)}° there, ${wxLabel(w.code).toLowerCase()}, ${r0(w.pp)}% rain · bike feel ${r0(bikeFeel(w.T, w.ws, w.app, pace))}° rolling out</p>` : ''}</div>`;
+</div>`;
   }
   const routeP = panel(kp + 'route', 'Route',
     `<a href="${route.url}" target="_blank" rel="noopener"><b>${esc(route.name)}</b></a> · ${t.distMi.toFixed(1)} mi · ${r0(t.climbFt).toLocaleString()} ft${switcher ? `<div class="sw">${switcher}</div>` : ''}`,

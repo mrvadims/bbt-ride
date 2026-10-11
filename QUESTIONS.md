@@ -4,7 +4,9 @@ Each has a recommended default. Reply with the number and "ok" or your change. T
 
 **Resolved 2026-10-09:** 1 (split navy roles), 4 (Drying = Caution; tune after real rides), 5 (cold limits 40 / 32 kept), 6 (kit chart editable by Admins in Settings, stored in D1), 7 (20 min default; 15–20 typical), 8 (8:30 roll-out), 9 (Full / Short), 10 (regroup buffer, default 5 %, Admin setting), 11 (keep both days; rides can be on any date), 12 (Google sign-in + invite-only users table with Read / Edit / Admin roles), 13 (RWGPS credentials as Worker secrets; see SETUP.md), 14 (Cloudflare token steps in SETUP.md).
 
-**Still open:** 2 (header edge on a real phone), 3 (bike feel formula), 15–19.
+**Resolved 2026-10-11:** 2 (header edge looks fine; keep), 3 (bike feel formula kept), 16 (no coffee-stop forecast; route weather stays Phase 2), 18 (add NWS alerts as warnings), 19 (per-rider imperial/metric toggle), 20 (no public pages), 21 (uninvited Google accounts are blocked; admin invites), 22 (no RSVP reminders in v1), 23 (notify only on ride updates and cancellations, push or email, opt-in).
+
+**Still open:** none. 15 and 17 are informational.
 
 ## Brand
 1. ✅ **Resolved — split roles.** **Which navy is official?** The brand files have three: `#020C2B` (color sheet "Dark Blue"), `#03144D` (logo fill), `#1C367B` (in the PDF, not on the sheet).
