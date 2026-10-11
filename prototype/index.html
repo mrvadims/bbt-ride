@@ -202,6 +202,9 @@ th.sky,td.sky{text-align:center}
 .editbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;border-radius:12px;padding:10px 12px;margin:-4px 0 12px;background:var(--win);font-size:14px}
 .editbar.lv2{background:var(--no-bg);color:var(--no-fg)}
 .msg.sys .meta b{color:var(--link)}
+.pasthead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:-4px 0 12px}
+.pasthead .btn{margin-left:auto}
+a.spotrow{text-decoration:none}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 @media (min-width:760px){
   .map{height:280px}
@@ -306,6 +309,21 @@ const RIDES = [
     routes: [ { label: 'Main', id: 57215407, stop: 'BreadsNBakes' } ],
     notes: 'Showers possible after noon — we roll on time and skip the stop if the radar looks bad.' }
 ];
+
+// Past rides (prototype examples). Live: rides whose date has passed, with observed weather saved after the ride.
+const PAST = [
+  { date: '2026-10-03', time: '08:30', spot: 'reeves', routes: [{ label: 'Main', id: 37475253, stop: 'Village Hands Cafe' }], notes: 'Long climb out of Sloatsburg; regroup at the monument.',
+    obs: { T: 52, app: 49, ws: 6, wg: 12, rain: 0, road: 'Dry', code: 1 }, riders: { in: ['Alex', 'Maria', 'Dmitri', 'Sam', 'Jordan', 'Chris'], out: ['Lee'] },
+    msgs: [{ id: 1, name: 'Sam', at: '7:12 PM', text: 'Great pace today, thanks all.', replies: [{ name: 'Maria', at: '7:40 PM', text: 'Village Hands scones were worth the climb.' }] }] },
+  { date: '2026-09-27', time: '08:30', spot: 'armonk', routes: [{ label: 'Main', id: 57215407, stop: 'BreadsNBakes' }], notes: '',
+    obs: { T: 61, app: 61, ws: 9, wg: 18, rain: 0, road: 'Dry', code: 2 }, riders: { in: ['Alex', 'Dmitri', 'Sam', 'Lee'], out: ['Maria'] }, msgs: [] },
+  { date: '2026-09-19', time: '08:30', spot: 'suny-purchase', routes: [{ label: 'Full', id: 57406828, stop: 'Tazza Cafe' }, { label: 'Short', id: 57426135, stop: 'Tazza Cafe' }], notes: '',
+    cancelled: true, obs: { T: 58, app: 56, ws: 12, wg: 24, rain: 0.42, road: 'Wet', code: 63 }, riders: { in: ['Alex', 'Sam'], out: ['Maria', 'Chris'] },
+    msgs: [{ id: 1, name: 'Ride update', at: '6:05 AM', text: 'Ride cancelled.', replies: [], sys: true }] },
+  { date: '2026-09-12', time: '08:00', spot: 'suny-purchase', routes: [{ label: 'Full', id: 57406828, stop: 'Tazza Cafe' }, { label: 'Short', id: 57426135, stop: 'Tazza Cafe' }], notes: 'First 8:00 roll-out of the fall.',
+    obs: { T: 64, app: 64, ws: 5, wg: 9, rain: 0, road: 'Dry', code: 0 }, riders: { in: ['Alex', 'Maria', 'Dmitri', 'Sam', 'Jordan'], out: [] }, msgs: [] }
+];
+const pastRide = date => PAST.find(r => r.date === date);
 
 /* ---------- time helpers (all times are America/New_York wall-clock) ---------- */
 function nyNow(){
@@ -715,6 +733,7 @@ function dayTabsHTML(days, selDate, hrefOf, attrOf){
 const RSVP = {};
 function rsvpFor(date, ride){
   if (RSVP[date]) return RSVP[date];
+  if (ride.riders) return RSVP[date] = { me: null, myRoute: '', people: [...ride.riders.in.map(n => ({ name: n, status: 'in', route: '' })), ...ride.riders.out.map(n => ({ name: n, status: 'out', route: '' }))], msgs: ride.msgs || [], nextId: 10, replyTo: null };
   const sat = dow(date) === 6, lbl = ride.routes.length > 1;
   const people = sat ? [['Alex', 'in', lbl ? 'Full' : ''], ['Maria', 'in', lbl ? 'Short' : ''], ['Dmitri', 'in', lbl ? 'Full' : ''], ['Sam', 'in', lbl ? 'Full' : ''], ['Chris', 'out', '']]
                      : [['Alex', 'in', ''], ['Jordan', 'in', ''], ['Maria', 'out', '']];
@@ -724,23 +743,23 @@ function rsvpFor(date, ride){
     : [{ id: 1, name: 'Jordan', at: '5:20 PM', text: 'If it rains by noon, do we still stop at BreadsNBakes?', replies: [] }];
   return RSVP[date] = { me: null, myRoute: '', people: people.map(([name, status, route]) => ({ name, status, route })), msgs, nextId: 10, replyTo: null };
 }
-function ridersPanel(ride, date){
+function ridersPanel(ride, date, past){
   const R = rsvpFor(date, ride), all = R.people.concat(R.me ? [{ name: 'You', status: R.me, route: R.myRoute, me: true }] : []);
   const ins = all.filter(p => p.status === 'in'), outs = all.filter(p => p.status === 'out');
   const nMsg = R.msgs.reduce((n, m) => n + 1 + m.replies.length, 0);
-  const btns = `<div class="seg rsvp" role="group" aria-label="Your RSVP"><button type="button" data-rsvp="in" aria-pressed="${R.me === 'in'}">In</button><button type="button" data-rsvp="out" aria-pressed="${R.me === 'out'}">Out</button></div>`;
+  const btns = past ? '' : `<div class="seg rsvp" role="group" aria-label="Your RSVP"><button type="button" data-rsvp="in" aria-pressed="${R.me === 'in'}">In</button><button type="button" data-rsvp="out" aria-pressed="${R.me === 'out'}">Out</button></div>`;
   const routePick = R.me === 'in' && ride.routes.length > 1 ? `<div class="seg" role="group" aria-label="Your route" style="margin-top:6px">${ride.routes.map(r => `<button type="button" data-rsvp-route="${esc(r.label)}" aria-pressed="${R.myRoute === r.label}">${esc(r.label)}</button>`).join('')}</div>` : '';
   const alt = ride.routes.length > 1, person = p => `<span class="person${p.me ? ' me' : ''}">${esc(p.name)}${alt && p.status === 'in' && p.route ? ` <span class="muted">· ${esc(p.route)}</span>` : ''}</span>`;
   const msg = (m, isReply) => `<div class="msg${isReply ? ' reply' : ''}${m.sys ? ' sys' : ''}"><div class="meta"><b>${esc(m.name)}</b> <span class="muted">${m.at}</span></div><p>${esc(m.text)}</p>
-      ${isReply ? '' : `<button type="button" class="linkbtn" data-reply="${m.id}">Reply</button>`}
+      ${isReply || past ? '' : `<button type="button" class="linkbtn" data-reply="${m.id}">Reply</button>`}
       ${!isReply && m.replies.length ? `<div class="replies">${m.replies.map(r => msg(r, true)).join('')}</div>` : ''}
       ${!isReply && R.replyTo === m.id ? `<div class="compose"><textarea id="reply-${m.id}" aria-label="Reply to ${esc(m.name)}" placeholder="Reply to ${esc(m.name)}"></textarea><div class="btnrow"><button type="button" class="btn btn-primary btn-sm" data-send="${m.id}">Send</button><button type="button" class="btn btn-outline btn-sm" data-reply="0">Cancel</button></div></div>` : ''}</div>`;
   return panel('riders', 'Riders',
-    `<b>${ins.length} in</b> · ${outs.length} out · ${nMsg} message${nMsg === 1 ? '' : 's'}<div class="sw">${btns}${routePick}</div>`,
+    `<b>${ins.length} ${past ? (ride.cancelled ? 'were in' : 'rode') : 'in'}</b> · ${outs.length} out · ${nMsg} message${nMsg === 1 ? '' : 's'}${btns ? `<div class="sw">${btns}${routePick}</div>` : ''}`,
     `<div class="people"><div><div class="sub-h">In (${ins.length})</div><div class="plist">${ins.map(person).join('') || '<span class="muted small">No one yet</span>'}</div></div>
        ${outs.length ? `<div><div class="sub-h">Out (${outs.length})</div><div class="plist">${outs.map(person).join('')}</div></div>` : ''}</div>
      <div class="sub"><div class="sub-h">Messages</div>${R.msgs.map(m => msg(m)).join('') || '<p class="muted small">No messages yet.</p>'}
-       <div class="compose"><textarea id="msg-new" aria-label="Message the team" placeholder="Message the team"></textarea><div class="btnrow"><button type="button" class="btn btn-primary btn-sm" data-send="new">Send</button></div></div></div>`);
+       ${past ? '' : `<div class="compose"><textarea id="msg-new" aria-label="Message the team" placeholder="Message the team"></textarea><div class="btnrow"><button type="button" class="btn btn-primary btn-sm" data-send="new">Send</button></div></div>`}</div>`);
 }
 
 // Ride body: warnings + Meet / Route / Weather / Notes panels. Used by the ride page and the editor preview.
@@ -757,7 +776,7 @@ function rideBody(ride, date, opts = {}){
     `<b>${fmtTime(t.start)}</b> · <a href="${spot.maps_url}" target="_blank" rel="noopener">${esc(spot.name)}</a>`,
     `<dl class="kvlist"><div><dt>Back</dt><dd><b>≈ ${fmtTime(t.end)}</b><span>${fmtDur(t.movingH)} moving + ${r0(t.regroupMin)} min regroups${t.stop ? ` + ${t.stop.len} min coffee · ≈ ${fmtTime(t.end - t.stop.len)} without the stop` : ''}</span></dd></div>
       <div><dt>Parking</dt><dd>${esc(spot.note)}</dd></div></dl>
-     <div class="btnrow"><a class="btn btn-outline btn-sm" href="${spot.maps_url}" target="_blank" rel="noopener">Open in Google Maps</a>${opts.preview ? '' : '<button type="button" class="btn btn-outline btn-sm" data-cal>+ Calendar</button>'}</div>`);
+     <div class="btnrow"><a class="btn btn-outline btn-sm" href="${spot.maps_url}" target="_blank" rel="noopener">Open in Google Maps</a>${opts.preview || opts.past ? '' : '<button type="button" class="btn btn-outline btn-sm" data-cal>+ Calendar</button>'}</div>`);
 
   const switcher = !opts.preview && ride.routes.length > 1 ? `<div class="seg" role="group" aria-label="Route">${ride.routes.map((r, i) => `<button type="button" data-route="${i}" aria-pressed="${i === ri}">${esc(r.label)} · ${r0(routeById(r.id).distance_m / MI)} mi</button>`).join('')}</div>` : '';
   let stopHTML = '';
@@ -772,7 +791,13 @@ function rideBody(ride, date, opts = {}){
      <div class="btnrow" style="margin-top:12px"><a class="btn btn-primary btn-sm" href="${route.url}" target="_blank" rel="noopener">Open in RWGPS</a></div>`);
 
   let weather;
-  if (ev){
+  if (opts.past){
+    const o = ride.obs;
+    weather = o ? panel('weather', 'Weather', `<b>${r0(o.T)}°</b> · feels ${r0(o.app)}° · wind ${r0(o.ws)} · ${o.rain ? fmtIn(o.rain) + ' rain' : 'no rain'} · roads ${o.road.toLowerCase()}<div class="tiny muted">Observed at roll-out</div>`,
+      `<p class="small" style="margin:0">${wxIcon(o.code).replace('class="wxi"', 'class="wxi" style="display:inline-block;vertical-align:-6px;margin:0 6px 0 0"')}${wxLabel(o.code)} · ${r0(o.T)}° (real feel ${r0(o.app)}°, bike feel ${r0(bikeFeel(o.T, o.ws, o.app, pace))}°) · wind ${r0(o.ws)} mph, gusts ${r0(o.wg)} · ${o.rain ? fmtIn(o.rain) + ' rain in the 12 h before' : 'no rain'} · roads ${o.road.toLowerCase()}</p>
+       <p class="tiny muted" style="margin:6px 0 0">Saved from NWS station observations after the ride.</p>`)
+      : `<section class="panel"><div class="panel-h"><span class="panel-t">Weather</span><div class="panel-s muted">No observations saved.</div></div></section>`;
+  } else if (ev){
     const k = kitAdvice(st), cur = store.get('bbt.kitOffset', 'avg');
     weather = panel(kp + 'weather', 'Weather',
       `${wxSummary(st)}<div class="tiny muted">Wear: ${k.start.name.toLowerCase()} kit${k.add.length ? ' + ' + k.add.map(a => a[2]).join(', ') : ''}</div>`,
@@ -786,7 +811,7 @@ function rideBody(ride, date, opts = {}){
   } else weather = `<section class="panel"><div class="panel-h"><span class="panel-t">Weather</span><div class="panel-s muted">Forecast not available for this date yet.</div></div></section>`;
 
   const notes = ride.notes ? panel(kp + 'notes', 'Notes', `<span class="clamp">${esc(ride.notes.split('\n')[0])}</span>`, `<p class="notes">${esc(ride.notes)}</p>`) : '';
-  if (!opts.preview){
+  if (!opts.preview && !opts.past){
     UI.cal = cal;
     UI.share = { title: `BBT ride ${dayLabel(date)}`, text: [
         `${ride.cancelled ? 'CANCELLED: ' : ''}BBT ride · ${dayLabel(date, true)}`,
@@ -798,10 +823,35 @@ function rideBody(ride, date, opts = {}){
         ride.notes ? `Notes: ${ride.notes.replace(/\n/g, ' ')}` : null
       ].filter(Boolean).join('\n'), url: location.href };
   }
-  return `<h1 class="sr">${esc(spot.name)} — ${esc(route.name)}</h1>` + (ev ? warnBoxes(warnList(ev, se, date, t.start)) : '') + `<div class="panels">${meet}${routeP}${weather}${notes}${opts.preview ? '' : ridersPanel(ride, date)}</div>`;
+  return `<h1 class="sr">${esc(spot.name)} — ${esc(route.name)}</h1>` + (ev && !opts.past ? warnBoxes(warnList(ev, se, date, t.start)) : '') + `<div class="panels">${meet}${routeP}${weather}${notes}${opts.preview ? '' : ridersPanel(ride, date, opts.past)}</div>`;
 }
 
+function viewPast(date){
+  const days = weekendDates().map(w => w.date);
+  RIDES.forEach(r => { if (r.date && !days.includes(r.date)) days.push(r.date); });
+  days.sort();
+  const tabs = dayTabsHTML(days, null, d => `#ride/${d}`).replace(/<\/div>$/, '<a class="tab" role="tab" href="#ride/past" aria-selected="true">Past</a></div>');
+  const ride = date && pastRide(date);
+  if (ride){
+    const reuse = can.plan() ? `<button type="button" class="btn btn-outline btn-sm" data-reuse="${date}">Reuse this plan</button>` : '';
+    return `<div class="dayrow">${tabs}</div><div class="pasthead"><a class="small" href="#ride/past">← Past rides</a><span class="muted small">${dayLabel(date, true)}</span>${reuse}</div>`
+      + (ride.cancelled ? `<div class="warn lv2 big">${ICON[2]}<div><b>Ride cancelled</b><span>${esc((ride.msgs.find(m => m.sys) || {}).text || '')}</span></div></div>` : '')
+      + rideBody(ride, date, { past: true });
+  }
+  const q = (UI.pastQ || '').trim().toLowerCase();
+  const list = PAST.filter(r => !q || [spotById(r.spot).name, ...r.routes.map(x => routeById(x.id).name)].join(' ').toLowerCase().includes(q)).sort((a, b) => a.date < b.date ? 1 : -1);
+  const byMonth = {};
+  list.forEach(r => { const m = new Date(r.date + 'T12:00:00Z').toLocaleDateString('en-US', { timeZone: 'UTC', month: 'long', year: 'numeric' }); (byMonth[m] = byMonth[m] || []).push(r); });
+  const rows = Object.entries(byMonth).map(([m, rs]) => `<div class="kicker" style="margin:14px 0 6px">${m}</div><div class="spotlist">${rs.map(r => {
+      const o = r.obs, names = r.routes.map(x => routeById(x.id).name).join(' / ');
+      return `<a class="spotrow pastrow" href="#ride/past/${r.date}"><span class="spotrow-b"><b>${dayLabel(r.date)} · ${esc(spotById(r.spot).name)}</b><span class="small">${esc(names)}</span>
+        <span class="small muted">${r.cancelled ? '<span class="pill lv2" style="font-size:11px;padding:0 7px">Cancelled</span> ' : `${r.riders.in.length} rode · `}${o ? `${r0(o.T)}°, feels ${r0(o.app)}° · wind ${r0(o.ws)} · roads ${o.road.toLowerCase()}` : ''}</span></span></a>`; }).join('')}</div>`).join('');
+  return `<div class="dayrow">${tabs}</div><h1 class="sr">Past rides</h1>
+    <label class="field" style="margin-bottom:4px">Search past rides<input type="search" id="past-q" placeholder="Route or spot, e.g. Katonah" value="${esc(UI.pastQ || '')}" autocomplete="off"></label>
+    <div id="past-list">${rows || '<p class="muted small" style="margin-top:12px">No past rides match.</p>'}</div>`;
+}
 function viewRide(arg){
+  if (arg === 'past') return viewPast(location.hash.split('/')[2]);
   const days = weekendDates().map(w => w.date);
   RIDES.forEach(r => { if (r.date && !days.includes(r.date)) days.push(r.date); });
   days.sort();
@@ -810,7 +860,7 @@ function viewRide(arg){
   const ride = rideOn(date);
   const shareBtn = ride ? `<button type="button" class="iconbtn share" data-share aria-label="Share this ride" title="Share"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg></button>` : '';
   const editBtn = ride && can.plan() ? `<button type="button" class="iconbtn share" data-edit-ride="${date}" aria-label="Edit this ride" title="Edit ride"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4"/></svg></button>` : '';
-  const head = `<div class="dayrow">${dayTabsHTML(days, date, d => `#ride/${d}`)}${editBtn}${shareBtn}</div>`;
+  const head = `<div class="dayrow">${dayTabsHTML(days, date, d => `#ride/${d}`).replace(/<\/div>$/, '<a class="tab" role="tab" href="#ride/past" aria-selected="false">Past</a></div>')}${editBtn}${shareBtn}</div>`;
   if (!ride) return head + `<h1 class="sr">No ride</h1><section class="panel empty"><p><b>No ride posted for ${dayLabel(date, true)}.</b></p>${can.plan() ? `<a class="btn btn-primary btn-sm" href="#plan" data-plan-date="${date}">Plan a ride</a>` : '<p class="muted small">Check back later.</p>'}</section>`;
   const last = ride.updates && ride.updates[ride.updates.length - 1];
   const banner = ride.cancelled ? `<div class="warn lv2 big">${ICON[2]}<div><b>Ride cancelled</b><span>Check the Riders panel for messages.</span></div></div>`
@@ -1043,7 +1093,7 @@ document.addEventListener('click', e => {
     a.href = URL.createObjectURL(blob); a.download = `bbt-ride-${UI.cal.date}.ics`; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 2000); document.querySelector('.sheet')?.remove(); return;
   }
-  const el = e.target.closest('[data-route],[data-offset],[data-pday],[data-pick-spot],[data-plan-date],[data-pick],[data-role-set],#publish,#cancelride,#discard,#startover,[data-edit-ride],#ns-open,#ns-save,#ns-cancel,#reset,#themebtn,#invite');
+  const el = e.target.closest('[data-route],[data-offset],[data-pday],[data-pick-spot],[data-plan-date],[data-pick],[data-role-set],#publish,#cancelride,#discard,#startover,[data-edit-ride],[data-reuse],#ns-open,#ns-save,#ns-cancel,#reset,#themebtn,#invite');
   if (!el) return;
   if (el.dataset.route != null){ UI.route = +el.dataset.route; render(); }
   else if (el.dataset.offset){ store.set('bbt.kitOffset', el.dataset.offset); render(); }
@@ -1070,6 +1120,10 @@ document.addEventListener('click', e => {
   else if (el.id === 'cancelride'){ const r = rideOn(P.editing); r.cancelled = !r.cancelled; postSystem(P.editing, r, r.cancelled ? 'Ride cancelled.' : 'Ride is back on.'); UI.day = P.editing; clearDraft(); location.hash = 'ride/' + UI.day; toast(r.cancelled ? 'Ride cancelled' : 'Ride restored'); }
   else if (el.id === 'discard' || el.id === 'startover'){ clearDraft(); render(); }
   else if (el.dataset.editRide){ editRide(el.dataset.editRide); }
+  else if (el.dataset.reuse){ const r = pastRide(el.dataset.reuse), main = r.routes[0], alt = r.routes[1], wk = weekendDates().map(w => w.date);
+    Object.assign(P, { editing: null, date: wk.find(d => !rideOn(d)) || wk[0], time: r.time, spot: r.spot, route: main.id, q: routeById(main.id).name, stop: main.stop || '', pace: r.pace || S.pace, notes: r.notes || '',
+      altOn: !!alt, alt: alt ? alt.id : null, qAlt: alt ? routeById(alt.id).name : '', labelA: alt ? main.label : 'Full', labelB: alt ? alt.label : 'Short', newSpot: null });
+    saveDraft(); location.hash = 'plan'; toast('Plan copied from ' + dayLabel(el.dataset.reuse)); }
   else if (el.dataset.roleSet){ ROLE = el.dataset.roleSet; store.set('bbt.role', ROLE); render(); }
   else if (el.id === 'invite'){ const em = document.getElementById('u-email'), rl = document.getElementById('u-role');
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em.value)){ toast('Enter a valid email address.'); return; }
@@ -1086,6 +1140,7 @@ document.addEventListener('input', e => {
     if (id && routeById(id)){ if (which === 'main'){ P.route = id; P.stop = null; } else P.alt = id; render(); const n = document.getElementById(t.id); if (n){ n.focus(); n.setSelectionRange(n.value.length, n.value.length); } return; }
     const box = t.parentElement.querySelector('.results'); if (box) box.outerHTML = searchResults(t.value, which);
   }
+  if (t.id === 'past-q'){ UI.pastQ = t.value; const box = document.getElementById('past-list'), tmp = document.createElement('div'); tmp.innerHTML = viewPast(); box.innerHTML = tmp.querySelector('#past-list').innerHTML; return; }
   if (t.id === 'p-notes') P.notes = t.value;
   if (P.newSpot && t.id === 'ns-name') P.newSpot.name = t.value;
   if (P.newSpot && t.id === 'ns-link') P.newSpot.link = t.value;

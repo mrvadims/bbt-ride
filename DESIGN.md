@@ -36,7 +36,7 @@ sessions(id PRIMARY KEY, user_id, created_at, expires_at, user_agent)
 settings(key PRIMARY KEY, value_json, updated_by, updated_at)        -- one row per setting
 kit_bands(id, min_feel_f, name, items_json, sort)                    -- editable kit chart
 spots(id, name, lat, lng, maps_url, note, archived)
-rides(id, date, rollout, spot_id, pace_mph, stop_min, notes, status CHECK(status IN ('published','cancelled','archived')), created_by, updated_by, updated_at)
+rides(id, date, rollout, spot_id, pace_mph, stop_min, notes, observed_json NULL, status CHECK(status IN ('published','cancelled','archived')), created_by, updated_by, updated_at)
 ride_updates(id, ride_id, user_id, summary, at)                       -- what changed, shown on the ride page
 drafts(user_id PRIMARY KEY, ride_id NULL, form_json, updated_at)       -- editor autosave; ride_id set when editing
 ride_routes(ride_id, sort, label, rwgps_route_id, stop_poi_json)
@@ -65,7 +65,10 @@ audit_log(id, user_id, action, entity, entity_id, diff_json, at)
 - **Coffee / muffin stop (optional)** — a ride can have an optional mid-ride stop.
   - Auto-suggested from the route's RWGPS POIs (`poi_type_name` = `coffee` or `food`); editor confirms, picks another POI, or adds one manually (name + Google Maps link).
   - Ride page shows: name, mile marker, ETA (roll-out + distance ÷ pace), stop length (default 20 min, shifts the rest of the ride window), "Open in Maps", and an "optional" label. No separate stop forecast (decided 2026-10-11).
-- **Archive** — past rides list (date, route(s), spot, recorded conditions at roll-out); "reuse this plan".
+- **Past rides** — a **Past** tab after the date tabs on the Ride page (all roles). Newest first, grouped by month; each row shows date, start spot, route(s), how many rode, and the observed conditions at roll-out (temp, real feel, wind, roads), with a red "Cancelled" tag where it applies. A search box filters by route or spot.
+  - Opening a past ride shows the same panels, read-only: Meet and Route as published, **Weather = observed** (saved from NWS station observations once the ride window has passed, not the old forecast), Notes, and Riders (who rode, who was out, and the full message thread; RSVP and posting are off).
+  - Editors get **Reuse this plan**, which copies the ride into Plan on the next free weekend day.
+  - Data: no new tables. A ride is past once its date has passed; observed weather is stored with the ride (`rides.observed_json`). Nothing is deleted.
 
 ### Spots
 - Fields: name, location (lat/lng), Google Maps link, parking notes (where to park, restrooms).
