@@ -5,17 +5,17 @@ import { type Route, rideTimes } from "../shared/ride.ts";
 import { addDays, nyNow } from "../shared/time.ts";
 import { at, fIdx, near, roadAt, toSeries } from "../shared/weather.ts";
 import { loadSettings } from "./routes/settings.ts";
-import { fetchForecast } from "./routes/weather.ts";
+import { spotForecasts } from "./routes/weather.ts";
 import { fillLibrary, getRoute, syncCaptainLibrary } from "./rwgps.ts";
 
 export async function recordWeather(env: Env): Promise<void> {
   const now = nyNow();
   // past_days=2 covers yesterday and the day before; older rides without data stay without it.
   const { results: rides } = await env.DB.prepare(
-    `select r.id, r.date, r.rollout, r.pace_mph, s.id as spot_id, s.lat, s.lng,
+    `select r.id, r.date, r.rollout, r.pace_mph, r.spot_id,
             (select rwgps_route_id from ride_routes where ride_id = r.id order by sort limit 1) as route_id,
             (select stop_poi from ride_routes where ride_id = r.id order by sort limit 1) as stop
-     from rides r join spots s on s.id = r.spot_id
+     from rides r
      where r.status = 'published' and r.observed_json is null and r.date between ? and ?`,
   )
     .bind(addDays(now.date, -2), now.date)
@@ -25,22 +25,19 @@ export async function recordWeather(env: Env): Promise<void> {
       rollout: string;
       pace_mph: number;
       spot_id: string;
-      lat: number;
-      lng: number;
       route_id: number;
       stop: string | null;
     }>();
   if (!rides.length) return;
   const s = await loadSettings(env.DB);
   const done: { id: string; rec: RecordedWeather }[] = [];
-  const spots = [...new Map(rides.map((r) => [r.spot_id, { id: r.spot_id, lat: r.lat, lng: r.lng }])).values()];
-  const data = await fetchForecast(spots);
+  const { byId } = await spotForecasts(env); // includes the past two days (past_days=2)
   for (const r of rides) {
     const route: Route | null = await getRoute(env, r.route_id);
     const t = route ? rideTimes(route, r.rollout, r.pace_mph, r.stop, s) : null;
     if (!t || (r.date === now.date && t.end > now.min)) continue; // ride window not over yet
-    const om = data[spots.findIndex((x) => x.id === r.spot_id)];
-    if (!om) continue;
+    const om = byId[r.spot_id];
+    if (!om) continue; // spot archived since
     const se = toSeries(om);
     const f = fIdx(se, r.date, t.start);
     if (f == null) continue;

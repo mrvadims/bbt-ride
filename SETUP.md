@@ -7,7 +7,9 @@ Nothing here is ever committed. Values go into Cloudflare Worker secrets, GitHub
 | 1. Cloudflare API token | Done: GitHub repository secrets + local `.env` |
 | 2. RideWithGPS credentials | Done: Worker secrets verified 2026-10-11 |
 | 3. Google sign-in | Done 2026-10-11: app published, client created, `GOOGLE_CLIENT_SECRET` stored (verified), first Admin chosen |
-| 4. Web Push keys | When the app is built: generate and store `VAPID_PRIVATE_KEY` |
+| 4. Web Push keys | To do: generate and store `VAPID_PRIVATE_KEY`, put the public key in `wrangler.jsonc` |
+| 5. D1 database and KV namespace | To do: create them and put their ids in `wrangler.jsonc` |
+| 6. First deploy | After 4–5: merge to `main`, attach `ride.bbt.team`, sign in as the first Admin |
 
 ## 1. Cloudflare API token (for deploys)
 
@@ -104,4 +106,23 @@ Generate a key pair once, from your own terminal:
 npx web-push generate-vapid-keys
 npx wrangler secret put VAPID_PRIVATE_KEY --name bbt-ride   # paste the private key
 ```
-The public key isn't secret; it goes in `wrangler.jsonc` under `vars` as `VAPID_PUBLIC_KEY`, with `VAPID_SUBJECT = "mailto:info@bbt.team"`.
+The public key isn't secret; it goes in `wrangler.jsonc` under `vars` as `VAPID_PUBLIC_KEY` (`VAPID_SUBJECT` is already `mailto:info@bbt.team`). Without the keys the app works; the "Ride notifications" switch just says "Not set up yet".
+
+## 5. D1 database and KV namespace
+
+From your own terminal, in the repo folder:
+```
+npx wrangler d1 create bbt-ride
+npx wrangler kv namespace create CACHE
+```
+Each prints an id. Put them in `wrangler.jsonc`: the D1 id as `database_id` and the KV id as `id` (both are placeholders of zeros now), then commit. The ids aren't secret.
+
+Backups: D1 Time Travel is on by default (restore to any minute in the last 7 days on the free plan).
+
+## 6. First deploy
+
+1. Merge the app into `main`. The Deploy workflow runs the checks, applies the D1 migrations (tables, the three start spots, the club route library, the kit chart) and deploys the Worker.
+2. Attach the domain once: Workers & Pages → bbt-ride → Settings → Domains & Routes → Add → Custom domain → `ride.bbt.team`.
+3. Open https://ride.bbt.team and **Continue with Google** as the first Admin (`BOOTSTRAP_ADMIN_EMAIL`). Then invite the team from Settings → Users.
+4. The route library fills within a few hours (the scheduled job runs every 3 hours). Check that searching for a club route works; if your own private routes don't appear, the RideWithGPS list endpoint needs adjusting (DESIGN.md → Data sources).
+

@@ -1,6 +1,6 @@
 # BBT Ride — Design
 
-Status: **design complete** — clickable prototype at `prototype/index.html`; decisions in `DECISIONS.md`. Last updated 2026-10-11.
+Status: **v1 built** (branch `app-v1`; see README for running it) — design prototype at `prototype/index.html`; decisions in `DECISIONS.md`. Last updated 2026-10-11.
 URL: **ride.bbt.team**
 
 ## Purpose
@@ -41,11 +41,11 @@ links(token_hash PRIMARY KEY, kind CHECK(kind IN ('invite','reset')), email, rol
       created_at, expires_at, used_at NULL)                     -- invite (7 days) and reset (24 h) links; only a SHA-256 of the token is stored
 settings(key PRIMARY KEY, value_json, updated_by NULL, updated_at)   -- one row per setting
 kit_bands(id, min_feel_f, name, items_json, sort)                    -- editable kit chart
-spots(id, name UNIQUE, lat, lng, maps_url, note, archived DEFAULT 0)
+spots(id, name UNIQUE, lat, lng, maps_url, note, archived DEFAULT 0, created_at)
 rides(id, date, rollout, spot_id, pace_mph, notes, observed_json NULL, status CHECK(status IN ('published','cancelled')),
       created_by NULL, updated_by NULL, updated_at)               -- UNIQUE(date) WHERE status = 'published'
-ride_routes(ride_id, sort, label, rwgps_route_id, stop_poi_json NULL, PRIMARY KEY(ride_id, sort))
-route_cache(rwgps_route_id PRIMARY KEY, json, fetched_at)
+ride_routes(ride_id, sort, label, rwgps_route_id, stop_poi NULL, PRIMARY KEY(ride_id, sort))  -- stop_poi = name of the route's POI
+route_cache(rwgps_route_id PRIMARY KEY, name NULL, json NULL, in_library DEFAULT 0, fetched_at NULL)  -- in_library = listed in route search
 drafts(user_id PRIMARY KEY, ride_id NULL, form_json, updated_at)  -- editor autosave; ride_id set when editing
 rsvps(ride_id, user_id, status CHECK(status IN ('in','out')), route_label NULL, updated_at, PRIMARY KEY(ride_id, user_id))
 messages(id, ride_id, user_id NULL, parent_id NULL, kind CHECK(kind IN ('user','update','cancel','restore')) DEFAULT 'user',
@@ -145,7 +145,7 @@ Navy roles confirmed 2026-10-09: `#020C2B` background, `#03144D` text and cards;
 
 - Warnings use amber and red tinted pills and boxes (icon + label), never brand orange. There is no green "Go" state; a clean forecast shows nothing.
 - Light and dark mode both supported; dark mode is navy-based, not gray.
-- PWA icons (180/192/512) generated from the wordmark at build time.
+- PWA icons (180/192/512) are rendered from the wordmark by `npm run icons` (scripts/icons.ts) into `public/icons/`.
 
 ## Algorithms
 All inputs are Open-Meteo hourly values in °F, mph, inches, local time (America/New_York). `precipitation` at hour *h* is the total for the hour ending at *h*. Values between hours are linearly interpolated (wind direction, weather code and rain chance use the nearest hour). Reference implementation: `prototype/src/app.html` (`roadAt`, `bikeFeel`, `evaluate`, `kitAdvice`, `rideTimes`).
@@ -261,16 +261,17 @@ Never in the repo, the built assets, or any response to the browser. All third-p
 - Local development: Worker secrets in `.dev.vars`, Cloudflare credentials in `.env` (both git-ignored); `.dev.vars.example` lists the names with empty values.
 - Verified 2026-10-11 with `wrangler secret list`: `GOOGLE_CLIENT_SECRET`, `RWGPS_API_KEY`, `RWGPS_API_SECRET`, `RWGPS_AUTH_TOKEN`, `SESSION_SECRET` are set on the `bbt-ride` Worker. `VAPID_PRIVATE_KEY` is generated when the app is built.
 - Worker secrets are write-only: once set, Cloudflare never shows them again; rotate by running `wrangler secret put` with the new value.
-- The browser calls `/api/routes/:id` and `/api/routes?q=`; the Worker adds the RWGPS credentials and caches results in D1 `route_cache`.
+- The browser calls `/api/routes/:id` and `/api/routes?q=`; the Worker adds the RWGPS credentials and caches results in D1 `route_cache` (refreshed weekly). Route search lists the library (the club's routes from the seed data plus the captain's own routes); the scheduled job fetches library routes not seen yet.
 
 ## Architecture
-- Cloudflare Worker + static assets (React + TypeScript + Vite) on ride.bbt.team.
+- Cloudflare Worker + static assets (React + TypeScript + Vite, `@cloudflare/vite-plugin`) on ride.bbt.team. Code: `worker/` (API), `src/` (React app), `shared/` (weather, kit, ride math and API types used by both), `migrations/` (D1), `public/` (privacy page, service worker, icons).
 - Worker routes: `/api/auth/*` (Better Auth) and `/api/*` (the app's JSON API, Hono); everything else is static assets (the app shell, `/privacy`). See Users and roles for the checks.
 - D1: the tables in Data model. KV: forecast and NWS alert cache.
-- Scheduled job (Cron Trigger, every 3 hours): saves recorded weather on rides whose window has passed.
+- Scheduled job (Cron Trigger, every 3 hours): saves recorded weather on rides whose window has passed (from the cached forecast's past hours) and fills the route library.
 - Push: sent from the Worker with a Web Crypto-based Web Push library, in the background (`waitUntil`); a subscription the push service reports gone (404/410) is deleted.
 - Backups: D1 Time Travel (restore to any minute in the last 7 days on the free plan).
-- Deploys: GitHub Actions on merge to `main`: typecheck and tests, `wrangler d1 migrations apply --remote`, then `wrangler deploy`, using the repository's Cloudflare secrets. `ride.bbt.team` is attached once by hand in the Cloudflare dashboard. Pull requests run typecheck and tests only.
+- Deploys: GitHub Actions on merge to `main` (`.github/workflows/deploy.yml`): lint, typecheck, tests, build, `wrangler d1 migrations apply --remote`, then `wrangler deploy`, using the repository's Cloudflare secrets. `ride.bbt.team` is attached once by hand in the Cloudflare dashboard. Other pushes and pull requests run the same checks without deploying (`ci.yml`).
+- Tests: unit tests for the shared algorithms (the worked examples in this document), password hashing and route simplification; `scripts/smoke.ts` (45 API checks) and `scripts/ui-smoke.ts` (17 browser checks) run against the local dev server.
 
 ## Backlog (post-v1)
 1. **Route weather** — forecast at points along the route by ETA; head/tail/crosswind per segment.

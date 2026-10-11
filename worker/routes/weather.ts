@@ -60,20 +60,29 @@ async function fetchAlerts(s: SpotPoint): Promise<Alert[]> {
     .map((p) => ({ event: p.event, headline: p.headline ?? p.event, level: p.event.endsWith("Warning") ? 2 : 1 }));
 }
 
-export const weather = new Hono<AppEnv>().get("/", async (c) => {
-  const { results: spots } = await c.env.DB.prepare(
+/** Forecast for every active spot (by spot id), from the 30-minute KV cache. Used by /api/weather and the scheduled job. */
+export async function spotForecasts(env: Env) {
+  const { results: spots } = await env.DB.prepare(
     "select id, lat, lng from spots where archived = 0 order by name",
   ).all<SpotPoint>();
-  if (!spots.length) return c.json<WeatherData>({ fetchedAt: new Date().toISOString(), forecast: {}, alerts: {} });
+  if (!spots.length)
+    return { spots, key: "", fetchedAt: new Date().toISOString(), byId: {} as Record<string, OpenMeteoResponse> };
   const key = await sha256Hex(spots.map((s) => `${s.id}:${s.lat}:${s.lng}`).join("|"));
-  const forecast = await cached(c.env.CACHE, `forecast:${key}`, 30 * 60, async () => ({
+  const forecast = await cached(env.CACHE, `forecast:${key}`, 30 * 60, async () => ({
     fetchedAt: new Date().toISOString(),
     data: await fetchForecast(spots),
   }));
+  const byId = Object.fromEntries(spots.flatMap((s, i) => (forecast.data[i] ? [[s.id, forecast.data[i]]] : [])));
+  return { spots, key, fetchedAt: forecast.fetchedAt, byId };
+}
+
+export const weather = new Hono<AppEnv>().get("/", async (c) => {
+  const { spots, key, fetchedAt, byId } = await spotForecasts(c.env);
+  if (!spots.length) return c.json<WeatherData>({ fetchedAt, forecast: {}, alerts: {} });
   const alerts = await cached(c.env.CACHE, `alerts:${key}`, 10 * 60, async () => Promise.all(spots.map(fetchAlerts)));
   return c.json<WeatherData>({
-    fetchedAt: forecast.fetchedAt,
-    forecast: Object.fromEntries(spots.flatMap((s, i) => (forecast.data[i] ? [[s.id, forecast.data[i]]] : []))),
+    fetchedAt,
+    forecast: byId,
     alerts: Object.fromEntries(spots.map((s, i) => [s.id, alerts[i] ?? []])),
   });
 });

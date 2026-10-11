@@ -50,4 +50,4 @@ Every open question from the design review, with what was decided. Details live 
 - **Nearest spot.** Use the route's first track point to find the nearest start spot (the seed file's RWGPS start point differs by about 45 m).
 
 ## Still to do (outside the code)
-- Only the Web Push key pair, generated when the app is built (SETUP.md §4). Everything else is in place (SETUP.md).
+- Web Push keys, the D1 database and KV namespace, then the first deploy (SETUP.md §4–6). Accounts and secrets are in place.

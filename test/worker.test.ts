@@ -32,3 +32,41 @@ describe("RideWithGPS route simplification", () => {
     expect(tazza?.off_route_m).toBeLessThan(50);
   });
 });
+
+describe("Web Push payload", () => {
+  const b64url = (b: ArrayBuffer | Uint8Array) =>
+    Buffer.from(b instanceof Uint8Array ? b : new Uint8Array(b)).toString("base64url");
+  it("builds an encrypted, VAPID-signed request from keys in web-push's format", async () => {
+    const { buildPushPayload } = await import("@block65/webcrypto-web-push");
+    // VAPID key pair as `npx web-push generate-vapid-keys` prints it: raw public point and private scalar, base64url.
+    const vapid = (await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, [
+      "sign",
+    ])) as CryptoKeyPair;
+    const vapidJwk = (await crypto.subtle.exportKey("jwk", vapid.privateKey)) as JsonWebKey;
+    const vapidPublic = b64url((await crypto.subtle.exportKey("raw", vapid.publicKey)) as ArrayBuffer);
+    // A browser subscription: its own P-256 key and a 16-byte auth secret.
+    const client = (await crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, [
+      "deriveBits",
+    ])) as CryptoKeyPair;
+    const sub = {
+      endpoint: "https://push.example.test/abc",
+      expirationTime: null,
+      keys: {
+        p256dh: b64url((await crypto.subtle.exportKey("raw", client.publicKey)) as ArrayBuffer),
+        auth: b64url(crypto.getRandomValues(new Uint8Array(16))),
+      },
+    };
+    const payload = await buildPushPayload(
+      {
+        data: JSON.stringify({ title: "Ride updated", body: "roll-out 8:30 → 9:00", url: "/ride/2026-10-17" }),
+        options: { ttl: 86400, urgency: "high" },
+      },
+      sub,
+      { subject: "mailto:info@bbt.team", publicKey: vapidPublic, privateKey: vapidJwk.d as string },
+    );
+    expect(payload.method.toUpperCase()).toBe("POST");
+    expect(payload.headers.authorization).toMatch(/^vapid t=.+, k=/);
+    expect(payload.headers["content-encoding"]).toBe("aes128gcm");
+    expect(payload.body.byteLength).toBeGreaterThan(100);
+  });
+});
