@@ -70,9 +70,11 @@ For local development, put the same names in `.dev.vars` (git-ignored). `.dev.va
 2. **APIs & Services → OAuth consent screen:** External, app name "BBT Ride", support email yours, scopes `openid email profile` only. Publishing status: In production. With only these basic scopes, Google doesn't require verification.
 3. **Credentials → Create credentials → OAuth client ID → Web application.**
    - Authorized JavaScript origins: `https://ride.bbt.team`, `http://localhost:8787`
-   - Authorized redirect URIs: `https://ride.bbt.team/auth/callback`, `http://localhost:8787/auth/callback`
+   - Authorized redirect URIs: `https://ride.bbt.team/api/auth/callback/google`, `http://localhost:8787/api/auth/callback/google`
 4. Store the secret:
    ```
    npx wrangler secret put GOOGLE_CLIENT_SECRET --name bbt-ride
    ```
    `GOOGLE_CLIENT_ID` and `BOOTSTRAP_ADMIN_EMAIL` aren't secret; they go in `wrangler.toml` `[vars]`.
+
+Password sign-in needs no extra setup: it runs in the Worker and uses `SESSION_SECRET` (already set).

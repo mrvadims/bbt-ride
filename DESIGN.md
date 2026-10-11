@@ -11,7 +11,7 @@ Help the BBT captain plan weekend rides and the team show up prepared:
 4. **Where/when/which route?** — the published ride with RWGPS route details and parking pin.
 
 ## Users and roles
-Sign-in is required. Users sign in with Google (OpenID Connect, handled by the Worker). Access is invite-only: the `users` table is the allowlist.
+Sign-in is required. Two ways to sign in, both on the same account: **Continue with Google** (main) or **username/email + password**. Access is invite-only.
 
 | Role | Can do |
 |------|--------|
@@ -19,20 +19,27 @@ Sign-in is required. Users sign in with Google (OpenID Connect, handled by the W
 | **Edit** | View + plan, publish, edit and cancel rides; add start spots; delete any message |
 | **Admin** | Edit + team settings (defaults, thresholds, kit chart), spots management, and users |
 
-- An Admin invites a user by email and picks a role (View by default). The invite is a row in `users` with status `invited`.
-- On first Google sign-in, the Worker matches the verified Google email (`email_verified = true`) to an invited row, stores the Google `sub`, and marks it `active`. Later sign-ins match on `sub`, so an email change at Google doesn't lock anyone out.
-- A Google account not in `users` gets a "Not invited — ask a team admin" page. No row is created and there is no request-access flow; an Admin invites by email. (Decided 2026-10-11.)
-- No public pages: every page, including a shared ride link, requires sign-in. The shared text carries the essentials (time, place, route links). (Decided 2026-10-11.)
-- Sessions: an opaque random session ID in an `HttpOnly; Secure; SameSite=Lax` cookie, stored in D1 `sessions` (30-day sliding expiry). Role is re-read from `users` on each request, so a role change or removal takes effect immediately.
+**How it's built:** [Better Auth](https://www.better-auth.com) (open source, free) runs inside the Worker and stores everything in D1. No outside identity service. Chosen 2026-10-11 over Cloudflare Access (no passwords) and hosted services (extra vendor, user data split from roles).
+- **Invites:** an Admin enters an email and role in Settings → Users and copies the invite link to send (no email service). The link (7 days, one use) lets the person **continue with Google** (the verified Google email must match the invite) or **set a username and password**. Either way the account is created with the invited role. They can add the other method later.
+- **Public sign-up is off.** A Google account or username that isn't invited gets "Not invited — ask a team admin"; nothing is created.
+- **Passwords:** at least 10 characters; stored only as a salted PBKDF2-SHA256 hash via the Worker's built-in Web Crypto (Better Auth's default hashing can exceed the free Workers per-request CPU limit). Five failed attempts lock the account for 15 minutes.
+- **Forgotten password:** an Admin creates a **reset link** (24 hours, one use) in Settings → Users and sends it. No self-service reset emails in v1.
+- **Usernames:** each account has an email (needed for invites and notifications); a username is optional, and sign-in accepts either.
+- **Sessions:** Better Auth's database sessions in an `HttpOnly; Secure; SameSite=Lax` cookie, 30-day sliding expiry. The role is read on each request, so a role change or disabling takes effect immediately.
 - Every API route checks the role server-side; the UI only hides what the role can't do.
-- Bootstrap: the first Admin's email comes from the `BOOTSTRAP_ADMIN_EMAIL` Worker variable and is inserted as an active Admin by the first migration run.
-- Audit: `audit_log` records who changed rides, settings and users, and when.
+- **Bootstrap:** the first Admin's email comes from the `BOOTSTRAP_ADMIN_EMAIL` Worker variable; the first migration creates that invite as Admin.
+- **No public pages:** every page, including a shared ride link, requires sign-in. The shared text carries the essentials (time, place, route links).
+- **Audit:** `audit_log` records who changed rides, settings and users, and when.
 
 ### Data model (D1)
 ```
-users(id, email UNIQUE, google_sub UNIQUE NULL, name, role CHECK(role IN ('view','edit','admin')) DEFAULT 'view',
-      status CHECK(status IN ('invited','active','disabled')), invited_by, created_at, last_login_at)
-sessions(id PRIMARY KEY, user_id, created_at, expires_at, user_agent)
+-- Better Auth core tables (user, session, account, verification), with our extra fields on user:
+user(id, email UNIQUE, email_verified, name, username UNIQUE NULL, role CHECK(role IN ('view','edit','admin')) DEFAULT 'view',
+     status CHECK(status IN ('active','disabled')), created_at, updated_at)
+session(id, user_id, token, expires_at, ip_address, user_agent, created_at, updated_at)
+account(id, user_id, provider_id ('google' | 'credential'), account_id, password NULL, created_at, updated_at)  -- one row per sign-in method
+verification(id, identifier, value, expires_at)                                                              -- invite and reset links
+invites(token PRIMARY KEY, email, role, invited_by, expires_at, used_at NULL)
 settings(key PRIMARY KEY, value_json, updated_by, updated_at)        -- one row per setting
 kit_bands(id, min_feel_f, name, items_json, sort)                    -- editable kit chart
 spots(id, name, lat, lng, maps_url, note, archived)
@@ -83,7 +90,7 @@ audit_log(id, user_id, action, entity, entity_id, diff_json, at)
 
 ### Settings (Admin only, stored in D1)
 Every setting lives in the `settings` table and is edited on the Settings tab; nothing is hard-coded except first-run defaults. Collapsible panels, each with a one-line summary of the current values:
-- **Users:** invite by email with a role, change roles, disable.
+- **Users:** invite by email with a role (copy invite link), change roles, disable, create a password reset link; shows each user's sign-in methods.
 - **Ride defaults:** roll-out **8:30**, weather window 3 h (used before a route is picked), pace 17 mph, coffee stop **20 min** (typical 15–20), regroup buffer **5 %** of moving time.
 - **Road wetness:** look-back hours, Wet / Drying film thresholds.
 - **Warnings:** amber and red thresholds for cold (bike feel), heat (real feel), wind, gusts, rain chance, rain amount.
@@ -227,7 +234,7 @@ Mile markers come from the POI's distance along the RWGPS track (nearest track p
 ## Prototype
 `prototype/index.html` — one self-contained file (inline CSS/JS, Leaflet 1.9.4 from cdnjs). Built from `prototype/src/app.html` by `python3 prototype/build.py`, which inlines `data/seed.json`, the fallback forecast `data/raw/om_purchase.json`, and the logo.
 - Fetches Open-Meteo live in the browser for the start spots (one multi-location request, `past_days=2`). On failure it uses the embedded sample (SUNY Purchase, Oct 7–11) for every spot and shows a banner.
-- Screens: Ride (date tabs + Past; Meet / Route / Weather / Notes / Riders panels; share, calendar, edit), Plan (spot comparison → route → preview that reuses the ride panels; autosaved draft), Settings (panels). A View / Edit / Admin switcher demonstrates roles.
+- Screens: Sign-in (Google + password), Ride (date tabs + Past; Meet / Route / Weather / Notes / Riders panels; share, calendar, edit), Plan (spot comparison → route → preview that reuses the ride panels; autosaved draft), Settings (panels, incl. Users with invite and reset links). A View / Edit / Admin switcher and a "Sign-in screen" link sit at the top.
 - Prototype-only: everything you change lives in this browser or this session; sample rides, riders, messages and past rides are examples. Not in the prototype: NWS alerts, the metric toggle, Spots management, message edit/delete, notifications.
 - Without Leaflet (offline/CDN blocked) maps fall back to an SVG route outline.
 
@@ -243,7 +250,7 @@ Never in the repo, the built assets, or any response to the browser. All third-p
 |---|---|---|
 | `RWGPS_API_KEY`, `RWGPS_API_SECRET`, `RWGPS_AUTH_TOKEN` | Cloudflare Worker secrets (`wrangler secret put …`) | Worker → RideWithGPS |
 | `GOOGLE_CLIENT_ID` (not secret), `GOOGLE_CLIENT_SECRET` | Worker variable / Worker secret | Google sign-in |
-| `SESSION_SECRET` (random 32 bytes) | Worker secret | Signing OAuth `state` / CSRF tokens |
+| `SESSION_SECRET` (random 32 bytes) | Worker secret | Better Auth's signing secret (cookies, OAuth state, invite and reset tokens) |
 | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` | GitHub repository secrets (Actions deploy) and your local `.env` (manual deploys) | `wrangler deploy`, D1 migrations |
 
 - Local development: Worker secrets in `.dev.vars`, Cloudflare credentials in `.env` (both git-ignored); `.dev.vars.example` lists the names with empty values.
@@ -254,7 +261,7 @@ Never in the repo, the built assets, or any response to the browser. All third-p
 ## Architecture
 - Cloudflare Worker + static assets (React + TypeScript + Vite) on ride.bbt.team.
 - D1: the tables in Data model. KV: forecast and NWS alert cache.
-- Every route requires a session (Google sign-in); API routes enforce View / Edit / Admin server-side.
+- Every route requires a session (Google or password sign-in via Better Auth); API routes enforce View / Edit / Admin server-side.
 - Deploys: GitHub Actions on merge to `main` (runs D1 migrations, then `wrangler deploy`), using the repository's Cloudflare secrets. `ride.bbt.team` is attached once by hand in the Cloudflare dashboard.
 
 ## Backlog (post-v1)

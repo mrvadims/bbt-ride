@@ -36,8 +36,10 @@ Every open question from the design review, with what was decided. Details live 
 ## Access and accounts
 | Topic | Decision | Date |
 |---|---|---|
-| Sign-in | Google sign-in; invite-only users table; roles View / Edit / Admin | 2026-10-09 |
-| Uninvited accounts | Blocked with "Not invited — ask a team admin"; no request-access flow | 2026-10-11 |
+| Sign-in | Google sign-in (main) plus username/email + password on the same account; invite-only; roles View / Edit / Admin | 2026-10-11 |
+| Identity system | Better Auth inside the Worker, stored in D1 (free; no outside identity service) | 2026-10-11 |
+| Forgotten password | Admin creates a one-time reset link in Settings → Users and sends it; no reset emails in v1 | 2026-10-11 |
+| Uninvited accounts | Blocked with "Not invited — ask a team admin"; public sign-up off; invites are links the Admin sends | 2026-10-11 |
 | Public pages | None; every page requires sign-in | 2026-10-11 |
 | RideWithGPS | API key, secret and auth token stored as Worker secrets (verified on the `bbt-ride` Worker) | 2026-10-11 |
 | Cloudflare deploys | Scoped API token in GitHub repository secrets; deploy via GitHub Actions; `ride.bbt.team` attached by hand | 2026-10-10 |

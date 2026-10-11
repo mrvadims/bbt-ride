@@ -205,6 +205,11 @@ th.sky,td.sky{text-align:center}
 .pasthead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:-4px 0 12px}
 .pasthead .btn{margin-left:auto}
 a.spotrow{text-decoration:none}
+.signin{max-width:380px;margin:24px auto}
+.signin-b{padding:20px;display:grid;gap:12px}
+.gbtn{gap:10px;color:var(--text)}
+.or{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12px}
+.or::before,.or::after{content:"";flex:1;border-top:1px solid var(--line)}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 @media (min-width:760px){
   .map{height:280px}
@@ -292,9 +297,9 @@ const ROLES = ['view', 'edit', 'admin'], ROLE_LABEL = { view: 'View', edit: 'Edi
 let ROLE = ROLES.includes(store.get('bbt.role', 'admin')) ? store.get('bbt.role', 'admin') : 'admin';
 const can = { plan: () => ROLE !== 'view', settings: () => ROLE === 'admin' };
 const USERS = [
-  { name: 'Vadim (you)', email: 'your Google account', role: 'admin', status: 'Active' },
-  { name: 'Example rider', email: 'rider@example.com', role: 'view', status: 'Active' },
-  { name: 'Example ride leader', email: 'leader@example.com', role: 'edit', status: 'Invited' }
+  { name: 'Vadim (you)', email: 'your Google account', role: 'admin', status: 'Active', via: 'Google' },
+  { name: 'Example rider', email: 'rider@example.com', role: 'view', status: 'Active', via: 'Password' },
+  { name: 'Example ride leader', email: 'leader@example.com', role: 'edit', status: 'Invited', via: '—' }
 ];
 
 /* ---------- sample published rides ---------- */
@@ -1006,15 +1011,30 @@ function viewPlan(){
     <div class="plan-grid"><div class="panels">${meetS}${routeS}${notesS}</div><div><div class="kicker" style="margin:4px 0 8px">Preview · ${dayLabel(P.date, true)}</div>${preview}</div></div>`;
 }
 
+// Sign-in (live app shows this until there is a session). Prototype: either button opens the Ride page.
+function viewSignin(){
+  return `<h1 class="sr">Sign in</h1><section class="panel signin"><div class="signin-b">
+    <div class="sub-h" style="justify-content:center;font-size:18px">Sign in to BBT Ride</div>
+    <button type="button" class="btn btn-outline gbtn" id="signin-google"><svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#4285F4" d="M45 24.5c0-1.6-.1-2.8-.4-4.1H24v7.7h12c-.2 2-1.6 5-4.6 7l7.1 5.5C42.6 36.7 45 31.1 45 24.5z"/><path fill="#34A853" d="M24 46c5.9 0 10.9-1.9 14.5-5.3l-7.1-5.5c-1.9 1.3-4.4 2.2-7.4 2.2-5.7 0-10.5-3.8-12.2-8.9l-7.3 5.6C8.1 41.2 15.4 46 24 46z"/><path fill="#FBBC05" d="M11.8 28.5c-.4-1.3-.7-2.7-.7-4.5s.3-3.2.7-4.5l-7.3-5.6C3 16.9 2 20.3 2 24s1 7.1 2.5 10.1l7.3-5.6z"/><path fill="#EA4335" d="M24 10.6c4.1 0 6.9 1.8 8.5 3.3l6.3-6.1C34.9 4.2 29.9 2 24 2 15.4 2 8.1 6.8 4.5 13.9l7.3 5.6c1.7-5.1 6.5-8.9 12.2-8.9z"/></svg>Continue with Google</button>
+    <div class="or"><span>or</span></div>
+    <form class="sec-b" style="padding:0" onsubmit="event.preventDefault()">
+      <label class="field">Username or email<input id="si-user" autocomplete="username"></label>
+      <label class="field">Password<input id="si-pass" type="password" autocomplete="current-password"></label>
+      <button type="submit" class="btn btn-primary" id="signin-pass">Sign in</button>
+    </form>
+    <p class="tiny muted" style="margin:10px 0 0;text-align:center">Forgot your password? Ask a team admin for a reset link.<br>Not on the team list yet? Ask a team admin for an invite.</p>
+  </div></section>`;
+}
 function viewSettings(){
   const num = (k, label, step = 1, unit = '') => `<label class="field">${label}${unit ? ` (${unit})` : ''}<input type="number" data-set="${k}" value="${S[k]}" step="${step}"></label>`;
   const invited = USERS.filter(u => u.status === 'Invited').length;
-  const users = panel('set-users', 'Users', `${USERS.length} users${invited ? ` · ${invited} invited` : ''} · sign in with Google`,
-    `<div class="tablewrap" style="margin-top:0"><table><thead><tr><th>Name</th><th style="text-align:left">Email</th><th style="text-align:left">Role</th><th>Status</th></tr></thead><tbody>
-      ${USERS.map((u, i) => `<tr><td>${esc(u.name)}</td><td style="text-align:left">${esc(u.email)}</td><td style="text-align:left">${i === 0 ? 'Admin' : `<select data-user-role="${i}" aria-label="Role for ${esc(u.email)}" style="min-height:32px;padding:4px 8px;width:auto">${ROLES.map(r => `<option value="${r}" ${u.role === r ? 'selected' : ''}>${ROLE_LABEL[r]}</option>`).join('')}</select>`}</td><td>${u.status}</td></tr>`).join('')}</tbody></table></div>
+  const users = panel('set-users', 'Users', `${USERS.length} users${invited ? ` · ${invited} invited` : ''} · Google or password`,
+    `<div class="tablewrap" style="margin-top:0"><table><thead><tr><th>Name</th><th style="text-align:left">Email</th><th style="text-align:left">Role</th><th>Status</th><th>Sign-in</th><th></th></tr></thead><tbody>
+      ${USERS.map((u, i) => `<tr><td>${esc(u.name)}</td><td style="text-align:left">${esc(u.email)}</td><td style="text-align:left">${i === 0 ? 'Admin' : `<select data-user-role="${i}" aria-label="Role for ${esc(u.email)}" style="min-height:32px;padding:4px 8px;width:auto">${ROLES.map(r => `<option value="${r}" ${u.role === r ? 'selected' : ''}>${ROLE_LABEL[r]}</option>`).join('')}</select>`}</td><td>${u.status}</td><td>${u.via}</td>
+        <td>${i === 0 ? '' : `<button type="button" class="linkbtn" data-user-link="${i}">${u.status === 'Invited' ? 'Copy invite link' : 'Reset link'}</button>`}</td></tr>`).join('')}</tbody></table></div>
      <div class="controls" style="margin:12px 0 0"><label class="field" style="flex:1 1 220px">Invite by email<input type="email" id="u-email" placeholder="name@gmail.com" autocomplete="off"></label>
        <label class="field">Role<select id="u-role">${ROLES.map(r => `<option value="${r}">${ROLE_LABEL[r]}</option>`).join('')}</select></label><button class="btn btn-primary" type="button" id="invite">Invite</button></div>
-     <p class="tiny muted" style="margin:8px 0 0">View: see rides and forecasts. Edit: also plan and publish rides. Admin: also change settings and manage users.</p>`, { title: true, collapsed: true });
+     <p class="tiny muted" style="margin:8px 0 0">View: see rides, RSVP and post. Edit: also plan, publish and cancel rides. Admin: also settings and users.<br>An invite link lets the person continue with Google or set a password. A reset link (valid 24 h, one use) lets them choose a new password; send it yourself.</p>`, { title: true, collapsed: true });
   const defaults = panel('set-defaults', 'Ride defaults', `${fmtTime(hhmmToMin(S.rollout))} · ${S.durationH} h · ${S.pace} mph · coffee ${S.stopMin} min · regroups ${S.regroupPct}%`,
     `<div class="settings-grid">${num('pace', 'Pace', 0.5, 'mph')}<label class="field">Roll-out<input type="time" data-set="rollout" value="${S.rollout}" step="900"></label>${num('durationH', 'Weather window before a route is picked', 0.5, 'h')}${num('stopMin', 'Coffee stop', 5, 'min')}${num('regroupPct', 'Regroup buffer', 1, '% of moving time')}</div>`, { title: true, collapsed: true });
   const road = panel('set-road', 'Road wetness', `${S.lookback} h look-back · wet ≥ ${S.wetMm} mm · drying ≥ ${S.dryingMm} mm`,
@@ -1047,9 +1067,10 @@ function render(){
   document.querySelector('[data-nav="plan"]').hidden = !can.plan();
   document.querySelector('[data-nav="settings"]').hidden = !can.settings();
   if ((page === 'settings' && !can.settings()) || (page === 'plan' && !can.plan())){ location.hash = 'ride'; return; }
-  const demo = `<div class="rolebar"><span class="tiny muted">Prototype · view as</span><div class="seg" role="group" aria-label="Demo role">${ROLES.map(r => `<button type="button" data-role-set="${r}" aria-pressed="${ROLE === r}">${ROLE_LABEL[r]}</button>`).join('')}</div></div>`;
-  const views = { ride: viewRide, plan: viewPlan, settings: viewSettings };
-  app.innerHTML = demo + banner + (views[page] || viewRide)(arg);
+  const demo = `<div class="rolebar"><a class="tiny" href="#signin">Sign-in screen</a><span class="tiny muted">· view as</span><div class="seg" role="group" aria-label="Demo role">${ROLES.map(r => `<button type="button" data-role-set="${r}" aria-pressed="${ROLE === r}">${ROLE_LABEL[r]}</button>`).join('')}</div></div>`;
+  const views = { ride: viewRide, plan: viewPlan, settings: viewSettings, signin: viewSignin };
+  document.querySelector('nav.nav').hidden = page === 'signin';
+  app.innerHTML = page === 'signin' ? viewSignin() : demo + banner + (views[page] || viewRide)(arg);
   mount();
 }
 function mount(){
@@ -1093,7 +1114,7 @@ document.addEventListener('click', e => {
     a.href = URL.createObjectURL(blob); a.download = `bbt-ride-${UI.cal.date}.ics`; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 2000); document.querySelector('.sheet')?.remove(); return;
   }
-  const el = e.target.closest('[data-route],[data-offset],[data-pday],[data-pick-spot],[data-plan-date],[data-pick],[data-role-set],#publish,#cancelride,#discard,#startover,[data-edit-ride],[data-reuse],#ns-open,#ns-save,#ns-cancel,#reset,#themebtn,#invite');
+  const el = e.target.closest('[data-route],[data-offset],[data-pday],[data-pick-spot],[data-plan-date],[data-pick],[data-role-set],#publish,#cancelride,#discard,#startover,[data-edit-ride],[data-reuse],#ns-open,#ns-save,#ns-cancel,#reset,#themebtn,#invite,[data-user-link],#signin-google,#signin-pass');
   if (!el) return;
   if (el.dataset.route != null){ UI.route = +el.dataset.route; render(); }
   else if (el.dataset.offset){ store.set('bbt.kitOffset', el.dataset.offset); render(); }
@@ -1124,10 +1145,13 @@ document.addEventListener('click', e => {
     Object.assign(P, { editing: null, date: wk.find(d => !rideOn(d)) || wk[0], time: r.time, spot: r.spot, route: main.id, q: routeById(main.id).name, stop: main.stop || '', pace: r.pace || S.pace, notes: r.notes || '',
       altOn: !!alt, alt: alt ? alt.id : null, qAlt: alt ? routeById(alt.id).name : '', labelA: alt ? main.label : 'Full', labelB: alt ? alt.label : 'Short', newSpot: null });
     saveDraft(); location.hash = 'plan'; toast('Plan copied from ' + dayLabel(el.dataset.reuse)); }
+  else if (el.id === 'signin-google' || el.id === 'signin-pass'){ location.hash = 'ride'; toast('Signed in (prototype)'); }
   else if (el.dataset.roleSet){ ROLE = el.dataset.roleSet; store.set('bbt.role', ROLE); render(); }
   else if (el.id === 'invite'){ const em = document.getElementById('u-email'), rl = document.getElementById('u-role');
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em.value)){ toast('Enter a valid email address.'); return; }
-    USERS.push({ name: '—', email: em.value.trim().toLowerCase(), role: rl.value, status: 'Invited' }); render(); toast('Invited (prototype: no email sent).'); }
+    USERS.push({ name: '—', email: em.value.trim().toLowerCase(), role: rl.value, status: 'Invited', via: '—' }); render(); toast('Invited. Copy the invite link and send it.'); }
+  else if (el.dataset.userLink){ const u = USERS[+el.dataset.userLink], kind = u.status === 'Invited' ? 'invite' : 'reset', link = `https://ride.bbt.team/${kind}/${Math.random().toString(36).slice(2, 10)}`;
+    (navigator.clipboard ? navigator.clipboard.writeText(link) : Promise.reject()).then(() => toast(`${kind === 'invite' ? 'Invite' : 'Reset'} link copied (prototype)`), () => toast(link)); }
   else if (el.id === 'reset'){ S = Object.assign({}, DEFAULTS); store.del('bbt.settings'); render(); toast('Settings reset'); }
   else if (el.id === 'themebtn'){ THEME = isDark() ? 'light' : 'dark'; store.set('bbt.theme', THEME); applyTheme(); render(); }
 });
