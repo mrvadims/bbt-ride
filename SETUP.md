@@ -7,6 +7,7 @@ Nothing here is ever committed. Values go into Cloudflare Worker secrets, GitHub
 | 1. Cloudflare API token | Done: GitHub repository secrets + local `.env` |
 | 2. RideWithGPS credentials | Done: Worker secrets verified 2026-10-11 |
 | 3. Google sign-in | To do: create the OAuth client, store `GOOGLE_CLIENT_SECRET` |
+| 4. Web Push keys | When the app is built: generate and store `VAPID_PRIVATE_KEY` |
 
 ## 1. Cloudflare API token (for deploys)
 
@@ -78,3 +79,12 @@ For local development, put the same names in `.dev.vars` (git-ignored). `.dev.va
    `GOOGLE_CLIENT_ID` and `BOOTSTRAP_ADMIN_EMAIL` aren't secret; they go in `wrangler.toml` `[vars]`.
 
 Password sign-in needs no extra setup: it runs in the Worker and uses `SESSION_SECRET` (already set).
+
+## 4. Web Push keys (ride notifications)
+
+Generate a key pair once, from your own terminal:
+```
+npx web-push generate-vapid-keys
+npx wrangler secret put VAPID_PRIVATE_KEY --name bbt-ride   # paste the private key
+```
+The public key isn't secret; it goes in `wrangler.toml` `[vars]` as `VAPID_PUBLIC_KEY`.

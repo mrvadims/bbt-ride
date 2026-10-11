@@ -24,14 +24,14 @@ Every open question from the design review, with what was decided. Details live 
 ## Rides
 | Topic | Decision | Date |
 |---|---|---|
-| Defaults | Roll-out 8:30; coffee stop 20 min (15–20 typical); regroup buffer 5 % of moving time; all Admin settings | 2026-10-09 |
+| Defaults | Roll-out 8:30; coffee stop 20 min (15–20 typical, one team setting); regroup buffer 5 % of moving time; all Admin settings | 2026-10-09 |
 | Alternate routes | Free-text labels, pre-filled "Full" / "Short" | 2026-10-09 |
 | Days | Saturday and Sunday tabs always; rides can be scheduled on any date | 2026-10-09 |
 | Planning | One Plan flow: compare spots → pick a spot (or add one) → route → preview → Publish. No separate Weekend page | 2026-10-10 |
 | Drafts | No Save draft button; the form autosaves. Edit, Update, Replace, Cancel and Restore ride | 2026-10-10 |
 | RSVP | In / Out (route choice only for In on rides with an alternate); message thread with one-level replies | 2026-10-10 |
 | RSVP reminders | None in v1 | 2026-10-11 |
-| Notifications | Only when a ride is updated or cancelled; push or email, opt-in | 2026-10-11 |
+| Notifications | Only when a ride is updated, cancelled or restored; Web Push only (opt-in per device), no email service | 2026-10-11 |
 | History | Past tab on the Ride page; read-only past rides with observed weather; Reuse this plan | 2026-10-11 |
 
 ## Access and accounts
