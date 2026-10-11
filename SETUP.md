@@ -67,16 +67,31 @@ For local development, put the same names in `.dev.vars` (git-ignored). `.dev.va
 
 ## 3. Google sign-in (OAuth client)
 
-1. console.cloud.google.com → create a project `bbt-ride` (or reuse one).
-2. **APIs & Services → OAuth consent screen:** External, app name "BBT Ride", support email yours, scopes `openid email profile` only. Publishing status: In production. With only these basic scopes, Google doesn't require verification.
-3. **Credentials → Create credentials → OAuth client ID → Web application.**
+Google keeps this under **Google Auth Platform** (APIs & Services → OAuth consent screen opens it). Use a Google account the team can keep long term; add a second owner later under IAM & Admin → IAM.
+
+1. console.cloud.google.com → project picker → **New project** `bbt-ride` → Create, and select it.
+2. **Google Auth Platform → Get started:** app name `BBT Ride`, support email, audience **External**, contact email → Create.
+3. **Branding** (all of this is needed before you can publish):
+   - Application home page: `https://ride.bbt.team`
+   - Application privacy policy link: `https://ride.bbt.team/privacy` (the page is `public/privacy.html`)
+   - Authorized domains: `bbt.team`
+   - Developer contact information: your email (bottom of the page)
+   - No logo: a logo makes Google require brand verification.
+   - **Save.**
+4. **Data Access:** add nothing; `openid`, `email` and `profile` are allowed by default.
+5. **Audience → Publish app → Confirm**, so the status reads **In production**. With only those basic scopes there's no Google review. (In "Testing", only listed test users can sign in.)
+6. **Clients → Create client → Web application**, name `bbt-ride web`:
    - Authorized JavaScript origins: `https://ride.bbt.team`, `http://localhost:8787`
    - Authorized redirect URIs: `https://ride.bbt.team/api/auth/callback/google`, `http://localhost:8787/api/auth/callback/google`
-4. Store the secret:
+   - **Create.** Copy the client secret now (or Download JSON): Google shows it only once. If it's lost, use **Add secret** on the client and disable the old one.
+7. Store the secret from your terminal, then add the same line to `.dev.vars` for local development:
    ```
    npx wrangler secret put GOOGLE_CLIENT_SECRET --name bbt-ride
+   npx wrangler secret list --name bbt-ride     # should list 5 names
    ```
    `GOOGLE_CLIENT_ID` and `BOOTSTRAP_ADMIN_EMAIL` aren't secret; they go in `wrangler.toml` `[vars]`.
+
+"redirect_uri_mismatch" at sign-in means a redirect URI above doesn't match exactly (https, no trailing slash).
 
 Password sign-in needs no extra setup: it runs in the Worker and uses `SESSION_SECRET` (already set).
 

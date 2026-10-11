@@ -28,7 +28,7 @@ Sign-in is required. Two ways to sign in, both on the same account: **Continue w
 - **Sessions:** Better Auth's database sessions in an `HttpOnly; Secure; SameSite=Lax` cookie, 30-day sliding expiry. The role is read on each request, so a role change or disabling takes effect immediately.
 - Every API route checks the role server-side; the UI only hides what the role can't do.
 - **Bootstrap:** while no Admin exists, the Worker treats `BOOTSTRAP_ADMIN_EMAIL` (a Worker variable) as an Admin invite, so that person can sign in with Google or set a password.
-- **No public pages:** every page, including a shared ride link, requires sign-in. The shared text carries the essentials (time, place, route links).
+- **Public pages: only sign-in and `/privacy`.** Every other page, including a shared ride link, requires sign-in; the shared text carries the essentials (time, place, route links). `/privacy` is a static page (`public/privacy.html`, linked from the sign-in page) that Google requires before the sign-in app can be published; it shows no team data.
 - **Audit:** `audit_log` records who changed rides, settings and users, and when.
 
 ### Data model (D1)
@@ -49,7 +49,7 @@ drafts(user_id PRIMARY KEY, ride_id NULL, form_json, updated_at)       -- editor
 ride_routes(ride_id, sort, label, rwgps_route_id, stop_poi_json)
 route_cache(rwgps_route_id PRIMARY KEY, json, fetched_at)
 rsvps(ride_id, user_id, status CHECK(status IN ('in','out')), route_label NULL, updated_at, PRIMARY KEY(ride_id, user_id))
-messages(id, ride_id, user_id, parent_id NULL, body, created_at, edited_at NULL, deleted_at NULL)  -- parent_id = reply to
+messages(id, ride_id, user_id NULL, parent_id NULL, body, created_at, edited_at NULL, deleted_at NULL)  -- parent_id = reply to; user_id NULL = former member
 push_subscriptions(endpoint PRIMARY KEY, user_id, keys_json, created_at)  -- one row per device that opted in
 audit_log(id, user_id, action, entity, entity_id, diff_json, at)
 ```
@@ -90,7 +90,7 @@ audit_log(id, user_id, action, entity, entity_id, diff_json, at)
 
 ### Settings (Admin only, stored in D1)
 Every setting lives in the `settings` table and is edited on the Settings page (gear icon); nothing is hard-coded except first-run defaults. Collapsible panels, each with a one-line summary of the current values:
-- **Users:** invite by email with a role (copy invite link), change roles, disable, create a password reset link; shows each user's sign-in methods. A short line explains what each role can do.
+- **Users:** invite by email with a role (copy invite link), change roles, disable, create a password reset link, delete on request; shows each user's sign-in methods. A short line explains what each role can do. Deleting removes the account, sign-in methods, sessions, push subscriptions and RSVPs; the person's messages stay on past rides as "Former member".
 - **Ride defaults:** roll-out **8:30**, weather window 3 h (used before a route is picked), pace 17 mph, coffee stop **20 min** (typical 15–20), regroup buffer **5 %** of moving time.
 - **Road wetness:** look-back hours, Wet / Drying film thresholds.
 - **Warnings:** amber and red thresholds for cold (bike feel), heat (real feel), wind, gusts, rain chance, rain amount.
@@ -235,7 +235,7 @@ Mile markers come from the POI's distance along the RWGPS track (nearest track p
 `prototype/index.html` — one self-contained file (inline CSS/JS, Leaflet 1.9.4 from cdnjs). Built from `prototype/src/app.html` by `python3 prototype/build.py`, which inlines `data/seed.json`, the fallback forecast `data/raw/om_purchase.json`, and the logo.
 - Fetches Open-Meteo live in the browser for the start spots (one multi-location request, `past_days=2`). On failure it uses the embedded sample (SUNY Purchase, Oct 7–11) for every spot and shows a banner.
 - Screens: Sign-in (Google + password), Ride (date tabs + Past; Meet / Route / Weather / Notes / Riders panels; share, calendar, edit), Plan (spot comparison → route → preview that reuses the ride panels; autosaved draft), Settings (panels, incl. Users with invite and reset links). A View / Edit / Admin switcher and a "Sign-in screen" link sit below the top bar.
-- Prototype-only: everything you change lives in this browser or this session; sample rides, riders, messages and past rides are examples. Not in the prototype: NWS alerts, metric display (the Units choice is saved, values stay imperial), Spots management, kit chart editing, disabling users, message edit/delete, notifications, the 30 s refresh, observed weather from NWS (past rides use sample values).
+- Prototype-only: everything you change lives in this browser or this session; sample rides, riders, messages and past rides are examples. Not in the prototype: the `/privacy` link on the sign-in page (the page itself is `public/privacy.html`), deleting users, NWS alerts, metric display (the Units choice is saved, values stay imperial), Spots management, kit chart editing, disabling users, message edit/delete, notifications, the 30 s refresh, observed weather from NWS (past rides use sample values).
 - Without Leaflet (offline/CDN blocked) maps fall back to an SVG route outline.
 
 ## Data sources
@@ -262,7 +262,7 @@ Never in the repo, the built assets, or any response to the browser. All third-p
 ## Architecture
 - Cloudflare Worker + static assets (React + TypeScript + Vite) on ride.bbt.team.
 - D1: the tables in Data model. KV: forecast and NWS alert cache.
-- Every route requires a session (Google or password sign-in via Better Auth); API routes enforce View / Edit / Admin server-side.
+- Every route except sign-in, `/privacy` and the auth endpoints requires a session (Google or password sign-in via Better Auth); API routes enforce View / Edit / Admin server-side.
 - Deploys: GitHub Actions on merge to `main` (runs D1 migrations, then `wrangler deploy`), using the repository's Cloudflare secrets. `ride.bbt.team` is attached once by hand in the Cloudflare dashboard.
 
 ## Backlog (post-v1)

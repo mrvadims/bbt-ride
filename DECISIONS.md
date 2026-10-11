@@ -41,7 +41,7 @@ Every open question from the design review, with what was decided. Details live 
 | Identity system | Better Auth inside the Worker, stored in D1 (free; no outside identity service) | 2026-10-11 |
 | Forgotten password | Admin creates a one-time reset link in Settings → Users and sends it; no reset emails in v1 | 2026-10-11 |
 | Uninvited accounts | Blocked with "Not invited — ask a team admin"; public sign-up off; invites are links the Admin sends | 2026-10-11 |
-| Public pages | None; every page requires sign-in | 2026-10-11 |
+| Public pages | Only sign-in and a static `/privacy` page (Google requires a public privacy policy to publish the sign-in app); everything else requires sign-in | 2026-10-11 |
 | RideWithGPS | API key, secret and auth token stored as Worker secrets (verified on the `bbt-ride` Worker) | 2026-10-11 |
 | Cloudflare deploys | Scoped API token in GitHub repository secrets; deploy via GitHub Actions; `ride.bbt.team` attached by hand | 2026-10-10 |
 
