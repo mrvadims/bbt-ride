@@ -127,11 +127,6 @@ export const users = new Hono<AppEnv>()
     if (e.role) await auth.api.setRole({ body: { userId: id, role: e.role }, headers });
     if (e.disabled === true) await auth.api.banUser({ body: { userId: id }, headers }); // also ends their sessions
     if (e.disabled === false) await auth.api.unbanUser({ body: { userId: id }, headers });
-    if (e.name || e.email)
-      await auth.api.adminUpdateUser({
-        body: { userId: id, data: { ...(e.name && { name: e.name }), ...(e.email && { email: e.email }) } },
-        headers,
-      });
     await audit(c.env.DB, me.id, "update", "user", id, e).run();
     return c.body(null, 204);
   })

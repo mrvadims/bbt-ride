@@ -82,11 +82,14 @@ describe("per-spot weather cache", () => {
   const b = { id: "b", lat: 42, lng: -74 };
   const c = { id: "c", lat: 43, lng: -75 };
   const age = (ms: number) => {
-    const all = JSON.parse(store.get("forecast") as string) as Record<string, { at: number }>;
-    for (const e of Object.values(all)) e.at -= ms;
-    store.set("forecast", JSON.stringify(all));
+    const st = JSON.parse(store.get("forecast") as string) as { tried: number; values: Record<string, { at: number }> };
+    st.tried -= ms;
+    for (const e of Object.values(st.values)) e.at -= ms;
+    store.set("forecast", JSON.stringify(st));
   };
+  let tries = 0;
   const down = async (): Promise<string[]> => {
+    tries++;
     throw new Error("upstream down");
   };
 
@@ -98,12 +101,17 @@ describe("per-spot weather cache", () => {
     };
     const first = await perSpot(kv, "forecast", [a, b], 60_000, load);
     const again = await perSpot(kv, "forecast", [a, b], 60_000, load);
-    expect([first.a?.value, first.b?.value, again.a?.value, calls]).toEqual(["fresh a", "fresh b", "fresh a", 1]);
+    expect([first.a, first.b, again.a, calls]).toEqual(["fresh a", "fresh b", "fresh a", 1]);
   });
   it("keeps the last good copies when the upstream fails, and leaves out a spot that has none", async () => {
     age(2 * 60_000);
     const out = await perSpot(kv, "forecast", [a, b, c], 60_000, down);
     expect(Object.keys(out).sort()).toEqual(["a", "b"]);
+  });
+  it("tries an unreachable upstream once per refresh period, not on every request", async () => {
+    tries = 0;
+    await perSpot(kv, "forecast", [a, b, c], 60_000, down);
+    expect(tries).toBe(0);
   });
   it("drops copies older than 6 hours", async () => {
     age(7 * 3600_000);

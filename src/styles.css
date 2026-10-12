@@ -133,6 +133,7 @@ h2 {
   border-bottom: 4px solid var(--stripe);
 }
 .topbar-inner {
+  position: relative;
   max-width: 1200px;
   margin: 0 auto;
   height: 56px;
@@ -379,7 +380,7 @@ tr.now td:first-child {
   align-items: flex-end;
   margin-bottom: 14px;
 }
-label.field {
+.field {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -578,11 +579,6 @@ textarea {
 .panel-s .seg button {
   white-space: nowrap;
 }
-.panel-s .pill {
-  font-size: 12px;
-  padding: 1px 8px;
-  vertical-align: 1px;
-}
 .chev {
   width: 16px;
   height: 16px;
@@ -671,6 +667,8 @@ textarea {
   border-bottom: 0;
   margin: 0;
   flex: 1;
+  min-width: 0;
+  overflow-x: auto; /* many ride days scroll sideways instead of widening the page */
 }
 .iconbtn.share {
   color: var(--link);
@@ -741,11 +739,6 @@ dialog.sheet::backdrop {
   font-size: 13px;
   min-height: 180px;
 }
-@media (min-width: 760px) {
-  .sheet {
-    place-items: center;
-  }
-}
 .panel.titled .panel-h {
   grid-template-columns: minmax(0, 1fr) 16px;
 }
@@ -782,6 +775,9 @@ dialog.sheet::backdrop {
   border: 1px solid var(--line);
   border-radius: 12px;
   overflow: hidden;
+}
+.spotgroup {
+  display: grid;
 }
 .spotrow {
   display: flex;
@@ -1096,9 +1092,6 @@ a.spotrow {
 .acctmenu .seg button {
   flex: 1;
 }
-.topbar-inner {
-  position: relative;
-}
 .sr {
   position: absolute;
   width: 1px;
@@ -1177,4 +1170,17 @@ a.linkbtn {
   font-size: 13px;
   font-weight: 600;
   color: var(--muted);
+}
+/* Leaflet's zoom buttons and attribution follow the theme (the .map prefix outranks leaflet.css, which loads later). */
+.map .leaflet-bar a,
+.map.leaflet-container .leaflet-control-attribution {
+  background: var(--card);
+  color: var(--text);
+}
+.map.leaflet-container .leaflet-control-attribution a {
+  color: var(--link);
+}
+.panel-h.static,
+.panel-h.static .panel-t {
+  cursor: default;
 }

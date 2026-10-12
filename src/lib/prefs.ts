@@ -47,5 +47,5 @@ export function applyTheme() {
   else document.documentElement.setAttribute("data-theme", current.theme);
 }
 
-export const isDark = () =>
-  current.theme === "dark" || (current.theme === "auto" && matchMedia("(prefers-color-scheme: dark)").matches);
+export const isDark = (theme: Prefs["theme"]) =>
+  theme === "dark" || (theme === "auto" && matchMedia("(prefers-color-scheme: dark)").matches);

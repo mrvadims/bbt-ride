@@ -33,8 +33,14 @@ const errorText = (code: string | null) =>
       ? "Not invited — ask a team admin."
       : "Google sign-in didn't complete. Try again.";
 
-export const continueWithGoogle = () =>
-  authClient.signIn.social({ provider: "google", callbackURL: "/", errorCallbackURL: "/signin" });
+/** Where to go after signing in: the ?next= path the app was opened at, if it's one of ours. */
+export const nextPath = (query: URLSearchParams) => {
+  const next = query.get("next") ?? "/";
+  return next.startsWith("/") && !next.startsWith("//") ? next : "/";
+};
+
+export const continueWithGoogle = (next = "/") =>
+  authClient.signIn.social({ provider: "google", callbackURL: next, errorCallbackURL: "/signin" });
 
 export function SignIn() {
   const { query } = useLocation();
@@ -62,7 +68,7 @@ export function SignIn() {
       return;
     }
     await qc.invalidateQueries();
-    navigate("/", true);
+    navigate(nextPath(query), true);
   };
 
   return (
@@ -78,7 +84,7 @@ export function SignIn() {
               {error}
             </p>
           )}
-          <button type="button" className="btn btn-outline gbtn" onClick={continueWithGoogle}>
+          <button type="button" className="btn btn-outline gbtn" onClick={() => continueWithGoogle(nextPath(query))}>
             <GoogleMark />
             Continue with Google
           </button>

@@ -50,7 +50,7 @@ export const Section = ({ label, children }: { label: string; children: ReactNod
 /** A header-only panel with a short message (e.g. no forecast yet). */
 export const EmptyPanel = ({ label, text }: { label: string; text: string }) => (
   <section className="panel">
-    <div className="panel-h">
+    <div className="panel-h static">
       <span className="panel-t">{label}</span>
       <div className="panel-s muted">{text}</div>
     </div>

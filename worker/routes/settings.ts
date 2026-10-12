@@ -43,16 +43,21 @@ function kitInserts(db: D1Database, kit: KitBand[]) {
   sorted[sorted.length - 1] = { ...(sorted[sorted.length - 1] as KitBand), minFeel: -99 }; // the coldest band catches everything
   return [
     db.prepare("delete from kit_bands"),
-    ...sorted.map((b, i) =>
+    ...sorted.map((b) =>
       db
-        .prepare("insert into kit_bands (min_feel_f, name, items_json, sort) values (?, ?, ?, ?)")
-        .bind(b.minFeel, b.name, JSON.stringify(b.items), i),
+        .prepare("insert into kit_bands (min_feel_f, name, items_json) values (?, ?, ?)")
+        .bind(b.minFeel, b.name, JSON.stringify(b.items)),
     ),
   ];
 }
 
+const teamSettings = async (db: D1Database): Promise<TeamSettings> => {
+  const [settings, kit] = await Promise.all([loadSettings(db), loadKit(db)]);
+  return { settings, kit };
+};
+
 export const settings = new Hono<AppEnv>()
-  .get("/", async (c) => c.json<TeamSettings>({ settings: await loadSettings(c.env.DB), kit: await loadKit(c.env.DB) }))
+  .get("/", async (c) => c.json(await teamSettings(c.env.DB)))
   .put("/", requireRole("admin"), zValidator("json", settingsSchema.partial()), async (c) => {
     const changes = c.req.valid("json");
     const user = c.get("user");
@@ -62,12 +67,12 @@ export const settings = new Hono<AppEnv>()
       ).bind(key, JSON.stringify(value), user.id, nowIso()),
     );
     if (stmts.length) await c.env.DB.batch([...stmts, audit(c.env.DB, user.id, "update", "settings", null, changes)]);
-    return c.json<TeamSettings>({ settings: await loadSettings(c.env.DB), kit: await loadKit(c.env.DB) });
+    return c.json(await teamSettings(c.env.DB));
   })
   .put("/kit", requireRole("admin"), zValidator("json", kitSchema), async (c) => {
     const kit = c.req.valid("json");
     await c.env.DB.batch([...kitInserts(c.env.DB, kit), audit(c.env.DB, c.get("user").id, "update", "kit", null, kit)]);
-    return c.json<TeamSettings>({ settings: await loadSettings(c.env.DB), kit: await loadKit(c.env.DB) });
+    return c.json(await teamSettings(c.env.DB));
   })
   // Restores first-run values (not users or spots).
   .post("/reset", requireRole("admin"), async (c) => {

@@ -128,6 +128,10 @@ const evilPush = await rider("/api/push", {
   body: { endpoint: "https://evil.example/collect", keys: { p256dh: "x", auth: "y" } },
 });
 check(evilPush.status === 400, "push endpoints must be a browser push service");
+check(
+  (await rider("/api/push", { body: { endpoint: "not a url", keys: { p256dh: "x", auth: "y" } } })).status === 400,
+  "a malformed push endpoint is a 400, not a server error",
+);
 
 // Settings
 check((await admin("/api/settings", { method: "PUT", body: { pace: 99 } })).status === 400, "invalid setting refused");
@@ -213,6 +217,10 @@ const plan = {
   ],
 };
 check((await rider("/api/rides", { body: plan })).status === 403, "rider can't publish");
+check(
+  (await admin("/api/rides", { body: { ...plan, date: "2027-02-31" } })).status === 400,
+  "an impossible date is refused",
+);
 const pub = await admin("/api/rides", { body: plan });
 check(
   pub.status === 201 && pub.json.status === "published",
@@ -254,6 +262,10 @@ check(c.lastUpdate?.text === upd.json.lastUpdate?.text, "editing a cancelled rid
 check(
   (await rider(`/api/rides/${id}/rsvp`, { method: "PUT", body: { status: "out", routeLabel: null } })).status === 409,
   "no RSVP on a cancelled ride",
+);
+check(
+  (await rider(`/api/rides/${id}/messages`, { body: { body: "Still on?", parentId: null } })).status === 409,
+  "no posting on a cancelled ride",
 );
 c = (await admin(`/api/rides/${id}/restore`, { body: {} })).json;
 check(c.status === "published", "restore");

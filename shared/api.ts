@@ -2,10 +2,12 @@
 import { z } from "zod";
 import type { KitBand } from "./kit.ts";
 import type { RideRoute, Spot } from "./ride.ts";
-import type { Settings } from "./settings.ts";
+import { HHMM, type Settings } from "./settings.ts";
 import type { Alert, OpenMeteoResponse } from "./weather.ts";
 
-export type Role = "view" | "edit" | "admin";
+export const ROLES = ["view", "edit", "admin"] as const;
+export type Role = (typeof ROLES)[number];
+export const ROLE_LABEL: Record<Role, string> = { view: "View", edit: "Edit", admin: "Admin" };
 
 export interface Me {
   id: string;
@@ -23,7 +25,6 @@ export interface TeamSettings {
 }
 
 export interface WeatherData {
-  fetchedAt: string;
   forecast: Record<string, OpenMeteoResponse>; // by spot id
   alerts: Record<string, Alert[]>;
 }
@@ -102,8 +103,8 @@ export interface RouteSummary {
 export type { Spot };
 
 // ---- request schemas ----
-const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
-const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
+const date = z.iso.date(); // a real calendar date, YYYY-MM-DD
+const hhmm = z.string().regex(HHMM);
 
 export const rideInput = z.object({
   date,
@@ -145,12 +146,10 @@ export const spotEdit = spotInput.partial().extend({ archived: z.boolean().optio
 
 export const inviteInput = z.object({
   email: z.string().trim().toLowerCase().email(),
-  role: z.enum(["view", "edit", "admin"]),
+  role: z.enum(ROLES),
 });
 export const userEdit = z.object({
-  name: z.string().trim().min(1).max(80).optional(),
-  email: z.string().trim().toLowerCase().email().optional(),
-  role: z.enum(["view", "edit", "admin"]).optional(),
+  role: z.enum(ROLES).optional(),
   disabled: z.boolean().optional(),
 });
 export const linkAccept = z.object({
@@ -172,8 +171,8 @@ export const pushSubscription = z.object({
     .url()
     .max(1000)
     .refine((u) => {
-      const url = new URL(u);
-      return url.protocol === "https:" && PUSH_HOSTS.test(url.hostname);
+      const url = URL.parse(u); // zod still runs this when .url() fails
+      return url?.protocol === "https:" && PUSH_HOSTS.test(url.hostname);
     }, "Not a browser push service"),
   keys: z.object({ p256dh: z.string().max(200), auth: z.string().max(100) }),
 });

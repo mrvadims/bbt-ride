@@ -52,6 +52,11 @@ export function PastList() {
         />
       </label>
       {past.isPending && <p className="muted small">Loading…</p>}
+      {past.isError && (
+        <p className="small" role="alert">
+          Couldn't load past rides: {past.error.message}
+        </p>
+      )}
       {[...byMonth].map(([month, rs]) => (
         <div key={month}>
           <div className="kicker" style={{ margin: "14px 0 6px" }}>
@@ -87,10 +92,17 @@ export function PastList() {
 }
 
 export function PastRide({ id, me }: { id: string; me: Me }) {
-  const ride = useRide(id).data;
+  const rideQ = useRide(id);
+  const ride = rideQ.data;
   const [routeIndex, setRouteIndex] = useState(0);
   const m = useRideModel(ride ?? null, routeIndex);
   const rides = useRides().data ?? [];
+  if (rideQ.isError)
+    return (
+      <p className="small" role="alert">
+        Couldn't load the ride: {rideQ.error.message}
+      </p>
+    );
   if (!ride) return <p className="muted small">Loading…</p>;
   const reuse = () => navigate(`/plan?reuse=${ride.id}`);
   return (

@@ -1,9 +1,10 @@
 // Bottom sheet dialog using <dialog>: modal, Escape closes, focus is trapped and returned by the browser.
-import { type ReactNode, useEffect, useRef } from "react";
+import { type ReactNode, useLayoutEffect, useRef } from "react";
 
 export function Sheet({ label, onClose, children }: { label: string; onClose: () => void; children: ReactNode }) {
   const ref = useRef<HTMLDialogElement>(null);
-  useEffect(() => {
+  // Layout effect: its cleanup closes the dialog before React removes it, so the browser returns focus.
+  useLayoutEffect(() => {
     const d = ref.current;
     d?.showModal();
     return () => d?.close();

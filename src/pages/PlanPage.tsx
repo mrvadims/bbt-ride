@@ -3,9 +3,9 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { RideDetail, RideInput, RouteSummary } from "../../shared/api.ts";
-import { etaAt, haversine, M_PER_MI, rideTimes, startDistance } from "../../shared/ride.ts";
+import { etaAt, FT_PER_M, M_PER_MI, nearest, type Poi, rideTimes, startDistance } from "../../shared/ride.ts";
 import { addDays, dayLabel, fmtTime, hhmmToMin, isWeekend, nyNow, weekendDates } from "../../shared/time.ts";
-import { evaluate, fIdx, warnings } from "../../shared/weather.ts";
+import { evaluate, warnings } from "../../shared/weather.ts";
 import { RainBars } from "../components/charts.tsx";
 import { HourTable } from "../components/HourTable.tsx";
 import { EmptyPanel, Panel, Section } from "../components/Panel.tsx";
@@ -15,6 +15,7 @@ import { WarningChips } from "../components/Warnings.tsx";
 import { api } from "../lib/api.ts";
 import {
   NO_WEATHER,
+  refreshSpots,
   type SpotWithState,
   useRide,
   useRides,
@@ -46,6 +47,8 @@ interface Form {
   q: string;
   qAlt: string;
 }
+
+const isCoffee = (p: Poi) => /coffee|food/.test(p.type);
 
 const routeIdFrom = (q: string): number | null => {
   const m = q.match(/ridewithgps\.com\/routes\/(\d+)/) ?? q.trim().match(/^(\d{5,})$/);
@@ -87,13 +90,8 @@ function RouteResults({
 }) {
   const search = useRouteSearch(routeIdFrom(q) ? "" : q.trim());
   const u = units(usePrefs().units);
-  const startsAt = (r: RouteSummary) =>
-    spots
-      .filter((s) => !s.archived)
-      .reduce<SpotWithState | null>((best, s) => {
-        const d = haversine(r.start[0], r.start[1], s.lat, s.lng);
-        return !best || d < haversine(r.start[0], r.start[1], best.lat, best.lng) ? s : best;
-      }, null);
+  const active = spots.filter((s) => !s.archived);
+  const startsAt = (r: RouteSummary) => nearest(r.start[0], r.start[1], active);
   const list = [...(search.data ?? [])].sort(
     (a, b) => Number(startsAt(b)?.id === spotId) - Number(startsAt(a)?.id === spotId),
   );
@@ -120,7 +118,7 @@ function RouteResults({
               </span>
             </span>
             <span className="small muted">
-              {u.dist(r.distance_m / M_PER_MI, 0)} · {u.elev(r.elevation_gain_m * 3.28084)}
+              {u.dist(r.distance_m / M_PER_MI, 0)} · {u.elev(r.elevation_gain_m * FT_PER_M)}
             </span>
           </button>
         );
@@ -138,8 +136,7 @@ function AddSpot({ onAdded, onCancel }: { onAdded: (id: string) => void; onCance
       onCancel={onCancel}
       onSubmit={async (f) => {
         const spot = await api<SpotWithState>("/spots", { body: f });
-        await qc.invalidateQueries({ queryKey: ["spots"] });
-        await qc.invalidateQueries({ queryKey: ["weather"] });
+        await refreshSpots(qc);
         onAdded(spot.id);
       }}
     />
@@ -152,7 +149,7 @@ export function PlanPage() {
   const team = useTeam().data;
   const spots = useSpots().data;
   const wq = useWeather();
-  const weather = wq.data ?? (wq.isError ? NO_WEATHER : undefined); // plan without a forecast rather than wait forever
+  const weather = wq.data ?? NO_WEATHER; // planning never waits on the forecast
   const rides = useRides().data;
   const u = units(usePrefs().units);
   const [form, setForm] = useState<Form | null>(null);
@@ -160,42 +157,43 @@ export function PlanPage() {
   const [error, setError] = useState<string | null>(null);
   const editId = query.get("edit");
   const reuseId = query.get("reuse");
-  const sourceRide = useRide(editId ?? reuseId).data;
+  const source = useRide(editId ?? reuseId);
+  const sourceRide = source.data;
   const editingRide = useRide(form?.editing).data; // stays current after Cancel / Restore
   const today = nyNow().date;
 
-  // First weekend day the forecast covers that has no ride yet; otherwise this Saturday.
+  // The first weekend day in the coming week with no ride yet; otherwise this Saturday.
   const nextFreeDay = (): string => {
-    const se = weather && spots?.[0] ? weather.series[spots[0].id] : undefined;
     const [sat] = weekendDates(today);
-    for (let d = sat; se && fIdx(se, d, 0) != null; d = addDays(d, 1)) {
+    for (let d = sat; d <= addDays(today, 7); d = addDays(d, 1)) {
       if (isWeekend(d) && !(rides ?? []).some((r) => r.date === d && r.status === "published")) return d;
     }
     return sat;
   };
+  const freshForm = (): Form => ({
+    editing: null,
+    date: query.get("date") ?? nextFreeDay(),
+    time: team?.settings.rollout ?? "08:30",
+    spotId: null,
+    routeId: null,
+    altOn: false,
+    altId: null,
+    labelA: "Full",
+    labelB: "Short",
+    stop: undefined,
+    pace: team?.settings.pace ?? 17,
+    notes: "",
+    q: "",
+    qAlt: "",
+  });
 
   // Load the form once: editing a ride, reusing a past ride, the saved draft, or a fresh plan.
   const loaded = useRef(false);
   useEffect(() => {
-    if (loaded.current || !team || !spots || !rides || !weather) return;
+    if (loaded.current || !team || !spots || !rides) return;
     if ((editId || reuseId) && !sourceRide) return;
     loaded.current = true;
-    const base: Form = {
-      editing: null,
-      date: query.get("date") ?? nextFreeDay(),
-      time: team.settings.rollout,
-      spotId: null,
-      routeId: null,
-      altOn: false,
-      altId: null,
-      labelA: "Full",
-      labelB: "Short",
-      stop: undefined,
-      pace: team.settings.pace,
-      notes: "",
-      q: "",
-      qAlt: "",
-    };
+    const base = freshForm();
     if (editId && sourceRide)
       return setForm({ ...base, ...fromRide(sourceRide, sourceRide.date, sourceRide.id, team.settings.pace) });
     if (reuseId && sourceRide)
@@ -210,29 +208,40 @@ export function PlanPage() {
       .catch(() => setForm(base));
   });
 
-  // Autosave the draft (debounced). The last save is kept so dropping the draft can wait for it.
+  // Autosave the draft (debounced), but only once the editor changes something: just opening a ride to edit or
+  // reuse leaves the saved draft alone. The last save is kept so dropping the draft can wait for it.
+  const dirty = useRef(false);
   const saving = useRef<Promise<unknown>>(Promise.resolve());
   useEffect(() => {
-    if (!form) return;
+    if (!form || !dirty.current) return;
     const t = setTimeout(() => {
       saving.current = api("/draft", { method: "PUT", body: { rideId: form.editing, form } }).catch(() => undefined);
     }, 800);
     return () => clearTimeout(t);
   }, [form]);
-  /** Stops autosave (clearing the form cancels the pending timer), waits for a save in flight, then deletes the draft. */
+  /** Stops autosave, waits for a save in flight, then deletes the draft this session saved (if any). */
   const dropDraft = async () => {
-    setForm(null);
+    const saved = dirty.current;
+    dirty.current = false;
     await saving.current;
-    await api("/draft", { method: "DELETE" });
+    if (saved) await api("/draft", { method: "DELETE" }).catch(() => undefined);
   };
 
-  const set = useCallback((patch: Partial<Form>) => setForm((f) => (f ? { ...f, ...patch } : f)), []);
-  const route = useRoute(form?.routeId).data;
-  const altRoute = useRoute(form?.altOn ? form.altId : null).data;
-  const pastedMain = form ? routeIdFrom(form.q) : null;
-  const pastedAlt = form ? routeIdFrom(form.qAlt) : null;
-  const pastedMainRoute = useRoute(pastedMain).data;
-  const pastedAltRoute = useRoute(pastedAlt).data;
+  const set = useCallback((patch: Partial<Form>) => {
+    dirty.current = true;
+    setForm((f) => (f ? { ...f, ...patch } : f));
+  }, []);
+  const routeQ = useRoute(form?.routeId);
+  const altQ = useRoute(form?.altOn ? form.altId : null);
+  const pastedMainQ = useRoute(form ? routeIdFrom(form.q) : null);
+  const pastedAltQ = useRoute(form ? routeIdFrom(form.qAlt) : null);
+  const route = routeQ.data;
+  const altRoute = altQ.data;
+  const pastedMainRoute = pastedMainQ.data;
+  const pastedAltRoute = pastedAltQ.data;
+  // A pasted link that doesn't load (private, deleted) or a picked route that fails says why.
+  const routeError = (pastedMainQ.error ?? routeQ.error)?.message;
+  const altError = (pastedAltQ.error ?? altQ.error)?.message;
 
   // A pasted link or ID selects that route once it loads.
   useEffect(() => {
@@ -247,14 +256,16 @@ export function PlanPage() {
   useEffect(() => {
     if (!form || !route || !spots) return;
     const patch: Partial<Form> = {};
-    const active = spots.filter((s) => !s.archived);
-    if (!form.spotId && active.length) {
-      patch.spotId = active.reduce(
-        (a, b) => (startDistance(route, b) < startDistance(route, a) ? b : a),
-        active[0] as SpotWithState,
-      ).id;
-    }
-    if (form.stop === undefined) patch.stop = route.pois.find((p) => /coffee|food/.test(p.type))?.name ?? null;
+    const start = route.track[0];
+    const near =
+      start &&
+      nearest(
+        start[0],
+        start[1],
+        spots.filter((s) => !s.archived),
+      );
+    if (!form.spotId && near) patch.spotId = near.id;
+    if (form.stop === undefined) patch.stop = route.pois.find(isCoffee)?.name ?? null;
     if (Object.keys(patch).length) set(patch);
   }, [route, form, spots, set]);
 
@@ -306,7 +317,7 @@ export function PlanPage() {
         : api<RideDetail>("/rides", { body });
     },
     onSuccess: async (ride) => {
-      await dropDraft();
+      await dropDraft(); // the server already deleted it; this catches a save that was in flight
       await qc.invalidateQueries({ queryKey: ["rides"] });
       qc.setQueryData(["ride", ride.id], ride);
       navigate(`/ride/${ride.date}`);
@@ -324,11 +335,12 @@ export function PlanPage() {
   });
   const clear = async () => {
     await dropDraft();
-    loaded.current = false;
     navigate("/plan", true);
+    setForm({ ...freshForm(), date: nextFreeDay() });
   };
 
-  if (!form || !team || !spots || !weather || !rides) return <p className="muted small">Loading…</p>;
+  if (source.isError) return <p className="small">That ride couldn't be loaded. {source.error.message}</p>;
+  if (!form || !team || !spots || !rides) return <p className="muted small">Loading…</p>;
   const s = team.settings;
   const active = spots.filter((x) => !x.archived);
   const weekend = weekendDates(today);
@@ -339,9 +351,7 @@ export function PlanPage() {
   const clash = rideOn(rides, form.date);
   const clashOther = clash && clash.status === "published" && clash.id !== form.editing ? clash : undefined;
   const pois = route
-    ? [...route.pois].sort(
-        (a, b) => Number(/coffee|food/.test(b.type)) - Number(/coffee|food/.test(a.type)) || a.route_d_m - b.route_d_m,
-      )
+    ? [...route.pois].sort((a, b) => Number(isCoffee(b)) - Number(isCoffee(a)) || a.route_d_m - b.route_d_m)
     : [];
   const far = route && spot ? startDistance(route, spot) : 0;
 
@@ -373,7 +383,7 @@ export function PlanPage() {
                 />
               </>
             ) : (
-              <span className="muted">No forecast for this date yet.</span>
+              <span className="muted">{wq.isPending ? "Loading the forecast…" : "No forecast for this date yet."}</span>
             )}
           </span>
         </span>
@@ -482,22 +492,25 @@ export function PlanPage() {
             <div className="field" style={{ marginBottom: -4 }}>
               Start spot · weather {fmtTime(startMin)}–{fmtTime(startMin + durMin)}
             </div>
-            <div
-              className="spotlist"
-              role="radiogroup"
-              aria-label="Start spot"
-              onKeyDown={(e) => {
-                if (!["ArrowDown", "ArrowUp"].includes(e.key) || !active.length) return;
-                e.preventDefault();
-                const i = active.findIndex((x) => x.id === form.spotId);
-                const next = active[
-                  (i + (e.key === "ArrowDown" ? 1 : active.length - 1)) % active.length
-                ] as SpotWithState;
-                set({ spotId: next.id });
-                (e.currentTarget.querySelector(`[data-spot="${next.id}"]`) as HTMLElement | null)?.focus();
-              }}
-            >
-              {active.map(spotRow)}
+            <div className="spotlist">
+              <div
+                className="spotgroup"
+                role="radiogroup"
+                aria-label="Start spot"
+                onKeyDown={(e) => {
+                  if (!["ArrowDown", "ArrowUp"].includes(e.key) || !active.length) return;
+                  e.preventDefault();
+                  const i = active.findIndex((x) => x.id === form.spotId);
+                  const step = e.key === "ArrowDown" ? 1 : -1;
+                  const next = active[
+                    i < 0 ? (step > 0 ? 0 : active.length - 1) : (i + step + active.length) % active.length
+                  ] as SpotWithState;
+                  set({ spotId: next.id });
+                  (e.currentTarget.querySelector(`[data-spot="${next.id}"]`) as HTMLElement | null)?.focus();
+                }}
+              >
+                {active.map(spotRow)}
+              </div>
               {addingSpot ? (
                 <AddSpot
                   onAdded={(id) => {
@@ -542,6 +555,11 @@ export function PlanPage() {
                 onPick={(r) => set({ routeId: r.id, q: r.name, stop: undefined })}
               />
             </div>
+            {routeError && (
+              <p className="tiny" role="alert" style={{ margin: 0, color: "var(--no-fg)" }}>
+                {routeError}
+              </p>
+            )}
             {far > 0.3 * M_PER_MI && spot && (
               <p className="tiny" style={{ margin: 0, color: "var(--cau-fg)" }}>
                 This route starts {u.dist(far / M_PER_MI)} from {spot.name}.
@@ -586,13 +604,15 @@ export function PlanPage() {
                     onPick={(r) => set({ altId: r.id, qAlt: r.name })}
                   />
                 </div>
+                {altError && (
+                  <p className="tiny" role="alert" style={{ margin: 0, color: "var(--no-fg)" }}>
+                    {altError}
+                  </p>
+                )}
               </>
             )}
             <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
-              <legend
-                className="field"
-                style={{ fontSize: 12, fontWeight: 600, color: "var(--muted)", marginBottom: 4 }}
-              >
+              <legend className="field" style={{ marginBottom: 4 }}>
                 Coffee stop
               </legend>
               {route ? (
@@ -609,11 +629,9 @@ export function PlanPage() {
                         <b>{p.name}</b> <span className="tag">{p.type}</span>
                         <br />
                         <span className="small muted">
-                          {u.distUnit === "km"
-                            ? `km ${(p.route_d_m / 1000).toFixed(1)}`
-                            : `mile ${(p.route_d_m / M_PER_MI).toFixed(1)}`}{" "}
-                          · ≈ {fmtTime(etaAt(p.route_d_m / M_PER_MI, startMin, form.pace, s))}
-                          {p.off_route_m > 50 ? ` · ${p.off_route_m} m off route` : ""}
+                          {u.marker(p.route_d_m / M_PER_MI)} · ≈{" "}
+                          {fmtTime(etaAt(p.route_d_m / M_PER_MI, startMin, form.pace, s))}
+                          {p.off_route_m > 50 ? ` · ${u.short(p.off_route_m)} off route` : ""}
                         </span>
                       </span>
                     </label>

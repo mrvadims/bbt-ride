@@ -14,14 +14,16 @@ const PlanPage = lazy(() => import("./pages/PlanPage.tsx").then((m) => ({ defaul
 const SettingsPage = lazy(() => import("./pages/SettingsPage.tsx").then((m) => ({ default: m.SettingsPage })));
 
 export function App() {
-  const { parts } = useLocation();
+  const { path, parts, query } = useLocation();
   const [page, arg] = parts;
   const isPublic = page === "signin" || page === "invite" || page === "reset";
   const me = useMe();
   const signedOut = me.error instanceof ApiError && me.error.status === 401;
 
   useEffect(() => {
-    if (signedOut && !isPublic) navigate("/signin", true);
+    // Come back to the shared link (a ride, an edit) after signing in.
+    const here = window.location.pathname + window.location.search;
+    if (signedOut && !isPublic) navigate(here === "/" ? "/signin" : `/signin?next=${encodeURIComponent(here)}`, true);
   }, [signedOut, isPublic]);
 
   if (isPublic) {
@@ -39,7 +41,7 @@ export function App() {
   else if (!user) content = <p role="alert">Couldn't load your account: {me.error?.message}</p>;
   else if (page === "plan")
     content =
-      user.role === "view" ? <Restricted text="Planning is for editors." /> : <PlanPage key={location.search} />;
+      user.role === "view" ? <Restricted text="Planning is for editors." /> : <PlanPage key={`${path}?${query}`} />;
   else if (page === "settings")
     content = user.role === "admin" ? <SettingsPage me={user} /> : <Restricted text="Settings are for admins." />;
   else if (page === "past") content = arg ? <PastRide id={arg} me={user} /> : <PastList />;
