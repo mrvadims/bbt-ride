@@ -1,6 +1,6 @@
 name: CI
+# Pushes only: a pull request from a branch here shows these results, so it needn't run them twice.
 on:
-  pull_request:
   push:
     branches-ignore: [main] # main runs the same checks in deploy.yml
 

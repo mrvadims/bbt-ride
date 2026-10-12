@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import raw from "../data/raw/route_57406828.json";
 import seed from "../data/seed.json";
 import { hashPassword, verifyPassword } from "../worker/password.ts";
+import { perSpot } from "../worker/routes/weather.ts";
 import { simplify } from "../worker/rwgps.ts";
 
 describe("password hashing", () => {
@@ -68,5 +69,44 @@ describe("Web Push payload", () => {
     expect(payload.headers.authorization).toMatch(/^vapid t=.+, k=/);
     expect(payload.headers["content-encoding"]).toBe("aes128gcm");
     expect(payload.body.byteLength).toBeGreaterThan(100);
+  });
+});
+
+describe("per-spot weather cache", () => {
+  const store = new Map<string, string>();
+  const kv = {
+    get: async (k: string) => JSON.parse(store.get(k) ?? "null"),
+    put: async (k: string, v: string) => void store.set(k, v),
+  } as unknown as KVNamespace;
+  const a = { id: "a", lat: 41, lng: -73 };
+  const b = { id: "b", lat: 42, lng: -74 };
+  const c = { id: "c", lat: 43, lng: -75 };
+  const age = (ms: number) => {
+    const all = JSON.parse(store.get("forecast") as string) as Record<string, { at: number }>;
+    for (const e of Object.values(all)) e.at -= ms;
+    store.set("forecast", JSON.stringify(all));
+  };
+  const down = async (): Promise<string[]> => {
+    throw new Error("upstream down");
+  };
+
+  it("loads all spots in one call, then serves them from the cache", async () => {
+    let calls = 0;
+    const load = async (spots: { id: string }[]) => {
+      calls++;
+      return spots.map((s) => `fresh ${s.id}`);
+    };
+    const first = await perSpot(kv, "forecast", [a, b], 60_000, load);
+    const again = await perSpot(kv, "forecast", [a, b], 60_000, load);
+    expect([first.a?.value, first.b?.value, again.a?.value, calls]).toEqual(["fresh a", "fresh b", "fresh a", 1]);
+  });
+  it("keeps the last good copies when the upstream fails, and leaves out a spot that has none", async () => {
+    age(2 * 60_000);
+    const out = await perSpot(kv, "forecast", [a, b, c], 60_000, down);
+    expect(Object.keys(out).sort()).toEqual(["a", "b"]);
+  });
+  it("drops copies older than 6 hours", async () => {
+    age(7 * 3600_000);
+    expect(await perSpot(kv, "forecast", [a, b], 60_000, down)).toEqual({});
   });
 });

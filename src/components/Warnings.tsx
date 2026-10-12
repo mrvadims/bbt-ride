@@ -4,7 +4,7 @@ import { compass, type Warning } from "../../shared/weather.ts";
 import type { Units } from "../lib/units.ts";
 import { LevelIcon } from "./icons.tsx";
 
-export function warningText(w: Warning, u: Units, lookback: number): { short: string; title: string; detail: string } {
+function warningText(w: Warning, u: Units, lookback: number): { short: string; title: string; detail: string } {
   switch (w.kind) {
     case "alert":
       return { short: w.event, title: w.event, detail: w.headline };

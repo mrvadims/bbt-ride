@@ -3,16 +3,18 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { RideDetail, RideInput, RouteSummary } from "../../shared/api.ts";
-import { etaAt, haversine, M_PER_MI, parseLatLng, rideTimes, startDistance } from "../../shared/ride.ts";
+import { etaAt, haversine, M_PER_MI, rideTimes, startDistance } from "../../shared/ride.ts";
 import { addDays, dayLabel, fmtTime, hhmmToMin, isWeekend, nyNow, weekendDates } from "../../shared/time.ts";
 import { evaluate, fIdx, warnings } from "../../shared/weather.ts";
 import { RainBars } from "../components/charts.tsx";
 import { HourTable } from "../components/HourTable.tsx";
 import { EmptyPanel, Panel, Section } from "../components/Panel.tsx";
 import { RideBody, roadNote, WeatherAppRow, wxSummary } from "../components/RideBody.tsx";
+import { SpotForm } from "../components/SpotForm.tsx";
 import { WarningChips } from "../components/Warnings.tsx";
 import { api } from "../lib/api.ts";
 import {
+  NO_WEATHER,
   type SpotWithState,
   useRide,
   useRides,
@@ -129,70 +131,18 @@ function RouteResults({
 
 function AddSpot({ onAdded, onCancel }: { onAdded: (id: string) => void; onCancel: () => void }) {
   const qc = useQueryClient();
-  const [f, setF] = useState({ name: "", link: "", note: "" });
-  const [msg, setMsg] = useState<string | null>(null);
-  const save = useMutation({
-    mutationFn: async () => {
-      let link = f.link.trim();
-      if (!parseLatLng(link) && /^https:\/\/maps\.app\.goo\.gl\//.test(link)) {
-        const r = await api<{ lat: number; lng: number; url: string }>("/spots/resolve", { body: { url: link } });
-        link = `${r.lat}, ${r.lng}`;
-      }
-      return api<SpotWithState>("/spots", { body: { name: f.name, link, note: f.note } });
-    },
-    onSuccess: async (spot) => {
-      await qc.invalidateQueries({ queryKey: ["spots"] });
-      await qc.invalidateQueries({ queryKey: ["weather"] });
-      onAdded(spot.id);
-    },
-    onError: (e) => setMsg(e.message),
-  });
   return (
-    <div className="newspot">
-      <div className="sub-h">New start spot</div>
-      <label className="field">
-        Name
-        <input
-          value={f.name}
-          onChange={(e) => setF({ ...f, name: e.target.value })}
-          placeholder="e.g. Rockefeller Preserve"
-          maxLength={80}
-        />
-      </label>
-      <label className="field">
-        Google Maps link or coordinates
-        <input
-          value={f.link}
-          onChange={(e) => setF({ ...f, link: e.target.value })}
-          placeholder="Paste a Maps link, or 41.0454, -73.6973"
-        />
-      </label>
-      <span className="tiny muted" style={{ marginTop: -8 }}>
-        {msg ?? "In Google Maps: drop a pin on the parking spot → Share → Copy link."}
-      </span>
-      <label className="field">
-        Parking notes
-        <textarea
-          value={f.note}
-          onChange={(e) => setF({ ...f, note: e.target.value })}
-          placeholder="Where to park, restrooms, anything riders should know"
-          maxLength={1000}
-        />
-      </label>
-      <div className="btnrow">
-        <button
-          type="button"
-          className="btn btn-primary btn-sm"
-          disabled={!f.name.trim() || !f.link.trim() || save.isPending}
-          onClick={() => save.mutate()}
-        >
-          Save spot
-        </button>
-        <button type="button" className="btn btn-outline btn-sm" onClick={onCancel}>
-          Cancel
-        </button>
-      </div>
-    </div>
+    <SpotForm
+      title="New start spot"
+      submitLabel="Save spot"
+      onCancel={onCancel}
+      onSubmit={async (f) => {
+        const spot = await api<SpotWithState>("/spots", { body: f });
+        await qc.invalidateQueries({ queryKey: ["spots"] });
+        await qc.invalidateQueries({ queryKey: ["weather"] });
+        onAdded(spot.id);
+      }}
+    />
   );
 }
 
@@ -201,7 +151,8 @@ export function PlanPage() {
   const qc = useQueryClient();
   const team = useTeam().data;
   const spots = useSpots().data;
-  const weather = useWeather().data;
+  const wq = useWeather();
+  const weather = wq.data ?? (wq.isError ? NO_WEATHER : undefined); // plan without a forecast rather than wait forever
   const rides = useRides().data;
   const u = units(usePrefs().units);
   const [form, setForm] = useState<Form | null>(null);

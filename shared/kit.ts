@@ -64,7 +64,7 @@ export type KitOffset = keyof typeof KIT_OFFSETS;
 export const kitBand = (kit: KitBand[], feel: number): KitBand =>
   kit.find((b) => feel >= b.minFeel) ?? (kit[kit.length - 1] as KitBand);
 
-export type KitAddOn =
+type KitAddOn =
   | { kind: "rainJacket"; pp: number; rain: number }
   | { kind: "fenders"; road: "Drying" | "Wet" }
   | { kind: "windVest"; ws: number }

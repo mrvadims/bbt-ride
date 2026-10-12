@@ -20,7 +20,7 @@ const RouteMap = lazy(() => import("./RouteMap.tsx").then((m) => ({ default: m.R
 import { Sheet } from "./Sheet.tsx";
 import { WarningBoxes } from "./Warnings.tsx";
 
-export const WX_APPS: Record<Prefs["wxApp"], { name: string; url: (s: Spot) => string }> = {
+const WX_APPS: Record<Prefs["wxApp"], { name: string; url: (s: Spot) => string }> = {
   nws: {
     name: "NWS",
     url: (s) => `https://forecast.weather.gov/MapClick.php?lat=${s.lat}&lon=${s.lng}&FcstType=graphical`,
@@ -180,7 +180,7 @@ function CalendarSheet({ ev, uid, onClose }: { ev: CalEvent; uid: string; onClos
 }
 
 /** Calendar event for a ride: meet → back, at the parking pin, routes and notes in the description. */
-export function calendarEvent(ride: RideLike, m: RideModel): CalEvent {
+function calendarEvent(ride: RideLike, m: RideModel): CalEvent {
   const lines = ride.routes.map((r) => {
     const route = m.routeById(r.routeId);
     return `${r.label}: ${route?.name ?? `#${r.routeId}`} — ${route?.url ?? ""}`;

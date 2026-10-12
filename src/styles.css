@@ -207,14 +207,6 @@ main {
 .daytabs .tab {
   padding: 10px 12px 8px;
 }
-.banner {
-  border-radius: 10px;
-  padding: 10px 12px;
-  margin: 0 0 14px;
-  font-size: 13px;
-  background: var(--cau-bg);
-  color: var(--cau-fg);
-}
 .kicker {
   font-size: 12px;
   font-weight: 700;
@@ -469,20 +461,6 @@ textarea {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
-}
-.toast {
-  position: fixed;
-  left: 50%;
-  bottom: 20px;
-  transform: translateX(-50%);
-  background: var(--text);
-  color: var(--bg);
-  padding: 10px 16px;
-  border-radius: 10px;
-  font-weight: 600;
-  z-index: 3000;
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25);
-  max-width: calc(100% - 32px);
 }
 .chart {
   width: 100%;
@@ -1155,4 +1133,48 @@ a.spotrow {
 .notice input {
   display: block;
   width: 100%;
+}
+
+/* Settings: one column, so opening a panel never leaves a gap beside it; inputs line up even when labels wrap. */
+.settings-panels {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 880px;
+}
+.settings-grid {
+  align-items: end;
+}
+.spot-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+.spot-info {
+  display: grid;
+  gap: 2px;
+  flex: 1 1 260px;
+  min-width: 0;
+}
+.spot-actions {
+  display: flex;
+  gap: 14px;
+  white-space: nowrap;
+}
+a.linkbtn {
+  text-decoration: none;
+}
+.spot-list .newspot {
+  margin: 10px 0;
+}
+.archived {
+  margin-top: 16px;
+}
+.archived summary {
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
 }

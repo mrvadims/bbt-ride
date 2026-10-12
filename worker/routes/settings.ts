@@ -18,7 +18,7 @@ export async function loadSettings(db: D1Database): Promise<Settings> {
   return { ...DEFAULT_SETTINGS, ...(parsed.success ? parsed.data : {}) };
 }
 
-export async function loadKit(db: D1Database): Promise<KitBand[]> {
+async function loadKit(db: D1Database): Promise<KitBand[]> {
   const { results } = await db
     .prepare("select min_feel_f, name, items_json from kit_bands order by min_feel_f desc")
     .all<{ min_feel_f: number; name: string; items_json: string }>();

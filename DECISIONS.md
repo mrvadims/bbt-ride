@@ -20,6 +20,7 @@ Every open question from the design review, with what was decided. Details live 
 | Coffee-stop forecast | None. Route weather along the course stays in the backlog | 2026-10-11 |
 | Kit chart | Seven bike-feel bands plus add-ons; Admins edit it in Settings | 2026-10-09 |
 | Units | Imperial by default; each rider can switch to metric | 2026-10-11 |
+| Forecast outages | Forecasts and alerts are cached per spot; on an upstream failure each spot keeps its last good copy (6 h), a spot without one shows "No forecast", and the rest keep working | 2026-10-12 |
 
 ## Rides
 | Topic | Decision | Date |
@@ -33,6 +34,8 @@ Every open question from the design review, with what was decided. Details live 
 | RSVP reminders | None in v1 | 2026-10-11 |
 | Notifications | Only when a ride is updated, cancelled or restored; Web Push only (opt-in per device), no email service | 2026-10-11 |
 | History | Past tab on the Ride page; read-only past rides with observed weather; Reuse this plan | 2026-10-11 |
+| Start spots | Name, Google Maps link and parking notes all required. Settings lists spots with Open in Maps, Edit (in place), Archive and Add a spot; archived spots fold into a collapsed list | 2026-10-12 |
+| Settings layout | One column of panels on every screen width, so an open panel never leaves a gap beside it; fields in a row line up at the input | 2026-10-12 |
 
 ## Access and accounts
 | Topic | Decision | Date |

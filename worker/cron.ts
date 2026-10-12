@@ -8,7 +8,7 @@ import { loadSettings } from "./routes/settings.ts";
 import { spotForecasts } from "./routes/weather.ts";
 import { fillLibrary, getRoute, syncCaptainLibrary } from "./rwgps.ts";
 
-export async function recordWeather(env: Env): Promise<void> {
+async function recordWeather(env: Env): Promise<void> {
   const now = nyNow();
   // past_days=2 covers yesterday and the day before; older rides without data stay without it.
   const { results: rides } = await env.DB.prepare(

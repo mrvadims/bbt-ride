@@ -11,12 +11,12 @@ const NY_FMT = new Intl.DateTimeFormat("en-CA", {
   hourCycle: "h23",
 });
 
-export interface WallTime {
+interface WallTime {
   date: string;
   min: number;
 }
 
-export function nyParts(t: Date): WallTime {
+function nyParts(t: Date): WallTime {
   const p = Object.fromEntries(NY_FMT.formatToParts(t).map((x) => [x.type, x.value]));
   return { date: `${p.year}-${p.month}-${p.day}`, min: Number(p.hour) * 60 + Number(p.minute) };
 }
@@ -45,7 +45,7 @@ export function addDays(date: string, n: number): string {
 }
 
 /** Day of week, 0 = Sunday. */
-export const dow = (date: string): number => new Date(`${date}T00:00:00Z`).getUTCDay();
+const dow = (date: string): number => new Date(`${date}T00:00:00Z`).getUTCDay();
 
 export const hhmmToMin = (s: string): number => {
   const [h, m] = s.split(":").map(Number) as [number, number];

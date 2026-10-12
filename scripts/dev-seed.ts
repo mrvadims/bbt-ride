@@ -2,7 +2,6 @@
 // KV cache for every spot, and the four sample routes into the local route cache, so the app works without network.
 // Run after `npm run db:migrate:local`: node scripts/dev-seed.ts
 import { execFileSync } from "node:child_process";
-import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -15,25 +14,20 @@ const d1 = (sql: string) =>
     unknown
   >[];
 
-// Same key as worker/routes/weather.ts: active spots ordered by name.
-const spots = d1("select id, lat, lng from spots where archived = 0 order by name") as {
-  id: string;
-  lat: number;
-  lng: number;
-}[];
-const key = createHash("sha256")
-  .update(spots.map((s) => `${s.id}:${s.lat}:${s.lng}`).join("|"))
-  .digest("hex");
+const spots = d1("select id, lat, lng from spots where archived = 0") as { id: string; lat: number; lng: number }[];
 const sample = JSON.parse(readFileSync(join(import.meta.dirname, "..", "data/raw/om_purchase.json"), "utf8"));
 const put = (name: string, value: unknown) => {
   const file = join(tmpdir(), `bbt-${name.replace(/\W/g, "_")}.json`);
   writeFileSync(file, JSON.stringify(value));
   wrangler("kv", "key", "put", name, "--path", file, "--binding", "CACHE", "--local");
 };
-// worker/routes/weather.ts cache format: { at, value }; a far-future `at` keeps the sample "fresh".
+// worker/routes/weather.ts cache format: one entry per kind, { "<id>:<lat>:<lng>": { at, value } }; a far-future `at`
+// keeps the sample "fresh".
 const far = Date.now() + 10 * 365 * 864e5;
-put(`forecast:${key}`, { at: far, value: { fetchedAt: new Date().toISOString(), data: spots.map(() => sample) } });
-put(`alerts:${key}`, { at: far, value: spots.map(() => []) });
+const perSpot = (value: unknown) =>
+  Object.fromEntries(spots.map((s) => [`${s.id}:${s.lat}:${s.lng}`, { at: far, value }]));
+put("forecast", perSpot(sample));
+put("alerts", perSpot([]));
 
 for (const id of [57406828, 57426135, 57215407, 37475253]) {
   const route = simplify(
