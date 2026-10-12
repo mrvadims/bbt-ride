@@ -61,7 +61,7 @@ openssl rand -base64 32 | npx wrangler secret put SESSION_SECRET --name bbt-ride
 npx wrangler secret list --name bbt-ride     # names only
 ```
 The app doesn't use the RideWithGPS API secret. If you stored it earlier, you can remove it: `npx wrangler secret delete RWGPS_API_SECRET --name bbt-ride`.
-Each command prompts for the value, so it never lands in shell history or the repo. Secrets are write-only: Cloudflare won't show them again. To rotate, run the same command with the new value.
+The key and token commands prompt for the value (`SESSION_SECRET` is generated and piped in), so no value lands in shell history or the repo. Secrets are write-only: Cloudflare won't show them again. To rotate, run the same command with the new value.
 
 The first `secret put` offers to create the empty `bbt-ride` Worker; the first deploy replaces its code and keeps the secrets.
 
@@ -89,7 +89,7 @@ Google keeps this under **Google Auth Platform** (APIs & Services → OAuth cons
 7. Store the secret from your terminal, then add the same line to `.dev.vars` for local development:
    ```
    npx wrangler secret put GOOGLE_CLIENT_SECRET --name bbt-ride
-   npx wrangler secret list --name bbt-ride     # should list 5 names
+   npx wrangler secret list --name bbt-ride     # should list 4 names (5 if RWGPS_API_SECRET is still there)
    ```
    `GOOGLE_CLIENT_ID` and `BOOTSTRAP_ADMIN_EMAIL` aren't secret; they go in `wrangler.jsonc` under `vars`.
    Client ID: `788843663115-civobe823j0r2vnkpgsjg7o8vqvik76c.apps.googleusercontent.com`
@@ -124,5 +124,5 @@ Backups: D1 Time Travel is on by default (restore to any minute in the last 7 da
 1. Merge the app into `main`. The Deploy workflow runs the checks, applies the D1 migrations (tables, the three start spots, the club route library, the kit chart) and deploys the Worker.
 2. Attach the domain once: Workers & Pages → bbt-ride → **Domains** tab → add a Custom domain → `ride.bbt.team`. It stays in the dashboard, not in `wrangler.jsonc`: declaring it there would make every deploy need DNS rights on the token.
 3. Open https://ride.bbt.team and **Continue with Google** as the first Admin (`BOOTSTRAP_ADMIN_EMAIL`). Then invite the team from Settings → Users.
-4. The route library fills within a few hours (the scheduled job runs every 3 hours). Check that searching for a club route works; if your own private routes don't appear, the RideWithGPS list endpoint needs adjusting (DESIGN.md → Data sources).
+4. The route library fills over about 12 hours (10 routes per run; the scheduled job runs every 3 hours); route search lists a route once it's fetched, and a pasted RideWithGPS link always works. Check that searching for a club route works; if your own private routes don't appear, the RideWithGPS list endpoint needs adjusting (DESIGN.md → Data sources).
 

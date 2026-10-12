@@ -5,7 +5,7 @@ export const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/; // "08:30"
 // Team settings (Admin-editable, stored in D1 `settings`, one row per key). Imperial units.
 export const settingsSchema = z.object({
   pace: z.number().min(10).max(25), // mph
-  rollout: z.string().regex(HHMM),
+  meetTime: z.string().regex(HHMM),
   durationH: z.number().min(0.5).max(8), // weather window before a route is picked
   stopMin: z.number().int().min(0).max(60), // coffee stop length
   regroupPct: z.number().min(0).max(30), // % of moving time
@@ -30,7 +30,7 @@ export type Settings = z.infer<typeof settingsSchema>;
 
 export const DEFAULT_SETTINGS: Settings = {
   pace: 17,
-  rollout: "08:30",
+  meetTime: "08:30",
   durationH: 3,
   stopMin: 20,
   regroupPct: 5,
@@ -52,6 +52,6 @@ export const DEFAULT_SETTINGS: Settings = {
 };
 
 // Fixed by design (DESIGN.md → Settings), not settings.
-export const LOW_LIGHT_MIN = 30; // roll-out within this many minutes of sunrise
+export const LOW_LIGHT_MIN = 30; // meet time within this many minutes of sunrise
 export const WIND_VEST_MPH = 12;
 export const SHED_DEG = 8;

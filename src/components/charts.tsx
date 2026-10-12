@@ -103,7 +103,7 @@ export function TrackOutline({ route, stop }: { route: Route; stop: { lat: numbe
   );
 }
 
-/** Hourly rain from 12 h before to 8 h after roll-out; bars sit in the slot of the hour they end. */
+/** Hourly rain from 12 h before to 8 h after meet time; bars sit in the slot of the hour they end. */
 export function RainBars({
   se,
   date,
@@ -168,7 +168,7 @@ export function RainBars({
         className="chart"
         viewBox={`0 0 ${W} ${H}`}
         role="img"
-        aria-label="Hourly rain from 12 hours before to 8 hours after roll-out"
+        aria-label="Hourly rain from 12 hours before to 8 hours after meet time"
       >
         <rect
           x={at(fs)}

@@ -1,4 +1,5 @@
-// GET /api/weather: Open-Meteo forecast for every active spot (KV, 30 min) and NWS alerts (KV, 10 min), cached per spot.
+// GET /api/weather: Open-Meteo forecast (KV, 30 min) and NWS alerts (KV, 10 min), cached per spot, for every active spot
+// and archived spots that rides still use.
 import { Hono } from "hono";
 import type { WeatherData } from "../../shared/api.ts";
 import { addDays, nyNow, TZ } from "../../shared/time.ts";
@@ -97,10 +98,16 @@ async function fetchAlerts(s: SpotPoint): Promise<Alert[] | undefined> {
     return undefined;
   }
   const body = (await res.json()) as { features?: { properties: { event: string; headline: string | null } }[] };
-  return (body.features ?? [])
-    .map((f) => f.properties)
-    .filter((p) => ALERT_KINDS.test(p.event))
-    .map((p) => ({ event: p.event, headline: p.headline ?? p.event, level: p.event.endsWith("Warning") ? 2 : 1 }));
+  // NWS can list the same event more than once for a point (several zones or updates): keep one of each.
+  const byEvent = new Map<string, Alert>();
+  for (const { properties: p } of body.features ?? [])
+    if (ALERT_KINDS.test(p.event) && !byEvent.has(p.event))
+      byEvent.set(p.event, {
+        event: p.event,
+        headline: p.headline ?? p.event,
+        level: p.event.endsWith("Warning") ? 2 : 1,
+      });
+  return [...byEvent.values()];
 }
 
 /**

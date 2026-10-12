@@ -1,4 +1,5 @@
 // Warnings as boxes (ride page) or chips (Plan's spot list), in the rider's units.
+import type { ReactNode } from "react";
 import { fmtTime } from "../../shared/time.ts";
 import { compass, type Warning } from "../../shared/weather.ts";
 import type { Units } from "../lib/units.ts";
@@ -11,7 +12,7 @@ function warningText(w: Warning, u: Units, lookback: number): { short: string; t
     case "lowLight":
       return {
         short: "Low light",
-        title: "Low light at roll-out",
+        title: "Low light at meet time",
         detail: `Sunrise ${fmtTime(w.sunrise)}; bring front and rear lights`,
       };
     case "road": {
@@ -19,7 +20,7 @@ function warningText(w: Warning, u: Units, lookback: number): { short: string; t
       const later = w.endState !== w.state ? `; ${w.endState.toLowerCase()} by the finish` : "";
       return {
         short: `Roads ${s}`,
-        title: `Roads ${s} at roll-out`,
+        title: `Roads ${s} at meet time`,
         detail: `${u.rain(w.rainIn)} of rain in the last ${lookback} h${later}`,
       };
     }
@@ -72,7 +73,7 @@ export function WarningBoxes({ list, u, lookback }: { list: Warning[]; u: Units;
   );
 }
 
-export function Pill({ level, children }: { level: 0 | 1 | 2; children: React.ReactNode }) {
+export function Pill({ level, children }: { level: 0 | 1 | 2; children: ReactNode }) {
   return (
     <span className={`pill lv${level}`}>
       <LevelIcon level={level} />

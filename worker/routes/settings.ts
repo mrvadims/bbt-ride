@@ -1,5 +1,4 @@
 // Team settings and kit chart: read (everyone), change or reset (Admin).
-import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { z } from "zod";
 import type { TeamSettings } from "../../shared/api.ts";
@@ -7,15 +6,18 @@ import { DEFAULT_KIT, type KitBand } from "../../shared/kit.ts";
 import { DEFAULT_SETTINGS, type Settings, settingsSchema } from "../../shared/settings.ts";
 import { type AppEnv, requireRole } from "../app.ts";
 import { audit, nowIso } from "../util.ts";
+import { validate } from "../validate.ts";
 
 export async function loadSettings(db: D1Database): Promise<Settings> {
   const { results } = await db
     .prepare("select key, value_json from settings")
     .all<{ key: string; value_json: string }>();
   const stored = Object.fromEntries(results.map((r) => [r.key, JSON.parse(r.value_json)]));
-  // Stored values override the first-run defaults; anything invalid falls back to the default.
-  const parsed = settingsSchema.partial().safeParse(stored);
-  return { ...DEFAULT_SETTINGS, ...(parsed.success ? parsed.data : {}) };
+  // Stored values override the first-run defaults; each invalid one falls back to its default.
+  const valid = Object.entries(stored).filter(
+    ([k, v]) => settingsSchema.shape[k as keyof Settings]?.safeParse(v).success,
+  );
+  return { ...DEFAULT_SETTINGS, ...Object.fromEntries(valid) };
 }
 
 async function loadKit(db: D1Database): Promise<KitBand[]> {
@@ -58,7 +60,7 @@ const teamSettings = async (db: D1Database): Promise<TeamSettings> => {
 
 export const settings = new Hono<AppEnv>()
   .get("/", async (c) => c.json(await teamSettings(c.env.DB)))
-  .put("/", requireRole("admin"), zValidator("json", settingsSchema.partial()), async (c) => {
+  .put("/", requireRole("admin"), validate("json", settingsSchema.partial()), async (c) => {
     const changes = c.req.valid("json");
     const user = c.get("user");
     const stmts = Object.entries(changes).map(([key, value]) =>
@@ -69,7 +71,7 @@ export const settings = new Hono<AppEnv>()
     if (stmts.length) await c.env.DB.batch([...stmts, audit(c.env.DB, user.id, "update", "settings", null, changes)]);
     return c.json(await teamSettings(c.env.DB));
   })
-  .put("/kit", requireRole("admin"), zValidator("json", kitSchema), async (c) => {
+  .put("/kit", requireRole("admin"), validate("json", kitSchema), async (c) => {
     const kit = c.req.valid("json");
     await c.env.DB.batch([...kitInserts(c.env.DB, kit), audit(c.env.DB, c.get("user").id, "update", "kit", null, kit)]);
     return c.json(await teamSettings(c.env.DB));

@@ -251,7 +251,7 @@ export function evaluate(
   return { st, factors, f0, f1 };
 }
 
-/** An active NWS alert at the spot (from /api/alerts). */
+/** An active NWS alert at the spot (from /api/weather). */
 export interface Alert {
   event: string; // e.g. "Wind Advisory"
   headline: string;

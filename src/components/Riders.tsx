@@ -45,6 +45,7 @@ export function Riders({ ride, me, past }: { ride: RideDetail; me: Me; past: boo
   const author = (m: Message) => (m.kind !== "user" ? "Ride update" : (m.authorName ?? "Former member"));
 
   const msg = (m: Message, isReply: boolean) => {
+    const replies = isReply ? [] : ride.messages.filter((r) => r.parentId === m.id);
     const canEdit = m.kind === "user" && !m.deleted && m.authorId === me.id && !past;
     // Authors delete their own on upcoming rides; editors and admins can always delete (moderation).
     const canDelete = m.kind === "user" && !m.deleted && (me.role !== "view" || (m.authorId === me.id && !past));
@@ -111,9 +112,7 @@ export function Riders({ ride, me, past }: { ride: RideDetail; me: Me; past: boo
         </div>
         {!isReply && (
           <>
-            {ride.messages.filter((r) => r.parentId === m.id).length > 0 && (
-              <div className="replies">{ride.messages.filter((r) => r.parentId === m.id).map((r) => msg(r, true))}</div>
-            )}
+            {replies.length > 0 && <div className="replies">{replies.map((r) => msg(r, true))}</div>}
             {replyTo === m.id && (
               <div className="compose">
                 <textarea

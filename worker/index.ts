@@ -17,9 +17,14 @@ import { weather } from "./routes/weather.ts";
 
 const app = new Hono<AppEnv>().basePath("/api");
 
-app.onError(async (err, c) => {
-  // Read any unread request body before replying, so a rejected upload doesn't leave the connection half-read.
-  if (!c.req.raw.bodyUsed) await c.req.raw.arrayBuffer().catch(() => undefined);
+// Read any request body a handler (or an early rejection) left unread before replying: a half-read body can leave the
+// connection unusable for the next request.
+app.use(async (c, next) => {
+  await next();
+  if (c.req.raw.body && !c.req.raw.bodyUsed) await c.req.raw.arrayBuffer().catch(() => undefined);
+});
+
+app.onError((err, c) => {
   if (err instanceof HTTPException) return c.json({ error: err.message }, err.status);
   if (err instanceof APIError) return c.json({ error: err.message }, err.statusCode as 400);
   if (String(err).includes("UNIQUE constraint failed"))

@@ -12,7 +12,7 @@ async function recordWeather(env: Env): Promise<void> {
   const now = nyNow();
   // past_days=2 covers yesterday and the day before; older rides without data stay without it.
   const { results: rides } = await env.DB.prepare(
-    `select r.id, r.date, r.rollout, r.pace_mph, r.spot_id,
+    `select r.id, r.date, r.meet_time, r.pace_mph, r.spot_id,
             (select rwgps_route_id from ride_routes where ride_id = r.id order by sort limit 1) as route_id,
             (select stop_poi from ride_routes where ride_id = r.id order by sort limit 1) as stop
      from rides r
@@ -22,7 +22,7 @@ async function recordWeather(env: Env): Promise<void> {
     .all<{
       id: string;
       date: string;
-      rollout: string;
+      meet_time: string;
       pace_mph: number;
       spot_id: string;
       route_id: number;
@@ -34,7 +34,7 @@ async function recordWeather(env: Env): Promise<void> {
   const { byId } = await spotForecasts(env); // includes the past two days (past_days=2)
   for (const r of rides) {
     const route: Route | null = await getRoute(env, r.route_id);
-    const t = route ? rideTimes(route, r.rollout, r.pace_mph, r.stop, s) : null;
+    const t = route ? rideTimes(route, r.meet_time, r.pace_mph, r.stop, s) : null;
     if (!t || (r.date === now.date && t.end > now.min)) continue; // ride window not over yet
     const om = byId[r.spot_id];
     if (!om) continue; // no forecast this run; the next run tries again

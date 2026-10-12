@@ -69,6 +69,9 @@ await shot(page, "ride-empty");
 // Plan and publish
 await page.getByTitle("Plan a ride").click();
 await page.waitForURL("**/plan");
+await page.getByRole("button", { name: /^Date \(any day\)/ }).click();
+check((await page.locator(".cal-wd").first().textContent()) === "Mo", "date picker weeks start on Monday");
+await page.keyboard.press("Escape");
 await page.getByRole("button", { name: /Sun, Oct 11/ }).click();
 await page.getByRole("radio", { name: /SUNY Purchase/ }).click();
 check(await page.getByText(/feels/).first().isVisible(), "spot list shows the weather window");
@@ -114,16 +117,16 @@ await page.getByLabel("Account menu").click();
 await page.getByRole("button", { name: "°F · mi" }).click();
 await page.keyboard.press("Escape");
 
-// Edit: change roll-out → "Updated" note
+// Edit: change the meet time → "Updated" note
 await page.getByLabel("Edit this ride").click();
 await page.waitForURL("**/plan?edit=*");
 await page.getByText(/Editing the Sun, Oct 11 ride/).waitFor();
-await page.getByLabel("Roll-out").fill("09:00");
+await page.getByLabel("Meet time").fill("09:00");
 await page.getByRole("button", { name: "Update ride" }).click();
 await page.waitForURL("**/ride/2026-10-11");
 check(
   await page
-    .getByText(/roll-out 8:30 AM → 9:00 AM/)
+    .getByText(/meet 8:30 AM → 9:00 AM/)
     .first()
     .isVisible(),
   "update shows what changed",

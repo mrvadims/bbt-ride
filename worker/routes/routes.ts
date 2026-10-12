@@ -8,9 +8,9 @@ import { fail } from "../util.ts";
 
 export const routes = new Hono<AppEnv>()
   .get("/", async (c) => {
-    const q = (c.req.query("q") ?? "").trim().toLowerCase();
+    const q = (c.req.query("q") ?? "").trim();
     const { results } = await c.env.DB.prepare(
-      "select json from route_cache where in_library = 1 and json is not null and lower(name) like ? order by name limit 50",
+      "select json from route_cache where in_library = 1 and json is not null and name like ? order by name limit 50", // LIKE ignores ASCII case
     )
       .bind(`%${q.replace(/[%_]/g, "")}%`)
       .all<{ json: string }>();

@@ -1,5 +1,5 @@
 // Routes and the sign-in gate. Public: /signin, /invite/:token, /reset/:token (and the static /privacy page).
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, type ReactNode, Suspense, useEffect } from "react";
 import { TopBar } from "./components/TopBar.tsx";
 import { ApiError } from "./lib/api.ts";
 import { useMe } from "./lib/data.ts";
@@ -36,7 +36,7 @@ export function App() {
   }
 
   const user = me.data;
-  let content: React.ReactNode;
+  let content: ReactNode;
   if (me.isPending || signedOut) content = <p className="muted small">Loading…</p>;
   else if (!user) content = <p role="alert">Couldn't load your account: {me.error?.message}</p>;
   else if (page === "plan")

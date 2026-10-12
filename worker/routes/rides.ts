@@ -1,5 +1,4 @@
 // Rides, RSVPs and messages (DESIGN.md → Rides, Plan a ride, Drafts and changes).
-import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import {
   type Message,
@@ -18,11 +17,12 @@ import { dayLabel, fmtTime, hhmmToMin, nyNow } from "../../shared/time.ts";
 import { type AppEnv, can, requireRole } from "../app.ts";
 import { notifyRide } from "../push.ts";
 import { audit, fail, newId, nowIso } from "../util.ts";
+import { validate } from "../validate.ts";
 
 interface RideRow {
   id: string;
   date: string;
-  rollout: string;
+  meet_time: string;
   spot_id: string;
   pace_mph: number;
   notes: string;
@@ -31,10 +31,16 @@ interface RideRow {
 }
 
 /** Ride summaries for rides matching `where` (a condition on table alias r), with routes, counts and the latest update. */
-async function summaries(db: D1Database, where: string, binds: unknown[], order = "r.date"): Promise<RideSummary[]> {
+async function summaries(
+  db: D1Database,
+  where: string,
+  binds: unknown[],
+  order = "r.date",
+  limit?: number,
+): Promise<RideSummary[]> {
   const { results: rides } = await db
     .prepare(
-      `select r.id, r.date, r.rollout, r.spot_id, r.pace_mph, r.notes, r.status, r.observed_json from rides r where ${where} order by ${order}`,
+      `select r.id, r.date, r.meet_time, r.spot_id, r.pace_mph, r.notes, r.status, r.observed_json from rides r where ${where} order by ${order}${limit ? ` limit ${limit}` : ""}`,
     )
     .bind(...binds)
     .all<RideRow>();
@@ -70,7 +76,7 @@ async function summaries(db: D1Database, where: string, binds: unknown[], order 
     return {
       id: r.id,
       date: r.date,
-      rollout: r.rollout,
+      meetTime: r.meet_time,
       spotId: r.spot_id,
       pace: r.pace_mph,
       notes: r.notes,
@@ -165,7 +171,7 @@ async function changes(db: D1Database, a: RideSummary, b: RideInput): Promise<st
     (await db.prepare("select name from spots where id = ?").bind(id).first<{ name: string }>())?.name ?? id;
   const out: string[] = [];
   if (a.date !== b.date) out.push(`moved to ${dayLabel(b.date, true)}`);
-  if (a.rollout !== b.rollout) out.push(`roll-out ${fmtTime(hhmmToMin(a.rollout))} → ${fmtTime(hhmmToMin(b.rollout))}`);
+  if (a.meetTime !== b.meetTime) out.push(`meet ${fmtTime(hhmmToMin(a.meetTime))} → ${fmtTime(hhmmToMin(b.meetTime))}`);
   if (a.spotId !== b.spotId) out.push(`start ${await spot(a.spotId)} → ${await spot(b.spotId)}`);
   if (routeText(a.routes) !== routeText(b.routes)) out.push(`route ${routeText(b.routes)}`);
   const aStop = a.routes[0]?.stop ?? null;
@@ -221,10 +227,10 @@ const notifyReplaced = (env: Env, rideId: string, date: string) =>
 export const rides = new Hono<AppEnv>()
   // Upcoming rides (today on), published and cancelled.
   .get("/", async (c) => c.json(await summaries(c.env.DB, "r.date >= ?", [nyNow().date])))
-  .get("/past", async (c) => c.json(await summaries(c.env.DB, "r.date < ?", [nyNow().date], "r.date desc limit 200")))
+  .get("/past", async (c) => c.json(await summaries(c.env.DB, "r.date < ?", [nyNow().date], "r.date desc", 200)))
   .get("/:id", async (c) => c.json(await detail(c.env.DB, c.req.param("id"))))
 
-  .post("/", requireRole("edit"), zValidator("json", rideInput), async (c) => {
+  .post("/", requireRole("edit"), validate("json", rideInput), async (c) => {
     const input = c.req.valid("json");
     await checkInput(c.env.DB, input);
     const user = c.get("user");
@@ -235,8 +241,8 @@ export const rides = new Hono<AppEnv>()
     await c.env.DB.batch([
       ...(clash ? cancelReplaced(c.env.DB, clash.id, user.id, now) : []),
       c.env.DB.prepare(
-        "insert into rides (id, date, rollout, spot_id, pace_mph, notes, status, created_by, updated_by, created_at, updated_at) values (?, ?, ?, ?, ?, ?, 'published', ?, ?, ?, ?)",
-      ).bind(id, input.date, input.rollout, input.spotId, input.pace, input.notes, user.id, user.id, now, now),
+        "insert into rides (id, date, meet_time, spot_id, pace_mph, notes, status, created_by, updated_by, created_at, updated_at) values (?, ?, ?, ?, ?, ?, 'published', ?, ?, ?, ?)",
+      ).bind(id, input.date, input.meetTime, input.spotId, input.pace, input.notes, user.id, user.id, now, now),
       ...routeRows(c.env.DB, id, input.routes),
       c.env.DB.prepare("delete from drafts where user_id = ?").bind(user.id),
       audit(c.env.DB, user.id, "publish", "ride", id, input),
@@ -245,7 +251,7 @@ export const rides = new Hono<AppEnv>()
     return c.json(await detail(c.env.DB, id), 201);
   })
 
-  .put("/:id", requireRole("edit"), zValidator("json", rideInput), async (c) => {
+  .put("/:id", requireRole("edit"), validate("json", rideInput), async (c) => {
     const id = c.req.param("id");
     const input = c.req.valid("json");
     const [cur] = await summaries(c.env.DB, "r.id = ?", [id]);
@@ -261,8 +267,8 @@ export const rides = new Hono<AppEnv>()
     await c.env.DB.batch([
       ...(clash ? cancelReplaced(c.env.DB, clash.id, user.id, now) : []),
       c.env.DB.prepare(
-        "update rides set date = ?, rollout = ?, spot_id = ?, pace_mph = ?, notes = ?, updated_by = ?, updated_at = ? where id = ?",
-      ).bind(input.date, input.rollout, input.spotId, input.pace, input.notes, user.id, now, id),
+        "update rides set date = ?, meet_time = ?, spot_id = ?, pace_mph = ?, notes = ?, updated_by = ?, updated_at = ? where id = ?",
+      ).bind(input.date, input.meetTime, input.spotId, input.pace, input.notes, user.id, now, id),
       ...routeRows(c.env.DB, id, input.routes),
       ...(what.length ? [systemMessage(c.env.DB, id, "update", what.join(" · "))] : []),
       c.env.DB.prepare("delete from drafts where user_id = ?").bind(user.id),
@@ -320,7 +326,7 @@ export const rides = new Hono<AppEnv>()
   })
 
   // RSVP: In / Out (route label only for In on rides with an alternate), or null to clear.
-  .put("/:id/rsvp", zValidator("json", rsvpInput), async (c) => {
+  .put("/:id/rsvp", validate("json", rsvpInput), async (c) => {
     const id = c.req.param("id");
     const { status, routeLabel } = c.req.valid("json");
     const [ride] = await summaries(c.env.DB, "r.id = ?", [id]);
@@ -344,7 +350,7 @@ export const rides = new Hono<AppEnv>()
   })
 
   // Messages: anyone can post or reply (one level) on upcoming published rides.
-  .post("/:id/messages", zValidator("json", messageInput), async (c) => {
+  .post("/:id/messages", validate("json", messageInput), async (c) => {
     const id = c.req.param("id");
     const { body, parentId } = c.req.valid("json");
     const ride = await c.env.DB.prepare("select date, status from rides where id = ?")
@@ -369,7 +375,7 @@ export const rides = new Hono<AppEnv>()
 
 // Editing and deleting a message: authors edit their own; authors, editors and admins delete (soft delete).
 export const messages = new Hono<AppEnv>()
-  .patch("/:id", zValidator("json", messageEdit), async (c) => {
+  .patch("/:id", validate("json", messageEdit), async (c) => {
     const m = await c.env.DB.prepare(
       "select m.ride_id, m.user_id, m.deleted_at, r.date from messages m join rides r on r.id = m.ride_id where m.id = ?",
     )

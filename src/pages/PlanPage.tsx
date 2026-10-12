@@ -4,9 +4,10 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { RideDetail, RideInput, RouteSummary } from "../../shared/api.ts";
 import { etaAt, FT_PER_M, M_PER_MI, nearest, type Poi, rideTimes, startDistance } from "../../shared/ride.ts";
-import { addDays, dayLabel, fmtTime, hhmmToMin, isWeekend, nyNow, weekendDates } from "../../shared/time.ts";
+import { addDays, dayLabel, fmtTime, hhmmToMin, isDate, isWeekend, nyNow, weekendDates } from "../../shared/time.ts";
 import { evaluate, warnings } from "../../shared/weather.ts";
 import { RainBars } from "../components/charts.tsx";
+import { DatePicker } from "../components/DatePicker.tsx";
 import { HourTable } from "../components/HourTable.tsx";
 import { EmptyPanel, Panel, Section } from "../components/Panel.tsx";
 import { RideBody, roadNote, WeatherAppRow, wxSummary } from "../components/RideBody.tsx";
@@ -60,7 +61,7 @@ function fromRide(r: RideDetail, date: string, editing: string | null, fallbackP
   return {
     editing,
     date,
-    time: r.rollout,
+    time: r.meetTime,
     spotId: r.spotId,
     routeId: main?.routeId ?? null,
     q: main?.name ?? "",
@@ -127,6 +128,12 @@ function RouteResults({
   );
 }
 
+const RwgpsLink = ({ url }: { url: string }) => (
+  <a className="tiny rwgps-link" href={url} target="_blank" rel="noopener noreferrer">
+    Open in RWGPS ↗
+  </a>
+);
+
 function AddSpot({ onAdded, onCancel }: { onAdded: (id: string) => void; onCancel: () => void }) {
   const qc = useQueryClient();
   return (
@@ -161,6 +168,8 @@ export function PlanPage() {
   const sourceRide = source.data;
   const editingRide = useRide(form?.editing).data; // stays current after Cancel / Restore
   const today = nyNow().date;
+  const dateQuery = query.get("date"); // from a ride page link
+  const dateParam = isDate(dateQuery) && dateQuery >= today ? dateQuery : null;
 
   // The first weekend day in the coming week with no ride yet; otherwise this Saturday.
   const nextFreeDay = (): string => {
@@ -172,8 +181,8 @@ export function PlanPage() {
   };
   const freshForm = (): Form => ({
     editing: null,
-    date: query.get("date") ?? nextFreeDay(),
-    time: team?.settings.rollout ?? "08:30",
+    date: dateParam ?? nextFreeDay(),
+    time: team?.settings.meetTime ?? "08:30",
     spotId: null,
     routeId: null,
     altOn: false,
@@ -198,11 +207,11 @@ export function PlanPage() {
       return setForm({ ...base, ...fromRide(sourceRide, sourceRide.date, sourceRide.id, team.settings.pace) });
     if (reuseId && sourceRide)
       return setForm({ ...base, ...fromRide(sourceRide, nextFreeDay(), null, team.settings.pace) });
-    api<{ rideId: string | null; form: Partial<Form> } | null>("/draft")
+    api<{ form: Partial<Form> } | null>("/draft")
       .then((d) => {
         const restored = { ...base, ...(d?.form ?? {}) };
-        if (restored.date < today) restored.date = base.date; // stale draft
-        if (query.get("date")) Object.assign(restored, { date: query.get("date"), editing: null });
+        if (restored.date < today) Object.assign(restored, { date: base.date, editing: null }); // stale draft
+        if (dateParam) Object.assign(restored, { date: dateParam, editing: null });
         setForm(restored);
       })
       .catch(() => setForm(base));
@@ -215,7 +224,7 @@ export function PlanPage() {
   useEffect(() => {
     if (!form || !dirty.current) return;
     const t = setTimeout(() => {
-      saving.current = api("/draft", { method: "PUT", body: { rideId: form.editing, form } }).catch(() => undefined);
+      saving.current = api("/draft", { method: "PUT", body: { form } }).catch(() => undefined);
     }, 800);
     return () => clearTimeout(t);
   }, [form]);
@@ -273,7 +282,7 @@ export function PlanPage() {
     form?.routeId && form.spotId && route
       ? {
           date: form.date,
-          rollout: form.time,
+          meetTime: form.time,
           spotId: form.spotId,
           pace: form.pace,
           notes: form.notes,
@@ -303,9 +312,10 @@ export function PlanPage() {
   const publish = useMutation({
     mutationFn: async (replace: boolean) => {
       if (!form || !draftRide) throw new Error("Pick a start spot and a route");
+      if (form.altOn && form.altId && !altRoute) throw new Error("The alternate route hasn't loaded yet");
       const body: RideInput = {
         date: draftRide.date,
-        rollout: draftRide.rollout,
+        meetTime: draftRide.meetTime,
         spotId: draftRide.spotId,
         pace: draftRide.pace,
         notes: draftRide.notes,
@@ -326,7 +336,7 @@ export function PlanPage() {
   });
   const toggleCancel = useMutation({
     mutationFn: (r: RideDetail) =>
-      api<RideDetail>(`/rides/${r.id}/${r.status === "cancelled" ? "restore" : "cancel"}`, { body: {} }),
+      api<RideDetail>(`/rides/${r.id}/${r.status === "cancelled" ? "restore" : "cancel"}`, { method: "POST" }),
     onSuccess: async (ride) => {
       qc.setQueryData(["ride", ride.id], ride);
       await qc.invalidateQueries({ queryKey: ["rides"] });
@@ -470,22 +480,14 @@ export function PlanPage() {
               ))}
             </div>
             <div className="row">
+              <DatePicker label="Date (any day)" value={form.date} min={today} onChange={(date) => set({ date })} />
               <label className="field">
-                Date (any day)
-                <input
-                  type="date"
-                  value={form.date}
-                  min={today}
-                  onChange={(e) => e.target.value && set({ date: e.target.value })}
-                />
-              </label>
-              <label className="field">
-                Roll-out
+                Meet time
                 <input
                   type="time"
                   value={form.time}
                   step={900}
-                  onChange={(e) => set({ time: e.target.value || s.rollout })}
+                  onChange={(e) => set({ time: e.target.value || s.meetTime })}
                 />
               </label>
             </div>
@@ -555,10 +557,12 @@ export function PlanPage() {
                 onPick={(r) => set({ routeId: r.id, q: r.name, stop: undefined })}
               />
             </div>
-            {routeError && (
+            {routeError ? (
               <p className="tiny" role="alert" style={{ margin: 0, color: "var(--no-fg)" }}>
                 {routeError}
               </p>
+            ) : (
+              route && <RwgpsLink url={route.url} />
             )}
             {far > 0.3 * M_PER_MI && spot && (
               <p className="tiny" style={{ margin: 0, color: "var(--cau-fg)" }}>
@@ -604,10 +608,12 @@ export function PlanPage() {
                     onPick={(r) => set({ altId: r.id, qAlt: r.name })}
                   />
                 </div>
-                {altError && (
+                {altError ? (
                   <p className="tiny" role="alert" style={{ margin: 0, color: "var(--no-fg)" }}>
                     {altError}
                   </p>
+                ) : (
+                  altRoute && <RwgpsLink url={altRoute.url} />
                 )}
               </>
             )}

@@ -13,12 +13,11 @@ import { ElevationChart } from "./charts.tsx";
 import { HourTable } from "./HourTable.tsx";
 import { WxIcon, wxLabel } from "./icons.tsx";
 import { EmptyPanel, Panel } from "./Panel.tsx";
+import { Sheet } from "./Sheet.tsx";
+import { WarningBoxes } from "./Warnings.tsx";
 
 // The map library is large; load it only when a Route panel opens.
 const RouteMap = lazy(() => import("./RouteMap.tsx").then((m) => ({ default: m.RouteMap })));
-
-import { Sheet } from "./Sheet.tsx";
-import { WarningBoxes } from "./Warnings.tsx";
 
 const WX_APPS: Record<Prefs["wxApp"], { name: string; url: (s: Spot) => string }> = {
   nws: {
@@ -91,7 +90,7 @@ const ADD_ON_TEXT = (a: KitAdvice["addOns"][number], u: Units) => {
     case "fenders":
       return {
         name: "Clip-on fenders + shoe covers",
-        why: `roads ${a.road.toLowerCase()} at roll-out`,
+        why: `roads ${a.road.toLowerCase()} at meet time`,
         short: "fenders",
       };
     case "windVest":
@@ -190,8 +189,10 @@ function calendarEvent(ride: RideLike, m: RideModel): CalEvent {
     start: m.t.start,
     end: m.t.end,
     title: `BBT ride: ${m.route.name}`,
-    location: `${m.spot.name} (${m.spot.maps_url})`,
-    details: `${lines.join("\n")}\nParking: ${m.spot.note}${ride.notes ? `\n\n${ride.notes}` : ""}`,
+    // Coordinates, so calendar apps open the exact pin in Maps and car navigation can route to it.
+    location: `${m.spot.lat}, ${m.spot.lng}`,
+    geo: { lat: m.spot.lat, lng: m.spot.lng },
+    details: `Meet at ${m.spot.name}: ${m.spot.maps_url}\nParking: ${m.spot.note}\n${lines.join("\n")}${ride.notes ? `\n\n${ride.notes}` : ""}`,
   };
 }
 
@@ -331,7 +332,7 @@ export function RideBody(props: {
           <>
             <b>{u.temp(o.T)}</b> · feels {u.temp(o.app)} · wind {u.speed(o.ws)} ·{" "}
             {o.rain ? `${u.rain(o.rain)} rain` : "no rain"} · roads {o.road.toLowerCase()}
-            <div className="tiny muted">Recorded at roll-out</div>
+            <div className="tiny muted">Recorded at meet time</div>
           </>
         }
       >

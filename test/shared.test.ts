@@ -4,7 +4,7 @@ import seed from "../data/seed.json";
 import { DEFAULT_KIT, kitAdvice, kitBand } from "../shared/kit.ts";
 import { parseLatLng, type Route, rideTimes } from "../shared/ride.ts";
 import { DEFAULT_SETTINGS as S } from "../shared/settings.ts";
-import { fmtDur, fmtTime, nyToUTC, weekendDates } from "../shared/time.ts";
+import { fmtDur, fmtTime, isDate, nyToUTC, weekendDates } from "../shared/time.ts";
 import {
   bikeFeel,
   dryingRate,
@@ -170,5 +170,17 @@ describe("Google Maps links", () => {
     expect(parseLatLng("41.0454, -73.6973")).toEqual({ lat: 41.0454, lng: -73.6973 });
     expect(parseLatLng("nonsense")).toBeNull();
     expect(parseLatLng("91.0, 10.0")).toBeNull();
+  });
+});
+
+describe("dates from URLs", () => {
+  it("accepts real calendar dates only", () => {
+    expect([isDate("2026-10-17"), isDate("2028-02-29")]).toEqual([true, true]);
+    expect([isDate("2026-02-31"), isDate("2026-13-01"), isDate("17/10/2026"), isDate(null)]).toEqual([
+      false,
+      false,
+      false,
+      false,
+    ]);
   });
 });
