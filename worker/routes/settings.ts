@@ -39,10 +39,10 @@ const kitSchema = z
     }),
   )
   .length(7)
-  .refine(
-    (k) => k.slice(1, -1).every((b, i) => b.minFeel < (k[i] as KitBand).minFeel),
-    "Each band must start colder than the one above it",
-  );
+  .refine((k) => {
+    const feels = [...k.slice(0, -1).map((b) => b.minFeel), -99]; // as stored: the coldest band catches everything
+    return feels.every((f, i) => i === 0 || f < (feels[i - 1] as number));
+  }, "Each band must start colder than the one above it");
 
 function kitInserts(db: D1Database, kit: KitBand[]) {
   const bands = kit.map((b, i) => (i === kit.length - 1 ? { ...b, minFeel: -99 } : b)); // the coldest band catches everything

@@ -123,9 +123,11 @@ export const rideInput = z.object({
     .max(2)
     .refine((r) => new Set(r.map((x) => x.label.toLowerCase())).size === r.length, "Route labels must differ"),
   replace: z.boolean().default(false), // confirm replacing a ride already published on that date
-  baseUpdatedAt: z.string().max(40).optional(), // updates: the ride's updatedAt when the editor opened it
 });
 export type RideInput = z.input<typeof rideInput>;
+// An update also sends the ride's updatedAt from when the editor opened it, so a later change isn't overwritten.
+export const rideUpdate = rideInput.extend({ baseUpdatedAt: z.string().max(40) });
+export type RideUpdate = z.input<typeof rideUpdate>;
 
 export const rsvpInput = z.object({
   status: z.enum(["in", "out"]).nullable(),

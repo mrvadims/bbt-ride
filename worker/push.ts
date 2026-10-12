@@ -15,7 +15,9 @@ export interface PushJob {
   data: string;
   subs: Sub[];
 }
-const BATCH = 40; // each queue delivery runs in its own invocation, well under the 50-outbound-request limit
+// Each queue delivery runs in its own invocation. Encrypting and signing a message takes about 1–2 ms of CPU per device,
+// so a small batch keeps each run inside the free plan's ~10 ms CPU (and far under 50 outbound requests).
+const BATCH = 5;
 
 /** Queues a ride notification for every opted-in device (disabled members excluded); delivery runs in `deliver`. */
 export async function notifyRide(env: Env, rideId: string, title: string, body: string): Promise<void> {
@@ -37,8 +39,8 @@ export async function deliver(batch: MessageBatch<PushJob>, env: Env): Promise<v
     const { data, subs } = msg.body;
     await Promise.all(
       subs.map(async (s) => {
-        const sub = { endpoint: s.endpoint, expirationTime: null, keys: JSON.parse(s.keys_json) };
         try {
+          const sub = { endpoint: s.endpoint, expirationTime: null, keys: JSON.parse(s.keys_json) };
           const payload = await buildPushPayload({ data, options: { ttl: 24 * 60 * 60, urgency: "high" } }, sub, vapid);
           const res = await fetch(s.endpoint, payload);
           await res.body?.cancel();

@@ -17,14 +17,13 @@ import { validate } from "../validate.ts";
 const INVITE_DAYS = 7;
 const RESET_HOURS = 24;
 
-async function methodsOf(db: D1Database, userIds: string[]): Promise<Map<string, ("google" | "password")[]>> {
-  if (!userIds.length) return new Map();
-  const { results } = await db
-    .prepare(
-      `select "userId" as user_id, "providerId" as provider from account where "userId" in (${userIds.map(() => "?").join(",")})`,
-    )
-    .bind(...userIds)
-    .all<{ user_id: string; provider: string }>();
+/** Sign-in methods per user: one user's, or everyone's (D1 binds at most 100 variables, so no IN list). */
+async function methodsOf(db: D1Database, userId?: string): Promise<Map<string, ("google" | "password")[]>> {
+  const q = `select "userId" as user_id, "providerId" as provider from account`;
+  const { results } = await (userId ? db.prepare(`${q} where "userId" = ?`).bind(userId) : db.prepare(q)).all<{
+    user_id: string;
+    provider: string;
+  }>();
   const out = new Map<string, ("google" | "password")[]>();
   for (const r of results)
     out.set(r.user_id, [...(out.get(r.user_id) ?? []), r.provider === "google" ? "google" : "password"]);
@@ -68,7 +67,7 @@ async function openLink(db: D1Database, token: string) {
 
 export const me = new Hono<AppEnv>().get("/", async (c) => {
   const u = c.get("user");
-  const methods = (await methodsOf(c.env.DB, [u.id])).get(u.id) ?? [];
+  const methods = (await methodsOf(c.env.DB, u.id)).get(u.id) ?? [];
   return c.json<Me>({ ...u, methods, vapidPublicKey: c.env.VAPID_PUBLIC_KEY });
 });
 
@@ -90,10 +89,7 @@ export const users = new Hono<AppEnv>()
         .bind(nowIso())
         .all<{ email: string; role: Role; expires_at: string }>(),
     ]);
-    const methods = await methodsOf(
-      c.env.DB,
-      rows.map((r) => r.id),
-    );
+    const methods = await methodsOf(c.env.DB);
     return c.json({
       users: rows.map(
         (r): UserRow => ({

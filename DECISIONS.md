@@ -35,7 +35,7 @@ Every open question from the design review, with what was decided. Details live 
 | Drafts | No Save draft button; the form autosaves. Edit, Update, Replace, Cancel and Restore ride | 2026-10-10 |
 | RSVP | In / Out (route choice only for In on rides with an alternate); message thread with one-level replies | 2026-10-10 |
 | RSVP reminders | None in v1 | 2026-10-11 |
-| Notifications | Only when a ride is updated, cancelled or restored; Web Push only (opt-in per device), no email service; delivered through a Cloudflare Queue in batches of 40 devices (no device limit on the free plan) | 2026-10-12 |
+| Notifications | Only when a ride is updated, cancelled or restored; Web Push only (opt-in per device), no email service; delivered through a Cloudflare Queue in batches of 5 devices, to stay inside the free plan's CPU limit (no device limit) | 2026-10-12 |
 | Notification audience | Every member who turned ride notifications on, whether or not they've answered In / Out | 2026-10-12 |
 | History | Past tab on the Ride page (latest 200); read-only past rides with recorded weather; Reuse this plan. Routes and times stay live (not frozen at publish) | 2026-10-12 |
 | Edit conflicts | Update ride is refused if the ride changed after the editor opened it | 2026-10-12 |

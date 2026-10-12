@@ -2,7 +2,7 @@
 // The form autosaves as a per-editor draft on the server; there is no Save draft button.
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { RideDetail, RideInput, RouteSummary } from "../../shared/api.ts";
+import type { RideDetail, RideUpdate, RouteSummary } from "../../shared/api.ts";
 import { etaAt, FT_PER_M, M_PER_MI, nearest, type Poi, rideTimes, startDistance } from "../../shared/ride.ts";
 import { addDays, dayLabel, fmtTime, hhmmToMin, isDate, isWeekend, nyNow, weekendDates } from "../../shared/time.ts";
 import { evaluate, warnings } from "../../shared/weather.ts";
@@ -216,6 +216,9 @@ export function PlanPage() {
         const restored = { ...base, ...(d?.form ?? {}) };
         if (restored.date < today) Object.assign(restored, { date: base.date, editing: null, base: null }); // stale draft
         if (dateParam) Object.assign(restored, { date: dateParam, editing: null, base: null });
+        // Drafts saved before edit conflicts were checked have no base: take the ride as it is now.
+        if (restored.editing && !restored.base)
+          restored.base = rides.find((r) => r.id === restored.editing)?.updatedAt ?? null;
         setForm(restored);
       })
       .catch(() => setForm(base));
@@ -256,7 +259,7 @@ export function PlanPage() {
   const routeError = (pastedMainQ.error ?? routeQ.error)?.message;
   const altError = (pastedAltQ.error ?? altQ.error)?.message;
 
-  // A pasted link or ID selects that route once it loads.
+  // A pasted RideWithGPS link selects that route once it loads.
   useEffect(() => {
     if (pastedMainRoute && form && form.routeId !== pastedMainRoute.id)
       set({ routeId: pastedMainRoute.id, stop: undefined });
@@ -317,7 +320,7 @@ export function PlanPage() {
     mutationFn: async (replace: boolean) => {
       if (!form || !draftRide) throw new Error("Pick a start spot and a route");
       if (form.altOn && form.altId && !altRoute) throw new Error("The alternate route hasn't loaded yet");
-      const body: RideInput = {
+      const body: RideUpdate = {
         date: draftRide.date,
         meetTime: draftRide.meetTime,
         spotId: draftRide.spotId,
@@ -325,7 +328,7 @@ export function PlanPage() {
         notes: draftRide.notes,
         routes: draftRide.routes.map(({ label, routeId, stop }) => ({ label, routeId, stop })),
         replace,
-        baseUpdatedAt: form.base ?? undefined,
+        baseUpdatedAt: form.base ?? "", // a POST ignores it
       };
       return form.editing
         ? api<RideDetail>(`/rides/${form.editing}`, { method: "PUT", body })
@@ -342,9 +345,10 @@ export function PlanPage() {
   const toggleCancel = useMutation({
     mutationFn: (r: RideDetail) =>
       api<RideDetail>(`/rides/${r.id}/${r.status === "cancelled" ? "restore" : "cancel"}`, { method: "POST" }),
-    onSuccess: async (ride) => {
+    onSuccess: async (ride, r) => {
       qc.setQueryData(["ride", ride.id], ride);
-      setForm((f) => (f?.editing === ride.id ? { ...f, base: ride.updatedAt } : f)); // our own change isn't a conflict
+      // Our own Cancel/Restore isn't a conflict, but only if the form was up to date before it.
+      setForm((f) => (f?.editing === ride.id && f.base === r.updatedAt ? { ...f, base: ride.updatedAt } : f));
       await qc.invalidateQueries({ queryKey: ["rides"] });
     },
     onError: (e) => setError(e.message),

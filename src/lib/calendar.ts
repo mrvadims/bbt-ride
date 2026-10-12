@@ -35,7 +35,7 @@ export const outlookLink = (c: CalEvent, host: "outlook.live.com" | "outlook.off
   })}`;
 
 /** RFC 5545 line folding: at most 75 bytes per line, continuations start with a space. */
-function fold(line: string): string {
+export function fold(line: string): string {
   const parts: string[] = [];
   let cur = "";
   let bytes = 0;

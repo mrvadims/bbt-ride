@@ -32,9 +32,10 @@ export async function enablePush(vapidPublicKey: string): Promise<void> {
   }
 }
 
+/** Unsubscribes this device first (so it stops even if the server call fails), then tells the Worker. */
 export async function disablePush(): Promise<void> {
   const sub = await currentSubscription();
   if (!sub) return;
-  await api("/push", { method: "DELETE", body: { endpoint: sub.endpoint } });
   await sub.unsubscribe();
+  await api("/push", { method: "DELETE", body: { endpoint: sub.endpoint } });
 }

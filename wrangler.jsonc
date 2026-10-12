@@ -25,10 +25,10 @@
       "id": "7b924a895d8e466aa83b4bffa01159fd"
     }
   ],
-  // Ride notifications: queued, then sent one batch (up to 40 devices) per consumer run.
+  // Ride notifications: queued, then sent one batch (up to 5 devices) per consumer run; a failed run is retried once.
   "queues": {
     "producers": [{ "binding": "PUSH", "queue": "bbt-ride-push" }],
-    "consumers": [{ "queue": "bbt-ride-push", "max_batch_size": 1 }]
+    "consumers": [{ "queue": "bbt-ride-push", "max_batch_size": 1, "max_retries": 1 }]
   },
   "triggers": { "crons": ["15 */3 * * *"] },
   "vars": {

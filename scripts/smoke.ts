@@ -277,6 +277,10 @@ check(
     .status === 409,
   "an update based on an older version is refused",
 );
+check(
+  (await admin(`/api/rides/${id}`, { method: "PUT", body: { ...plan, notes: "no base" } })).status === 400,
+  "an update must say which version it edits",
+);
 let c = (await admin(`/api/rides/${id}/cancel`, { method: "POST" })).json;
 check(
   c.status === "cancelled" && c.messages.some((m: Json) => m.kind === "cancel"),
