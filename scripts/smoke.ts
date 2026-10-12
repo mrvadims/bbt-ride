@@ -63,26 +63,33 @@ sql(
 const admin = client();
 const rider = client();
 const anon = client();
+const login = (c: ReturnType<typeof client>, email: string, password: string) =>
+  c("/api/auth/sign-in/email", { body: { email, password } });
 
-check((await anon(`/api/links/${adminToken}`)).json?.kind === "invite", "invite link readable without a session");
-const weak = await admin(`/api/links/${adminToken}`, { body: { name: "Admin", password: "short" } });
+check(
+  (await anon("/api/links", { body: { token: adminToken } })).json?.kind === "invite",
+  "invite link readable without a session",
+);
+const weak = await anon("/api/links/accept", { body: { token: adminToken, name: "Admin", password: "short" } });
 check(weak.status === 400, "short password refused");
-const made = await admin(`/api/links/${adminToken}`, {
-  body: { name: "Admin", username: `admin${stamp}`, password: "correct horse battery" },
+const made = await anon("/api/links/accept", {
+  body: { token: adminToken, name: "Admin", username: `admin${stamp}`, password: "correct horse battery" },
 });
-check(made.status === 200, `admin account created from invite (${made.status})`);
+check(made.status === 204, `admin account created from invite (${made.status})`);
+check((await login(admin, adminEmail, "correct horse battery")).status === 200, "new account signs in");
 const me = (await admin("/api/me")).json;
 check(me?.role === "admin" && me.methods?.includes("password"), "admin signed in with Admin role and password method");
-check((await anon(`/api/links/${adminToken}`)).status === 404, "invite link is single-use");
+check((await anon("/api/links", { body: { token: adminToken } })).status === 404, "invite link is single-use");
 
-const inv = await admin("/api/users/invites", { body: { email: `rider-${stamp}@example.test`, role: "view" } });
+const riderEmail = `rider-${stamp}@example.test`;
+const inv = await admin("/api/users/invites", { body: { email: riderEmail, role: "view" } });
 check(inv.status === 201 && inv.json?.url?.includes("/invite/"), "admin creates an invite link");
 check(
   (
-    await rider(`/api/links/${tokenFromUrl(inv.json.url)}`, {
-      body: { name: `Rider ${stamp}`, password: "pedal pedal pedal" },
+    await anon("/api/links/accept", {
+      body: { token: tokenFromUrl(inv.json.url), name: `Rider ${stamp}`, password: "pedal pedal pedal" },
     })
-  ).status === 200,
+  ).status === 204 && (await login(rider, riderEmail, "pedal pedal pedal")).status === 200,
   "rider joins",
 );
 check((await rider("/api/me")).json?.role === "view", "rider has View role");
@@ -110,9 +117,12 @@ check(
   "route with its coffee stop",
 );
 check(
-  (await rider("/api/routes?q=katonah")).json?.some((r: Json) => r.id === 57406828),
+  (await admin("/api/routes?q=katonah")).json?.some((r: Json) => r.id === 57406828),
   "route library search",
 );
+check((await rider("/api/routes?q=katonah")).status === 403, "route search is for editors");
+check((await rider("/api/routes/99999999")).status === 404, "riders can't look up routes the app hasn't seen");
+check((await admin("/api/auth/admin/list-users")).status === 404, "Better Auth's admin endpoints are unreachable");
 
 // Review fixes: names, push endpoints
 check(
@@ -134,6 +144,15 @@ check(
 
 // Settings
 check((await admin("/api/settings", { method: "PUT", body: { pace: 99 } })).status === 400, "invalid setting refused");
+check(
+  (await admin("/api/settings", { method: "PUT", body: { feelNoGo: 45 } })).status === 400,
+  "a red threshold milder than amber is refused",
+);
+check(
+  (await admin("/api/settings/kit", { method: "PUT", body: [{ minFeel: 50, name: "One", items: ["Jersey"] }] }))
+    .status === 400,
+  "the kit chart needs seven bands",
+);
 check(
   (await admin("/api/settings", { method: "PUT", body: { pace: 18 } })).json?.settings?.pace === 18,
   "admin changes a setting",
@@ -246,16 +265,28 @@ check(
   "only the author edits a message",
 );
 
-const upd = await admin(`/api/rides/${id}`, { method: "PUT", body: { ...plan, meetTime: "09:00" } });
+const base = pub.json.updatedAt;
+const upd = await admin(`/api/rides/${id}`, {
+  method: "PUT",
+  body: { ...plan, meetTime: "09:00", baseUpdatedAt: base },
+});
 check(upd.json?.lastUpdate?.text?.includes("meet 8:30 AM → 9:00 AM"), "update posts what changed");
 check(upd.json.rsvps.length === 1, "RSVPs kept after an update");
+check(
+  (await admin(`/api/rides/${id}`, { method: "PUT", body: { ...plan, notes: "stale", baseUpdatedAt: base } }))
+    .status === 409,
+  "an update based on an older version is refused",
+);
 let c = (await admin(`/api/rides/${id}/cancel`, { method: "POST" })).json;
 check(
   c.status === "cancelled" && c.messages.some((m: Json) => m.kind === "cancel"),
   "cancel keeps the ride and posts a message",
 );
 c = (
-  await admin(`/api/rides/${id}`, { method: "PUT", body: { ...plan, meetTime: "09:00", notes: "still cancelled?" } })
+  await admin(`/api/rides/${id}`, {
+    method: "PUT",
+    body: { ...plan, meetTime: "09:00", notes: "still cancelled?", baseUpdatedAt: c.updatedAt },
+  })
 ).json;
 check(c.status === "cancelled", "editing a cancelled ride keeps it cancelled");
 check(c.lastUpdate?.text === upd.json.lastUpdate?.text, "editing a cancelled ride posts no update");
@@ -293,8 +324,11 @@ check(
 const reset = await admin(`/api/users/${riderRow.id}/reset-link`, { method: "POST" });
 const rider2 = client();
 check(
-  (await rider2(`/api/links/${tokenFromUrl(reset.json.url)}`, { body: { password: "new pedal pedal pedal" } }))
-    .status === 200,
+  (
+    await anon("/api/links/accept", {
+      body: { token: tokenFromUrl(reset.json.url), password: "new pedal pedal pedal" },
+    })
+  ).status === 204 && (await login(rider2, riderEmail, "new pedal pedal pedal")).status === 200,
   "reset link sets a new password",
 );
 check((await rider("/api/me")).status === 401, "reset signs the rider out elsewhere");

@@ -1,5 +1,5 @@
 // Calendar links and .ics (generated in the browser: an iPhone Home Screen app doesn't share its sign-in with Safari).
-import { nyToUTC, pad, TZ } from "../../shared/time.ts";
+import { nyToUTC } from "../../shared/time.ts";
 
 export interface CalEvent {
   date: string;
@@ -11,19 +11,14 @@ export interface CalEvent {
   details: string;
 }
 
-const hm = (min: number) => {
-  const m = Math.round(min);
-  return [pad(Math.floor(m / 60)), pad(m % 60)];
-};
-const local = (c: CalEvent, min: number) => `${c.date.replaceAll("-", "")}T${hm(min).join("")}00`;
+// UTC times ("20261017T123000Z") work in every calendar and handle a ride ending after midnight.
 const utc = (c: CalEvent, min: number) => `${nyToUTC(c.date, min).toISOString().replace(/[-:]/g, "").slice(0, 15)}Z`;
 
 export const googleLink = (c: CalEvent) =>
   `https://calendar.google.com/calendar/render?${new URLSearchParams({
     action: "TEMPLATE",
     text: c.title,
-    dates: `${local(c, c.start)}/${local(c, c.end)}`,
-    ctz: TZ,
+    dates: `${utc(c, c.start)}/${utc(c, c.end)}`,
     location: c.location,
     details: c.details,
   })}`;
@@ -38,6 +33,24 @@ export const outlookLink = (c: CalEvent, host: "outlook.live.com" | "outlook.off
     location: c.location,
     body: c.details,
   })}`;
+
+/** RFC 5545 line folding: at most 75 bytes per line, continuations start with a space. */
+function fold(line: string): string {
+  const parts: string[] = [];
+  let cur = "";
+  let bytes = 0;
+  for (const ch of line) {
+    const n = new TextEncoder().encode(ch).length;
+    if (bytes + n > 75) {
+      parts.push(cur);
+      cur = " ";
+      bytes = 1;
+    }
+    cur += ch;
+    bytes += n;
+  }
+  return [...parts, cur].join("\r\n");
+}
 
 export function downloadIcs(c: CalEvent, uid: string) {
   const e = (v: string) => v.replace(/[\\,;]/g, (m) => `\\${m}`).replace(/\n/g, "\\n");
@@ -56,7 +69,9 @@ export function downloadIcs(c: CalEvent, uid: string) {
     `DESCRIPTION:${e(c.details)}`,
     "END:VEVENT",
     "END:VCALENDAR",
-  ].join("\r\n");
+  ]
+    .map(fold)
+    .join("\r\n");
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([text], { type: "text/calendar" }));
   a.download = `bbt-ride-${c.date}.ics`;

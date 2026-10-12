@@ -24,7 +24,8 @@ async function locate(link: string): Promise<{ lat: number; lng: number; maps_ur
   if (!ll && /^https:\/\/maps\.app\.goo\.gl\//.test(link)) {
     const res = await fetch(link, { redirect: "manual", signal: AbortSignal.timeout(5000) }).catch(() => null);
     await res?.body?.cancel();
-    ll = parseLatLng(decodeURIComponent(res?.headers.get("location") ?? ""));
+    const location = res?.headers.get("location") ?? "";
+    ll = parseLatLng(URL.canParse(location) ? decodeURI(new URL(location).href) : location);
   }
   if (!ll) return fail(400, "Paste a Google Maps link with a pin, or coordinates like 41.0454, -73.6973");
   return { ...ll, maps_url: safeMapsUrl(link, ll.lat, ll.lng) };

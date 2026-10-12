@@ -58,7 +58,10 @@ export async function perSpot<T>(
       const value = fetched[i];
       if (value !== undefined) values[pin(s)] = { at: now, value };
     });
-    await kv.put(kind, JSON.stringify({ tried: now, pins: spots.map(pin), values } satisfies Stored<T>));
+    // A failed write (KV allows about one write per second per key) only means the next request refreshes again.
+    await kv
+      .put(kind, JSON.stringify({ tried: now, pins: spots.map(pin), values } satisfies Stored<T>))
+      .catch((err) => console.error(`${kind} cache write failed`, err));
   }
   return Object.fromEntries(spots.flatMap((s) => (values[pin(s)] ? [[s.id, values[pin(s)]?.value as T]] : [])));
 }

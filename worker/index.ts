@@ -6,7 +6,7 @@ import { HTTPException } from "hono/http-exception";
 import { secureHeaders } from "hono/secure-headers";
 import { type AppEnv, requireSession, sameOrigin, withAuth } from "./app.ts";
 import { scheduled } from "./cron.ts";
-import { push } from "./push.ts";
+import { deliver, type PushJob, push } from "./push.ts";
 import { drafts } from "./routes/drafts.ts";
 import { messages, rides } from "./routes/rides.ts";
 import { routes } from "./routes/routes.ts";
@@ -36,6 +36,9 @@ app.notFound((c) => c.json({ error: "Not found" }, 404));
 
 app.use(secureHeaders()); // nosniff, frame and referrer protections on API responses
 app.use(withAuth);
+// Better Auth's admin endpoints (impersonation, setting passwords, …) aren't used by the app, which calls the ones it needs
+// on the server from /api/users with its own checks and audit log; keep them unreachable from browsers.
+app.all("/auth/admin/*", (c) => c.json({ error: "Not found" }, 404));
 app.on(["GET", "POST"], "/auth/*", (c) => c.get("auth").handler(c.req.raw)); // Better Auth checks its own origins
 app.use(sameOrigin);
 
@@ -59,4 +62,5 @@ app.route("/users", users);
 export default {
   fetch: app.fetch,
   scheduled: async (_controller, env, ctx) => ctx.waitUntil(scheduled(env)),
-} satisfies ExportedHandler<Env>;
+  queue: deliver,
+} satisfies ExportedHandler<Env, PushJob>;

@@ -1,5 +1,6 @@
 // Scheduled job, every 3 hours (wrangler.jsonc → triggers): saves recorded weather on rides whose window has passed,
-// and keeps the route library filled. Recorded weather is Open-Meteo's past hours at the spot (DESIGN.md → Past rides).
+// keeps the route library filled and clears expired records. Recorded weather is Open-Meteo's past hours at the spot
+// (DESIGN.md → Past rides).
 import type { RecordedWeather } from "../shared/api.ts";
 import { type Route, rideTimes } from "../shared/ride.ts";
 import { addDays, nyNow } from "../shared/time.ts";
@@ -67,10 +68,26 @@ async function recordWeather(env: Env): Promise<void> {
   }
 }
 
-// One task after another: recorded weather first, then the library, a few routes per run so the job stays well
-// inside the Workers free plan's 50 outbound requests per run.
+/** Drops expired sessions and links, finished sign-in attempts, and rate-limit counters older than a day. */
+async function cleanUp(env: Env): Promise<void> {
+  const now = new Date().toISOString();
+  await env.DB.batch([
+    env.DB.prepare(`delete from "session" where "expiresAt" < ?`).bind(now),
+    env.DB.prepare(`delete from "verification" where "expiresAt" < ?`).bind(now),
+    env.DB.prepare(`delete from "rateLimit" where "lastRequest" < ?`).bind(Date.now() - 24 * 60 * 60 * 1000),
+    env.DB.prepare("delete from links where expires_at < ?").bind(now),
+  ]);
+}
+
+// One task after another, recorded weather first. Two library routes per run keeps the job well inside the Workers
+// free plan's limits (50 outbound requests and about 10 ms of CPU per run).
 export async function scheduled(env: Env): Promise<void> {
-  for (const task of [() => recordWeather(env), () => syncCaptainLibrary(env), () => fillLibrary(env, 10)]) {
+  for (const task of [
+    () => recordWeather(env),
+    () => syncCaptainLibrary(env),
+    () => fillLibrary(env, 2),
+    () => cleanUp(env),
+  ]) {
     await task().catch((err) => console.error("scheduled job:", err));
   }
 }

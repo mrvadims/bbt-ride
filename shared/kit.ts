@@ -85,7 +85,8 @@ export function kitAdvice(st: WindowStats, kit: KitBand[], offset: KitOffset, s:
   if (st.ppMax >= s.rainProbCaution || st.rain >= s.rainAmtCaution)
     addOns.push({ kind: "rainJacket", pp: st.ppMax, rain: st.rain });
   if (st.road.state !== "Dry") addOns.push({ kind: "fenders", road: st.road.state });
-  if (st.wsMax >= WIND_VEST_MPH && !band.items.includes("Wind vest")) addOns.push({ kind: "windVest", ws: st.wsMax });
+  if (st.wsMax >= WIND_VEST_MPH && !band.items.some((i) => /wind vest/i.test(i)))
+    addOns.push({ kind: "windVest", ws: st.wsMax });
   if (st.thunder) addOns.push({ kind: "thunder" });
   const spread = st.feelMax - st.feelMin;
   const shed = st.warms && warmest !== band && spread >= SHED_DEG ? { spread, to: warmest } : null;

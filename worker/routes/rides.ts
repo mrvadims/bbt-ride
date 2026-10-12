@@ -27,6 +27,7 @@ interface RideRow {
   pace_mph: number;
   notes: string;
   status: "published" | "cancelled";
+  updated_at: string;
   observed_json: string | null;
 }
 
@@ -35,12 +36,12 @@ async function summaries(
   db: D1Database,
   where: string,
   binds: unknown[],
-  order = "r.date",
+  order = "r.date, r.created_at",
   limit?: number,
 ): Promise<RideSummary[]> {
   const { results: rides } = await db
     .prepare(
-      `select r.id, r.date, r.meet_time, r.spot_id, r.pace_mph, r.notes, r.status, r.observed_json from rides r where ${where} order by ${order}${limit ? ` limit ${limit}` : ""}`,
+      `select r.id, r.date, r.meet_time, r.spot_id, r.pace_mph, r.notes, r.status, r.updated_at, r.observed_json from rides r where ${where} order by ${order}${limit ? ` limit ${limit}` : ""}`,
     )
     .bind(...binds)
     .all<RideRow>();
@@ -81,6 +82,7 @@ async function summaries(
       pace: r.pace_mph,
       notes: r.notes,
       status: r.status,
+      updatedAt: r.updated_at,
       routes: by<{ label: string; rwgps_route_id: number; stop_poi: string | null; name: string | null }>(
         routes?.results,
         r.id,
@@ -227,7 +229,9 @@ const notifyReplaced = (env: Env, rideId: string, date: string) =>
 export const rides = new Hono<AppEnv>()
   // Upcoming rides (today on), published and cancelled.
   .get("/", async (c) => c.json(await summaries(c.env.DB, "r.date >= ?", [nyNow().date])))
-  .get("/past", async (c) => c.json(await summaries(c.env.DB, "r.date < ?", [nyNow().date], "r.date desc", 200)))
+  .get("/past", async (c) =>
+    c.json(await summaries(c.env.DB, "r.date < ?", [nyNow().date], "r.date desc, r.created_at desc", 200)),
+  )
   .get("/:id", async (c) => c.json(await detail(c.env.DB, c.req.param("id"))))
 
   .post("/", requireRole("edit"), validate("json", rideInput), async (c) => {
@@ -257,6 +261,8 @@ export const rides = new Hono<AppEnv>()
     const [cur] = await summaries(c.env.DB, "r.id = ?", [id]);
     if (!cur) return fail(404, "Ride not found");
     if (cur.date < nyNow().date) fail(409, "Past rides can't be changed");
+    if (input.baseUpdatedAt !== cur.updatedAt)
+      fail(409, "Someone changed this ride after you opened it. Discard your changes and edit it again.");
     await checkInput(c.env.DB, input, cur.spotId);
     const user = c.get("user");
     const clash = cur.status === "published" ? await publishedOn(c.env.DB, input.date, id) : null;

@@ -108,6 +108,7 @@ export function TopBar({ me }: { me: Me | null }) {
   }, [open]);
 
   const signOut = async () => {
+    await disablePush().catch(() => undefined); // the next person on this device shouldn't get this rider's notifications
     await authClient.signOut();
     qc.clear();
     navigate("/signin");

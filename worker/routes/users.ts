@@ -1,6 +1,15 @@
 // Account and team management: /api/me (everyone), users and invites (Admin), invite and reset links (public).
 import { Hono } from "hono";
-import { type Invite, inviteInput, linkAccept, type Me, type Role, type UserRow, userEdit } from "../../shared/api.ts";
+import {
+  type Invite,
+  inviteInput,
+  linkAccept,
+  linkToken,
+  type Me,
+  type Role,
+  type UserRow,
+  userEdit,
+} from "../../shared/api.ts";
 import { type AppEnv, requireRole } from "../app.ts";
 import { audit, fail, nowIso, randomToken, sha256Hex } from "../util.ts";
 import { validate } from "../validate.ts";
@@ -133,23 +142,30 @@ export const users = new Hono<AppEnv>()
   .delete("/:id", async (c) => {
     const id = c.req.param("id");
     if (id === c.get("user").id) fail(400, "You can't delete your own account");
+    const u = await c.env.DB.prepare(`select email from "user" where id = ?`).bind(id).first<{ email: string }>();
+    if (!u) return fail(404, "User not found");
     await c.get("auth").api.removeUser({ body: { userId: id }, headers: c.req.raw.headers });
-    await audit(c.env.DB, c.get("user").id, "delete", "user", id).run();
+    // The email also sits in old links and in the audit trail of invites; the privacy page promises it goes too.
+    await c.env.DB.batch([
+      c.env.DB.prepare("delete from links where email = ?").bind(u.email),
+      c.env.DB.prepare("update audit_log set entity_id = ? where entity_id = ?").bind(id, u.email),
+      audit(c.env.DB, c.get("user").id, "delete", "user", id),
+    ]);
     return c.body(null, 204);
   });
 
 // Public: the invite and reset pages read their link, then set a password (and create the account for invites).
+// The person then signs in on the sign-in page, so each request hashes the password once (Workers CPU limit).
+const EXPIRED = "This link has expired or was already used. Ask a team admin for a new one.";
 export const links = new Hono<AppEnv>()
-  .get("/:token", async (c) => {
-    const link = await openLink(c.env.DB, c.req.param("token"));
-    return link
-      ? c.json({ kind: link.kind, email: link.email })
-      : fail(404, "This link has expired or was already used. Ask a team admin for a new one.");
+  .post("/", validate("json", linkToken), async (c) => {
+    const link = await openLink(c.env.DB, c.req.valid("json").token);
+    return link ? c.json({ kind: link.kind, email: link.email }) : fail(404, EXPIRED);
   })
-  .post("/:token", validate("json", linkAccept), async (c) => {
-    const link = await openLink(c.env.DB, c.req.param("token"));
-    if (!link) return fail(404, "This link has expired or was already used. Ask a team admin for a new one.");
-    const { name, username, password } = c.req.valid("json");
+  .post("/accept", validate("json", linkAccept), async (c) => {
+    const { token, name, username, password } = c.req.valid("json");
+    const link = await openLink(c.env.DB, token);
+    if (!link) return fail(404, EXPIRED);
     const ctx = await c.get("auth").$context;
     const hash = await ctx.password.hash(password);
     if (link.kind === "invite") {
@@ -182,6 +198,5 @@ export const links = new Hono<AppEnv>()
         await ctx.internalAdapter.linkAccount({ userId, providerId: "credential", accountId: userId, password: hash });
       await ctx.internalAdapter.deleteUserSessions(userId); // sign out everywhere else
     }
-    // Sign in with the new password; the response carries the session cookie.
-    return c.get("auth").api.signInEmail({ body: { email: link.email, password }, asResponse: true });
+    return c.body(null, 204);
   });

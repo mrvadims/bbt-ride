@@ -47,6 +47,7 @@ export interface RideSummary {
   pace: number;
   notes: string;
   status: "published" | "cancelled";
+  updatedAt: string; // sent back with an update, so a change made meanwhile isn't overwritten
   routes: (RideRoute & { name: string | null })[]; // name from the route cache
   lastUpdate: { at: string; text: string } | null;
   counts: { in: number; out: number; messages: number };
@@ -122,6 +123,7 @@ export const rideInput = z.object({
     .max(2)
     .refine((r) => new Set(r.map((x) => x.label.toLowerCase())).size === r.length, "Route labels must differ"),
   replace: z.boolean().default(false), // confirm replacing a ride already published on that date
+  baseUpdatedAt: z.string().max(40).optional(), // updates: the ride's updatedAt when the editor opened it
 });
 export type RideInput = z.input<typeof rideInput>;
 
@@ -150,7 +152,9 @@ export const userEdit = z.object({
   role: z.enum(ROLES).optional(),
   disabled: z.boolean().optional(),
 });
-export const linkAccept = z.object({
+// Link tokens travel in request bodies, never in API URLs (which end up in request logs).
+export const linkToken = z.object({ token: z.string().min(8).max(100) });
+export const linkAccept = linkToken.extend({
   name: z.string().trim().min(1).max(80).optional(), // invite only
   username: z
     .string()
