@@ -6,6 +6,7 @@ import type { KitBand } from "../../shared/kit.ts";
 import type { Settings } from "../../shared/settings.ts";
 import { fmtTime, hhmmToMin } from "../../shared/time.ts";
 import { Panel } from "../components/Panel.tsx";
+import { type SpotFields, SpotForm } from "../components/SpotForm.tsx";
 import { api } from "../lib/api.ts";
 import { type SpotWithState, useSpots, useTeam } from "../lib/data.ts";
 
@@ -317,70 +318,110 @@ function KitEditor({ kit, onSave }: { kit: KitBand[]; onSave: (k: KitBand[]) => 
   );
 }
 
+function SpotRow({ sp, onEdit, onArchive }: { sp: SpotWithState; onEdit: () => void; onArchive: () => void }) {
+  return (
+    <div className="spot-row">
+      <div className="spot-info">
+        <b>{sp.name}</b>
+        <span className="small muted">{sp.note}</span>
+      </div>
+      <div className="spot-actions">
+        <a className="linkbtn" href={sp.maps_url} target="_blank" rel="noopener noreferrer">
+          Open in Maps
+        </a>
+        {!sp.archived && (
+          <button type="button" className="linkbtn" onClick={onEdit}>
+            Edit
+          </button>
+        )}
+        <button type="button" className="linkbtn" onClick={onArchive}>
+          {sp.archived ? "Restore" : "Archive"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function Spots() {
   const qc = useQueryClient();
   const spots = useSpots().data ?? [];
+  const [editing, setEditing] = useState<string | null>(null); // a spot id, or "new"
   const [error, setError] = useState<string | null>(null);
-  const edit = useMutation({
-    mutationFn: ({ id, body }: { id: string; body: Record<string, unknown> }) =>
-      api<SpotWithState>(`/spots/${id}`, { method: "PATCH", body }),
+  const refresh = async () => {
+    await qc.invalidateQueries({ queryKey: ["spots"] });
+    await qc.invalidateQueries({ queryKey: ["weather"] });
+  };
+  const archive = useMutation({
+    mutationFn: (sp: SpotWithState) =>
+      api<SpotWithState>(`/spots/${sp.id}`, { method: "PATCH", body: { archived: !sp.archived } }),
     onSuccess: () => {
       setError(null);
-      qc.invalidateQueries({ queryKey: ["spots"] });
-      qc.invalidateQueries({ queryKey: ["weather"] });
+      return refresh();
     },
     onError: (e) => setError(e.message),
   });
-  const active = spots.filter((s) => !s.archived).length;
+  const save = async (sp: SpotWithState | null, f: SpotFields) => {
+    if (sp) {
+      // Send only what changed, so an unchanged short Maps link isn't looked up again.
+      const body = Object.fromEntries(
+        Object.entries(f).filter(([k, v]) => v !== (k === "link" ? sp.maps_url : sp[k as "name" | "note"])),
+      );
+      if (Object.keys(body).length) await api(`/spots/${sp.id}`, { method: "PATCH", body });
+    } else {
+      await api("/spots", { body: f });
+    }
+    await refresh();
+    setEditing(null);
+  };
+  const active = spots.filter((s) => !s.archived);
+  const archived = spots.filter((s) => s.archived);
+  const row = (sp: SpotWithState) =>
+    editing === sp.id ? (
+      <SpotForm
+        key={sp.id}
+        title={`Edit ${sp.name}`}
+        initial={{ name: sp.name, link: sp.maps_url, note: sp.note }}
+        submitLabel="Save changes"
+        onSubmit={(f) => save(sp, f)}
+        onCancel={() => setEditing(null)}
+      />
+    ) : (
+      <SpotRow key={sp.id} sp={sp} onEdit={() => setEditing(sp.id)} onArchive={() => archive.mutate(sp)} />
+    );
   return (
     <Panel
       id="set-spots"
       label="Spots"
       titled
       collapsed
-      summary={`${active} active${spots.length > active ? ` · ${spots.length - active} archived` : ""}`}
+      summary={`${active.length} active${archived.length ? ` · ${archived.length} archived` : ""}`}
     >
       {error && (
         <p className="small" role="alert" style={{ color: "var(--no-fg)" }}>
           {error}
         </p>
       )}
-      {spots.map((sp) => (
-        <div key={sp.id} className="sub">
-          <div className="settings-grid">
-            <label className="field">
-              Name
-              <input
-                defaultValue={sp.name}
-                onBlur={(e) =>
-                  e.target.value.trim() !== sp.name && edit.mutate({ id: sp.id, body: { name: e.target.value } })
-                }
-              />
-            </label>
-            <label className="field">
-              Move the pin (Maps link or "lat, lng")
-              <input
-                placeholder={`${sp.lat}, ${sp.lng}`}
-                onBlur={(e) => e.target.value.trim() && edit.mutate({ id: sp.id, body: { link: e.target.value } })}
-              />
-            </label>
-          </div>
-          <label className="field">
-            Parking notes
-            <textarea
-              defaultValue={sp.note}
-              onBlur={(e) => e.target.value !== sp.note && edit.mutate({ id: sp.id, body: { note: e.target.value } })}
-            />
-          </label>
-          <button
-            type="button"
-            className="linkbtn"
-            onClick={() => edit.mutate({ id: sp.id, body: { archived: !sp.archived } })}
-          >
-            {sp.archived ? "Restore to the pick list" : "Archive (stays on past rides)"}
+      <div className="spot-list">{active.map(row)}</div>
+      {editing === "new" ? (
+        <SpotForm
+          title="New start spot"
+          submitLabel="Add spot"
+          onSubmit={(f) => save(null, f)}
+          onCancel={() => setEditing(null)}
+        />
+      ) : (
+        <div className="btnrow" style={{ marginTop: 12 }}>
+          <button type="button" className="btn btn-outline btn-sm" onClick={() => setEditing("new")}>
+            Add a spot
           </button>
         </div>
-      ))}
+      )}
+      {archived.length > 0 && (
+        <details className="archived">
+          <summary>Archived ({archived.length}) · kept on past rides</summary>
+          <div className="spot-list">{archived.map(row)}</div>
+        </details>
+      )}
     </Panel>
   );
 }
@@ -420,7 +461,7 @@ export function SettingsPage({ me }: { me: Me }) {
           {error}
         </p>
       )}
-      <div className="panels">
+      <div className="panels settings-panels">
         <Users me={me} />
         <Panel
           id="set-defaults"

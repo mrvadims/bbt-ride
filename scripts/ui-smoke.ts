@@ -136,6 +136,28 @@ await page.getByLabel("Invite by email").fill(`rider-${stamp}@example.test`);
 await page.getByRole("button", { name: "Invite" }).click();
 await page.locator(".notice input").waitFor();
 check((await page.locator(".notice input").inputValue()).includes("/invite/"), "invite link shown to the Admin");
+
+// Spots: add, then edit the parking notes
+await page.getByRole("button", { name: "Spots", exact: true }).click();
+await page.getByRole("button", { name: "Add a spot" }).click();
+await page.getByLabel("Name").fill(`Lot ${stamp}`);
+await page.getByLabel("Google Maps link").fill("41.0454, -73.6973");
+await page.getByLabel("Parking notes").fill("North lot.");
+await page.getByRole("button", { name: "Add spot" }).click();
+const newRow = page.locator(".spot-row", { hasText: `Lot ${stamp}` });
+await newRow.waitFor();
+check(
+  (await newRow.getByRole("link", { name: "Open in Maps" }).getAttribute("href"))?.includes("41.0454"),
+  "new spot listed with an Open in Maps link",
+);
+await newRow.getByRole("button", { name: "Edit" }).click();
+await page.getByLabel("Parking notes").fill("South lot.");
+await page.getByRole("button", { name: "Save changes" }).click();
+await newRow.getByText("South lot.").waitFor();
+check(true, "spot edited in place");
+await newRow.getByRole("button", { name: "Archive" }).click(); // only the seeded spots have sample forecasts
+await page.getByText(/^Archived \(\d+\)/).waitFor();
+check(true, "spot archived");
 await shot(page, "settings");
 
 // Desktop, dark

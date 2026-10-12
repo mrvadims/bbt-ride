@@ -80,24 +80,24 @@ The ride page's "Updated 9:12 PM · …" note is the latest `kind = 'update'` me
   - Data: no new tables. A ride is past once its date has passed; recorded weather is stored with the ride (`rides.observed_json`), written by a scheduled Worker job every 3 hours. Rides are never deleted.
 
 ### Spots
-- Fields: name, location (lat/lng), Google Maps link, parking notes (where to park, restrooms).
+- Fields: name, location (lat/lng), Google Maps link, parking notes (where to park, restrooms). Name, link and notes are all required.
 - **Add (Edit and Admin):** "Add a start spot" at the bottom of Plan's spot list. Enter a name, paste a Google Maps link (drop a pin on the parking spot → Share → Copy link) or plain coordinates, and parking notes; Save selects the new spot. Spot names must be unique.
-  - Full Maps links are parsed in the browser, pin first: `!3d<lat>!4d<lng>`, then `q=` / `query=` / `/search/<lat>,<lng>`, then `@lat,lng` (that one is the map's centre, so it's the last resort). Short `maps.app.goo.gl` links are resolved by the Worker (one redirect, only from that host), since browsers can't read cross-site redirects.
+  - The Worker reads the pin from the link on save, pin first: `!3d<lat>!4d<lng>`, then `q=` / `query=` / `/search/<lat>,<lng>`, then `@lat,lng` (that one is the map's centre, so it's the last resort). Short `maps.app.goo.gl` links are followed one redirect (only from that host). The pasted Google Maps link is kept as the spot's link; anything else gets a coordinates link.
   - The Worker fetches the forecast for the new point on save.
-- **Manage (Admin):** a Spots panel in Settings to rename, edit notes, move the pin, or archive. Archived spots drop out of the pick list but stay on past rides.
+- **Manage (Admin):** the Spots panel in Settings lists each spot (name and parking notes) with **Open in Maps** (to check the pin), **Edit** (the same three fields in place; paste a new link to move the pin) and **Archive**, plus **Add a spot**. Archived spots drop out of the pick list but stay on past rides; they sit in a collapsed Archived list with Restore.
 
 ### What to wear
 - Team kit chart keyed on **bike feel**, with add-ons for rain, wind, wet roads and thunder, and a shedding hint (see Kit chart); Admins edit it in Settings.
 - Per-rider offset (runs cold / avg / hot, ±5°) stored in that rider's browser.
 
 ### Settings (Admin only, stored in D1)
-Team settings live in D1 (`settings`, `kit_bands`, `spots`) and are edited on the Settings page (gear icon). Fixed by design, not settings: low light = roll-out within 30 min of sunrise, wind-vest add-on at 12 mph, shedding hint at 8°, pace 10–25 mph. Collapsible panels, each with a one-line summary of the current values:
+Team settings live in D1 (`settings`, `kit_bands`, `spots`) and are edited on the Settings page (gear icon). Fixed by design, not settings: low light = roll-out within 30 min of sunrise, wind-vest add-on at 12 mph, shedding hint at 8°, pace 10–25 mph. Collapsible panels in a single column (so opening one never leaves a gap beside it), each with a one-line summary of the current values:
 - **Users:** invite by email with a role (copy invite link), change roles, edit name or email, disable, create a password reset link, delete on request; shows each user's sign-in methods. A short line explains what each role can do. Deleting removes the account, sign-in methods, sessions, push subscriptions, drafts and RSVPs; the person's messages stay on past rides as "Former member".
 - **Ride defaults:** roll-out **8:30**, weather window 3 h (used before a route is picked), pace 17 mph, coffee stop **20 min** (typical 15–20), regroup buffer **5 %** of moving time.
 - **Road wetness:** look-back hours, Wet / Drying film thresholds.
 - **Warnings:** amber and red thresholds for cold (bike feel), heat (real feel), wind, gusts, rain chance, rain amount.
 - **Kit chart:** bands and items (`kit_bands`).
-- **Spots:** rename, edit notes, move the pin, archive (see Spots).
+- **Spots:** list with Open in Maps, Edit and Archive; Add a spot (see Spots).
 - **Reset to defaults** restores the first-run values (not users or spots).
 
 Team settings are stored in imperial units. Per-rider preferences stay in the rider's browser: theme, **units** (imperial by default; metric shows °C, km/h, km, m, mm) and ride notifications (all three in the account menu), Run cold / Avg / Run hot, weather source, and which panels are open.

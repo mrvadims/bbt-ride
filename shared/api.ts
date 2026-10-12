@@ -139,7 +139,7 @@ export const messageEdit = z.object({ body: z.string().trim().min(1).max(2000) }
 export const spotInput = z.object({
   name: z.string().trim().min(1).max(80),
   link: z.string().trim().min(1).max(2000), // Google Maps link or "lat, lng"
-  note: z.string().trim().max(1000),
+  note: z.string().trim().min(1).max(1000), // parking notes
 });
 export const spotEdit = spotInput.partial().extend({ archived: z.boolean().optional() });
 

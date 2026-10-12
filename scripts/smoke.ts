@@ -49,8 +49,8 @@ function sql(command: string) {
 }
 const tokenFromUrl = (url: string) => url.split("/").pop() as string;
 
-// Leftover test spots from an aborted run would change the cached-forecast key; keep the spot set stable.
-sql("update spots set archived = 1 where name like 'Test spot %'");
+// Leftover test spots from an aborted run would change the cached-forecast key; keep only the seeded spots active.
+sql("update spots set archived = 1 where id not in ('suny-purchase', 'armonk', 'reeves')");
 
 // Seed an Admin invite directly (in production the first Admin signs in with Google as BOOTSTRAP_ADMIN_EMAIL).
 const adminToken = `smoke-admin-${stamp}`;
@@ -150,7 +150,7 @@ check(
   "unsafe link replaced by a coordinates link",
 );
 const fakeMaps = await admin("/api/spots", {
-  body: { name: `Fake maps ${stamp}`, link: "https://google.evil.com/@41.2,-73.7", note: "" },
+  body: { name: `Fake maps ${stamp}`, link: "https://google.evil.com/@41.2,-73.7", note: "Lot" },
 });
 check(
   fakeMaps.json?.maps_url?.startsWith("https://www.google.com/maps/search/"),
@@ -158,11 +158,29 @@ check(
 );
 await admin(`/api/spots/${fakeMaps.json.id}`, { method: "PATCH", body: { archived: true } });
 check(
-  (await admin("/api/spots", { body: { name: `test SPOT ${stamp}`, link: "41.1, -73.7", note: "" } })).status === 409,
+  (await admin("/api/spots", { body: { name: `test SPOT ${stamp}`, link: "41.1, -73.7", note: "Lot" } })).status ===
+    409,
   "duplicate spot name refused",
 );
 check(
-  (await rider("/api/spots", { body: { name: "Nope", link: "41.1, -73.7", note: "" } })).status === 403,
+  (await admin("/api/spots", { body: { name: `No notes ${stamp}`, link: "41.1, -73.7", note: " " } })).status === 400,
+  "parking notes are required",
+);
+check(
+  (await admin("/api/spots", { body: { name: `No pin ${stamp}`, link: "https://example.com", note: "Lot" } }))
+    .status === 400,
+  "a link without a pin is refused",
+);
+const moved = await admin(`/api/spots/${spot.json.id}`, {
+  method: "PATCH",
+  body: { link: "https://www.google.com/maps/place/X/@41.3,-73.8,17z/data=!3d41.31!4d-73.81" },
+});
+check(
+  moved.json?.lat === 41.31 && moved.json?.maps_url?.startsWith("https://www.google.com/maps/place/"),
+  "editing the Maps link moves the pin and keeps the link",
+);
+check(
+  (await rider("/api/spots", { body: { name: "Nope", link: "41.1, -73.7", note: "Lot" } })).status === 403,
   "rider can't add spots",
 );
 check(

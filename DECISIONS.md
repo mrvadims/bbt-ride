@@ -33,6 +33,8 @@ Every open question from the design review, with what was decided. Details live 
 | RSVP reminders | None in v1 | 2026-10-11 |
 | Notifications | Only when a ride is updated, cancelled or restored; Web Push only (opt-in per device), no email service | 2026-10-11 |
 | History | Past tab on the Ride page; read-only past rides with observed weather; Reuse this plan | 2026-10-11 |
+| Start spots | Name, Google Maps link and parking notes all required. Settings lists spots with Open in Maps, Edit (in place), Archive and Add a spot; archived spots fold into a collapsed list | 2026-10-12 |
+| Settings layout | One column of panels on every screen width, so an open panel never leaves a gap beside it; fields in a row line up at the input | 2026-10-12 |
 
 ## Access and accounts
 | Topic | Decision | Date |
