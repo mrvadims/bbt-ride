@@ -7,6 +7,7 @@ Every open question from the design review, with what was decided. Details live 
 |---|---|---|
 | Navy | `#020C2B` dark-mode background; `#03144D` text on light and dark-mode cards; `#1C367B` not used | 2026-10-09 |
 | Header | Light-blue bar, white bike logo, 4px orange stripe directly under it, no hairline (checked on a phone), no text next to the logo | 2026-10-11 |
+| Wording | "Meet time" everywhere riders see a ride's start time (was "roll-out") | 2026-10-12 |
 | Navigation | No tab row. Top bar: logo (home = Ride), Plan and Settings icons for roles that have them, account menu (theme, units, ride notifications, sign out) | 2026-10-11 |
 
 ## Weather model
@@ -25,10 +26,12 @@ Every open question from the design review, with what was decided. Details live 
 ## Rides
 | Topic | Decision | Date |
 |---|---|---|
-| Defaults | Roll-out 8:30; coffee stop 20 min (15–20 typical, one team setting); regroup buffer 5 % of moving time; all Admin settings | 2026-10-09 |
+| Defaults | Meet time 8:30; coffee stop 20 min (15–20 typical, one team setting); regroup buffer 5 % of moving time; all Admin settings | 2026-10-09 |
 | Alternate routes | Free-text labels, pre-filled "Full" / "Short" | 2026-10-09 |
 | Days | Saturday and Sunday tabs always; rides can be scheduled on any date | 2026-10-09 |
 | Planning | One Plan flow: compare spots → pick a spot (or add one) → route → preview → Publish. No separate Weekend page | 2026-10-10 |
+| Date picker | The app's own calendar in Plan: weeks start on Monday, Saturdays and Sundays shaded | 2026-10-12 |
+| Calendar events | Location is the parking pin's coordinates (opens in Maps, works for car navigation); spot name and Maps link go in the description | 2026-10-12 |
 | Drafts | No Save draft button; the form autosaves. Edit, Update, Replace, Cancel and Restore ride | 2026-10-10 |
 | RSVP | In / Out (route choice only for In on rides with an alternate); message thread with one-level replies | 2026-10-10 |
 | RSVP reminders | None in v1 | 2026-10-11 |

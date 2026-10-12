@@ -7,6 +7,7 @@ import { etaAt, FT_PER_M, M_PER_MI, nearest, type Poi, rideTimes, startDistance 
 import { addDays, dayLabel, fmtTime, hhmmToMin, isWeekend, nyNow, weekendDates } from "../../shared/time.ts";
 import { evaluate, warnings } from "../../shared/weather.ts";
 import { RainBars } from "../components/charts.tsx";
+import { DatePicker } from "../components/DatePicker.tsx";
 import { HourTable } from "../components/HourTable.tsx";
 import { EmptyPanel, Panel, Section } from "../components/Panel.tsx";
 import { RideBody, roadNote, WeatherAppRow, wxSummary } from "../components/RideBody.tsx";
@@ -126,6 +127,12 @@ function RouteResults({
     </div>
   );
 }
+
+const RwgpsLink = ({ url }: { url: string }) => (
+  <a className="tiny" href={url} target="_blank" rel="noopener noreferrer" style={{ marginTop: -6 }}>
+    Open in RWGPS ↗
+  </a>
+);
 
 function AddSpot({ onAdded, onCancel }: { onAdded: (id: string) => void; onCancel: () => void }) {
   const qc = useQueryClient();
@@ -470,17 +477,9 @@ export function PlanPage() {
               ))}
             </div>
             <div className="row">
+              <DatePicker label="Date (any day)" value={form.date} min={today} onChange={(date) => set({ date })} />
               <label className="field">
-                Date (any day)
-                <input
-                  type="date"
-                  value={form.date}
-                  min={today}
-                  onChange={(e) => e.target.value && set({ date: e.target.value })}
-                />
-              </label>
-              <label className="field">
-                Roll-out
+                Meet time
                 <input
                   type="time"
                   value={form.time}
@@ -555,10 +554,12 @@ export function PlanPage() {
                 onPick={(r) => set({ routeId: r.id, q: r.name, stop: undefined })}
               />
             </div>
-            {routeError && (
+            {routeError ? (
               <p className="tiny" role="alert" style={{ margin: 0, color: "var(--no-fg)" }}>
                 {routeError}
               </p>
+            ) : (
+              route && <RwgpsLink url={route.url} />
             )}
             {far > 0.3 * M_PER_MI && spot && (
               <p className="tiny" style={{ margin: 0, color: "var(--cau-fg)" }}>
@@ -604,10 +605,12 @@ export function PlanPage() {
                     onPick={(r) => set({ altId: r.id, qAlt: r.name })}
                   />
                 </div>
-                {altError && (
+                {altError ? (
                   <p className="tiny" role="alert" style={{ margin: 0, color: "var(--no-fg)" }}>
                     {altError}
                   </p>
+                ) : (
+                  altRoute && <RwgpsLink url={altRoute.url} />
                 )}
               </>
             )}

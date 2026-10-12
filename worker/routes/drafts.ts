@@ -1,9 +1,9 @@
 // The Plan form's autosaved draft, one per editor (DESIGN.md → Drafts and changes).
-import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { z } from "zod";
 import { type AppEnv, requireRole } from "../app.ts";
 import { nowIso } from "../util.ts";
+import { validate } from "../validate.ts";
 
 const draftInput = z.object({ rideId: z.string().max(64).nullable(), form: z.record(z.string(), z.unknown()) });
 
@@ -15,7 +15,7 @@ export const drafts = new Hono<AppEnv>()
       .first<{ ride_id: string | null; form_json: string }>();
     return c.json(row ? { rideId: row.ride_id, form: JSON.parse(row.form_json) } : null);
   })
-  .put("/", zValidator("json", draftInput), async (c) => {
+  .put("/", validate("json", draftInput), async (c) => {
     const { rideId: asked, form } = c.req.valid("json");
     // The ride being edited may have been deleted meanwhile; keep the draft, drop the link.
     const rideId =

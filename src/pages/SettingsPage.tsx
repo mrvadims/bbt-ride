@@ -470,12 +470,12 @@ export function SettingsPage({ me }: { me: Me }) {
           label="Ride defaults"
           titled
           collapsed
-          summary={`${fmtTime(hhmmToMin(s.rollout))} · ${s.durationH} h · ${s.pace} mph · coffee ${s.stopMin} min · regroups ${s.regroupPct}%`}
+          summary={`meet ${fmtTime(hhmmToMin(s.rollout))} · ${s.durationH} h · ${s.pace} mph · coffee ${s.stopMin} min · regroups ${s.regroupPct}%`}
         >
           <div className="settings-grid">
             {num("pace", "Pace", 0.5, "mph")}
             <label className="field">
-              Roll-out
+              Meet time
               <input
                 type="time"
                 step={900}
@@ -532,7 +532,7 @@ export function SettingsPage({ me }: { me: Me }) {
             {num("rainAmtNoGo", "Red at", 0.01, "in")}
           </div>
           <p className="tiny muted" style={{ margin: "8px 0 0" }}>
-            Roads: Drying = amber, Wet = red. Thunderstorms = red. Low light: roll-out within 30 min of sunrise. NWS
+            Roads: Drying = amber, Wet = red. Thunderstorms = red. Low light: meet time within 30 min of sunrise. NWS
             warnings = red, watches and advisories = amber.
           </p>
         </Panel>

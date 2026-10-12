@@ -1,10 +1,10 @@
 // Web Push for ride updates, cancellations and restores (DESIGN.md → Notifications). Runs in the background (waitUntil).
 import { buildPushPayload } from "@block65/webcrypto-web-push";
-import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { pushSubscription } from "../shared/api.ts";
 import type { AppEnv } from "./app.ts";
 import { nowIso } from "./util.ts";
+import { validate } from "./validate.ts";
 
 export async function notifyRide(env: Env, rideId: string, title: string, body: string): Promise<void> {
   if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY) return; // push not configured (local development)
@@ -41,7 +41,7 @@ export async function notifyRide(env: Env, rideId: string, title: string, body: 
 
 // The account menu's "Ride notifications" switch: one subscription per device, owned by whoever last turned it on there.
 export const push = new Hono<AppEnv>()
-  .post("/", zValidator("json", pushSubscription), async (c) => {
+  .post("/", validate("json", pushSubscription), async (c) => {
     const { endpoint, keys } = c.req.valid("json");
     await c.env.DB.prepare(
       "insert into push_subscriptions (endpoint, user_id, keys_json, created_at) values (?, ?, ?, ?) on conflict (endpoint) do update set user_id = excluded.user_id, keys_json = excluded.keys_json",
@@ -50,7 +50,7 @@ export const push = new Hono<AppEnv>()
       .run();
     return c.body(null, 204);
   })
-  .delete("/", zValidator("json", pushSubscription.pick({ endpoint: true })), async (c) => {
+  .delete("/", validate("json", pushSubscription.pick({ endpoint: true })), async (c) => {
     await c.env.DB.prepare("delete from push_subscriptions where endpoint = ? and user_id = ?")
       .bind(c.req.valid("json").endpoint, c.get("user").id)
       .run();

@@ -11,7 +11,7 @@ function warningText(w: Warning, u: Units, lookback: number): { short: string; t
     case "lowLight":
       return {
         short: "Low light",
-        title: "Low light at roll-out",
+        title: "Low light at meet time",
         detail: `Sunrise ${fmtTime(w.sunrise)}; bring front and rear lights`,
       };
     case "road": {
@@ -19,7 +19,7 @@ function warningText(w: Warning, u: Units, lookback: number): { short: string; t
       const later = w.endState !== w.state ? `; ${w.endState.toLowerCase()} by the finish` : "";
       return {
         short: `Roads ${s}`,
-        title: `Roads ${s} at roll-out`,
+        title: `Roads ${s} at meet time`,
         detail: `${u.rain(w.rainIn)} of rain in the last ${lookback} h${later}`,
       };
     }

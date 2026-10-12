@@ -52,6 +52,6 @@ export const DEFAULT_SETTINGS: Settings = {
 };
 
 // Fixed by design (DESIGN.md → Settings), not settings.
-export const LOW_LIGHT_MIN = 30; // roll-out within this many minutes of sunrise
+export const LOW_LIGHT_MIN = 30; // meet time within this many minutes of sunrise
 export const WIND_VEST_MPH = 12;
 export const SHED_DEG = 8;

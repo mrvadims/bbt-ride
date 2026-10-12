@@ -24,9 +24,8 @@ export async function api<T>(path: string, init: { method?: string; body?: unkno
   if (res.status === 204) return undefined as T;
   const data = await res.json().catch(() => null);
   if (!res.ok) {
-    const message =
-      (data as { error?: string; message?: string } | null)?.error ?? data?.message ?? `HTTP ${res.status}`;
-    throw new ApiError(res.status, message);
+    const text = (data as { error?: unknown; message?: unknown } | null)?.error ?? data?.message;
+    throw new ApiError(res.status, typeof text === "string" ? text : `Request failed (HTTP ${res.status})`);
   }
   return data as T;
 }

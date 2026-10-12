@@ -1,5 +1,4 @@
 // Rides, RSVPs and messages (DESIGN.md → Rides, Plan a ride, Drafts and changes).
-import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import {
   type Message,
@@ -18,6 +17,7 @@ import { dayLabel, fmtTime, hhmmToMin, nyNow } from "../../shared/time.ts";
 import { type AppEnv, can, requireRole } from "../app.ts";
 import { notifyRide } from "../push.ts";
 import { audit, fail, newId, nowIso } from "../util.ts";
+import { validate } from "../validate.ts";
 
 interface RideRow {
   id: string;
@@ -165,7 +165,7 @@ async function changes(db: D1Database, a: RideSummary, b: RideInput): Promise<st
     (await db.prepare("select name from spots where id = ?").bind(id).first<{ name: string }>())?.name ?? id;
   const out: string[] = [];
   if (a.date !== b.date) out.push(`moved to ${dayLabel(b.date, true)}`);
-  if (a.rollout !== b.rollout) out.push(`roll-out ${fmtTime(hhmmToMin(a.rollout))} → ${fmtTime(hhmmToMin(b.rollout))}`);
+  if (a.rollout !== b.rollout) out.push(`meet ${fmtTime(hhmmToMin(a.rollout))} → ${fmtTime(hhmmToMin(b.rollout))}`);
   if (a.spotId !== b.spotId) out.push(`start ${await spot(a.spotId)} → ${await spot(b.spotId)}`);
   if (routeText(a.routes) !== routeText(b.routes)) out.push(`route ${routeText(b.routes)}`);
   const aStop = a.routes[0]?.stop ?? null;
@@ -224,7 +224,7 @@ export const rides = new Hono<AppEnv>()
   .get("/past", async (c) => c.json(await summaries(c.env.DB, "r.date < ?", [nyNow().date], "r.date desc limit 200")))
   .get("/:id", async (c) => c.json(await detail(c.env.DB, c.req.param("id"))))
 
-  .post("/", requireRole("edit"), zValidator("json", rideInput), async (c) => {
+  .post("/", requireRole("edit"), validate("json", rideInput), async (c) => {
     const input = c.req.valid("json");
     await checkInput(c.env.DB, input);
     const user = c.get("user");
@@ -245,7 +245,7 @@ export const rides = new Hono<AppEnv>()
     return c.json(await detail(c.env.DB, id), 201);
   })
 
-  .put("/:id", requireRole("edit"), zValidator("json", rideInput), async (c) => {
+  .put("/:id", requireRole("edit"), validate("json", rideInput), async (c) => {
     const id = c.req.param("id");
     const input = c.req.valid("json");
     const [cur] = await summaries(c.env.DB, "r.id = ?", [id]);
@@ -320,7 +320,7 @@ export const rides = new Hono<AppEnv>()
   })
 
   // RSVP: In / Out (route label only for In on rides with an alternate), or null to clear.
-  .put("/:id/rsvp", zValidator("json", rsvpInput), async (c) => {
+  .put("/:id/rsvp", validate("json", rsvpInput), async (c) => {
     const id = c.req.param("id");
     const { status, routeLabel } = c.req.valid("json");
     const [ride] = await summaries(c.env.DB, "r.id = ?", [id]);
@@ -344,7 +344,7 @@ export const rides = new Hono<AppEnv>()
   })
 
   // Messages: anyone can post or reply (one level) on upcoming published rides.
-  .post("/:id/messages", zValidator("json", messageInput), async (c) => {
+  .post("/:id/messages", validate("json", messageInput), async (c) => {
     const id = c.req.param("id");
     const { body, parentId } = c.req.valid("json");
     const ride = await c.env.DB.prepare("select date, status from rides where id = ?")
@@ -369,7 +369,7 @@ export const rides = new Hono<AppEnv>()
 
 // Editing and deleting a message: authors edit their own; authors, editors and admins delete (soft delete).
 export const messages = new Hono<AppEnv>()
-  .patch("/:id", zValidator("json", messageEdit), async (c) => {
+  .patch("/:id", validate("json", messageEdit), async (c) => {
     const m = await c.env.DB.prepare(
       "select m.ride_id, m.user_id, m.deleted_at, r.date from messages m join rides r on r.id = m.ride_id where m.id = ?",
     )

@@ -34,7 +34,7 @@ export interface RecordedWeather {
   app: number;
   ws: number;
   wg: number;
-  rain: number; // inches in the 12 h before roll-out
+  rain: number; // inches in the look-back window before meet time
   road: "Dry" | "Drying" | "Wet";
   code: number;
 }
@@ -162,9 +162,9 @@ export const linkAccept = z.object({
     .optional(),
   password: z.string().min(10).max(128),
 });
-// Browsers' push services (Chrome/Android, Firefox, Safari/iOS, Edge).
-const PUSH_HOSTS =
-  /^(fcm\.googleapis\.com|updates\.push\.services\.mozilla\.com|[a-z0-9-]+\.push\.services\.mozilla\.com|web\.push\.apple\.com|[a-z0-9-]+\.notify\.windows\.com)$/;
+// Browsers' push services: Google (Chrome, Android; e.g. fcm.googleapis.com, jmt17.google.com), Mozilla (Firefox),
+// Apple (Safari, iOS) and Microsoft (Edge). The Worker only ever sends push messages to these domains.
+const PUSH_HOSTS = /(^|\.)(googleapis\.com|google\.com|mozilla\.com|push\.apple\.com|notify\.windows\.com)$/;
 export const pushSubscription = z.object({
   endpoint: z
     .string()

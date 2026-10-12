@@ -45,7 +45,7 @@ export function addDays(date: string, n: number): string {
 }
 
 /** Day of week, 0 = Sunday. */
-const dow = (date: string): number => new Date(`${date}T00:00:00Z`).getUTCDay();
+export const dow = (date: string): number => new Date(`${date}T00:00:00Z`).getUTCDay();
 
 export const hhmmToMin = (s: string): number => {
   const [h, m] = s.split(":").map(Number) as [number, number];

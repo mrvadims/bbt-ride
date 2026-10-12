@@ -1,4 +1,4 @@
-// Hourly table from the whole hour before roll-out to 3 h after the estimated return; the ride window is shaded.
+// Hourly table from the whole hour before meet time to 3 h after the estimated return; the ride window is shaded.
 import type { Settings } from "../../shared/settings.ts";
 import { fmtTime, nyNow } from "../../shared/time.ts";
 import { bikeFeel, compass, type Evaluation, fIdx, roadAt, type Series } from "../../shared/weather.ts";

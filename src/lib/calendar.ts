@@ -7,6 +7,7 @@ export interface CalEvent {
   end: number;
   title: string;
   location: string;
+  geo: { lat: number; lng: number };
   details: string;
 }
 
@@ -51,6 +52,7 @@ export function downloadIcs(c: CalEvent, uid: string) {
     `DTEND:${utc(c, c.end)}`,
     `SUMMARY:${e(c.title)}`,
     `LOCATION:${e(c.location)}`,
+    `GEO:${c.geo.lat};${c.geo.lng}`,
     `DESCRIPTION:${e(c.details)}`,
     "END:VEVENT",
     "END:VCALENDAR",

@@ -1,9 +1,9 @@
 // Account and team management: /api/me (everyone), users and invites (Admin), invite and reset links (public).
-import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { type Invite, inviteInput, linkAccept, type Me, type Role, type UserRow, userEdit } from "../../shared/api.ts";
 import { type AppEnv, requireRole } from "../app.ts";
 import { audit, fail, nowIso, randomToken, sha256Hex } from "../util.ts";
+import { validate } from "../validate.ts";
 
 const INVITE_DAYS = 7;
 const RESET_HOURS = 24;
@@ -97,7 +97,7 @@ export const users = new Hono<AppEnv>()
       invites: invites.map((i): Invite => ({ email: i.email, role: i.role, expiresAt: i.expires_at })),
     });
   })
-  .post("/invites", zValidator("json", inviteInput), async (c) => {
+  .post("/invites", validate("json", inviteInput), async (c) => {
     const { email, role } = c.req.valid("json");
     const taken = await c.env.DB.prepare(`select 1 from "user" where email = ?`).bind(email).first();
     if (taken) fail(409, "That email already has an account");
@@ -116,7 +116,7 @@ export const users = new Hono<AppEnv>()
     if (!u) return fail(404, "User not found");
     return c.json({ url: await createLink(c.env, "reset", u.email, null, u.id, c.get("user").id) }, 201);
   })
-  .patch("/:id", zValidator("json", userEdit), async (c) => {
+  .patch("/:id", validate("json", userEdit), async (c) => {
     const id = c.req.param("id");
     const me = c.get("user");
     const e = c.req.valid("json");
@@ -146,7 +146,7 @@ export const links = new Hono<AppEnv>()
       ? c.json({ kind: link.kind, email: link.email })
       : fail(404, "This link has expired or was already used. Ask a team admin for a new one.");
   })
-  .post("/:token", zValidator("json", linkAccept), async (c) => {
+  .post("/:token", validate("json", linkAccept), async (c) => {
     const link = await openLink(c.env.DB, c.req.param("token"));
     if (!link) return fail(404, "This link has expired or was already used. Ask a team admin for a new one.");
     const { name, username, password } = c.req.valid("json");

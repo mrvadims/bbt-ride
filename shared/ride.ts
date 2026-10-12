@@ -49,7 +49,7 @@ interface RideTimes {
   stop: { poi: Poi; mile: number; eta: number; len: number } | null;
 }
 
-/** k = 1 + regroup buffer; ETA at mile m = roll-out + (m ÷ pace) × k; the stop adds its length. */
+/** k = 1 + regroup buffer; ETA at mile m = meet time + (m ÷ pace) × k; the stop adds its length. */
 export function rideTimes(
   route: Route,
   rollout: string,

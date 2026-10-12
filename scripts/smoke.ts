@@ -248,7 +248,7 @@ check(
 );
 
 const upd = await admin(`/api/rides/${id}`, { method: "PUT", body: { ...plan, rollout: "09:00" } });
-check(upd.json?.lastUpdate?.text?.includes("roll-out 8:30 AM → 9:00 AM"), "update posts what changed");
+check(upd.json?.lastUpdate?.text?.includes("meet 8:30 AM → 9:00 AM"), "update posts what changed");
 check(upd.json.rsvps.length === 1, "RSVPs kept after an update");
 let c = (await admin(`/api/rides/${id}/cancel`, { body: {} })).json;
 check(

@@ -1,10 +1,10 @@
 // Start spots: list (all), add (Edit), edit or archive (Admin).
-import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 import { spotEdit, spotInput } from "../../shared/api.ts";
 import { mapsLink, parseLatLng, type Spot } from "../../shared/ride.ts";
 import { type AppEnv, requireRole } from "../app.ts";
 import { audit, fail, newId, nowIso } from "../util.ts";
+import { validate } from "../validate.ts";
 
 // A pasted link is kept only if it points at Google Maps; otherwise the spot gets a coordinates link.
 const MAPS_HOSTS = /^((www\.)?google\.com|maps\.google\.com|maps\.app\.goo\.gl)$/;
@@ -40,7 +40,7 @@ export const spots = new Hono<AppEnv>()
     ).all<SpotRow>();
     return c.json(results.map(toSpot));
   })
-  .post("/", requireRole("edit"), zValidator("json", spotInput), async (c) => {
+  .post("/", requireRole("edit"), validate("json", spotInput), async (c) => {
     const { name, link, note } = c.req.valid("json");
     const exists = await c.env.DB.prepare("select 1 from spots where name = ? collate nocase").bind(name).first();
     if (exists) fail(409, "A spot with that name already exists");
@@ -53,7 +53,7 @@ export const spots = new Hono<AppEnv>()
     ]);
     return c.json({ ...spot, archived: false }, 201);
   })
-  .patch("/:id", requireRole("admin"), zValidator("json", spotEdit), async (c) => {
+  .patch("/:id", requireRole("admin"), validate("json", spotEdit), async (c) => {
     const id = c.req.param("id");
     const cur = await c.env.DB.prepare("select id, name, lat, lng, maps_url, note, archived from spots where id = ?")
       .bind(id)
