@@ -55,7 +55,7 @@ export function LinkPage({ kind, token }: { kind: "invite" | "reset"; token: str
               </p>
               {kind === "invite" && (
                 <>
-                  <button type="button" className="btn btn-outline gbtn" onClick={continueWithGoogle}>
+                  <button type="button" className="btn btn-outline gbtn" onClick={() => continueWithGoogle()}>
                     <GoogleMark />
                     Continue with Google
                   </button>

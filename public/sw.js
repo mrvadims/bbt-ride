@@ -11,13 +11,18 @@ self.addEventListener("push", (event) => {
   );
 });
 
+// Take control of pages opened before this worker, so a tapped notification can navigate them.
+self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
+
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const url = new URL(event.notification.data?.url || "/", self.location.origin).href;
   event.waitUntil(
-    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((wins) => {
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(async (wins) => {
       const open = wins.find((w) => w.url.startsWith(self.location.origin));
-      return open ? open.navigate(url).then((w) => w?.focus()) : self.clients.openWindow(url);
+      if (!open) return self.clients.openWindow(url);
+      await open.focus();
+      return open.navigate(url).catch(() => self.clients.openWindow(url));
     }),
   );
 });

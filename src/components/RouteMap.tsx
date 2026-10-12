@@ -4,21 +4,24 @@ import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import { useEffect, useRef, useState } from "react";
 import type { Poi, Route } from "../../shared/ride.ts";
-import { isDark } from "../lib/prefs.ts";
+import { isDark, usePrefs } from "../lib/prefs.ts";
 import { TrackOutline } from "./charts.tsx";
 
 export function RouteMap({ route, stop }: { route: Route; stop: Poi | null }) {
   const el = useRef<HTMLDivElement>(null);
   const [failed, setFailed] = useState(false);
+  const dark = isDark(usePrefs().theme);
   useEffect(() => {
     if (!el.current || failed) return;
     const map = L.map(el.current, { scrollWheelZoom: false });
-    const tiles = isDark()
+    // The site sends no Referer by default; tile servers ask for one, so the tiles send the origin.
+    const opts: L.TileLayerOptions = { maxZoom: 18, referrerPolicy: "strict-origin-when-cross-origin" };
+    const tiles = dark
       ? L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-          maxZoom: 18,
+          ...opts,
           attribution: "© OpenStreetMap © CARTO",
         })
-      : L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18, attribution: "© OpenStreetMap" });
+      : L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { ...opts, attribution: "© OpenStreetMap" });
     tiles.once("tileerror", () => setFailed(true)).addTo(map);
     const line = L.polyline(
       route.track.map((p) => [p[0], p[1]] as [number, number]),
@@ -49,7 +52,7 @@ export function RouteMap({ route, stop }: { route: Route; stop: Poi | null }) {
     return () => {
       map.remove();
     };
-  }, [route, stop, failed]);
+  }, [route, stop, failed, dark]);
   // Different keys so React replaces the element: Leaflet leaves its classes and styles on the one it used.
   return failed ? (
     <div className="map" key="outline">

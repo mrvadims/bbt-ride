@@ -20,6 +20,9 @@ export type SpotWithState = Spot & { archived: boolean };
 export const useMe = () =>
   useQuery({ queryKey: ["me"], queryFn: () => api<Me>("/me"), retry: false, staleTime: 5 * 60_000 });
 export const useTeam = () => useQuery({ queryKey: ["settings"], queryFn: () => api<TeamSettings>("/settings") });
+/** After adding or changing a spot: the list and the forecast (which covers each active spot). */
+export const refreshSpots = (qc: QueryClient) =>
+  Promise.all([qc.invalidateQueries({ queryKey: ["spots"] }), qc.invalidateQueries({ queryKey: ["weather"] })]);
 export const useSpots = () => useQuery({ queryKey: ["spots"], queryFn: () => api<SpotWithState[]>("/spots") });
 export const useRides = () => useQuery({ queryKey: ["rides"], queryFn: () => api<RideSummary[]>("/rides") });
 export const usePast = () =>
@@ -50,18 +53,16 @@ export const useRouteSearch = (q: string) =>
   });
 
 export interface Weather {
-  fetchedAt: string;
   series: Record<string, Series>;
   alerts: WeatherData["alerts"];
 }
-export const NO_WEATHER: Weather = { fetchedAt: "", series: {}, alerts: {} };
+export const NO_WEATHER: Weather = { series: {}, alerts: {} };
 export const useWeather = () =>
   useQuery({
     queryKey: ["weather"],
     queryFn: async (): Promise<Weather> => {
       const w = await api<WeatherData>("/weather");
       return {
-        fetchedAt: w.fetchedAt,
         alerts: w.alerts,
         series: Object.fromEntries(Object.entries(w.forecast).map(([id, om]) => [id, toSeries(om)])),
       };

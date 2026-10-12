@@ -3,9 +3,6 @@
 import { admin, username } from "better-auth/plugins";
 import { adminAc, userAc } from "better-auth/plugins/admin/access";
 
-export const ROLES = ["view", "edit", "admin"] as const;
-export type Role = (typeof ROLES)[number];
-
 export const authPlugins = () => [
   username({ minUsernameLength: 3, maxUsernameLength: 30 }),
   // Roles: view (default), edit, admin. Only admin may use the admin endpoints; edit rights are checked by our API.

@@ -27,10 +27,14 @@ function authHeaders(env: Env): HeadersInit {
 async function fetchRaw(env: Env, id: number): Promise<RwgpsRoute | null> {
   try {
     const pub = await fetch(`https://ridewithgps.com/routes/${id}.json`, { headers: { Accept: "application/json" } });
+    if (!pub.ok) await pub.body?.cancel();
     const res = pub.ok
       ? pub
       : await fetch(`https://ridewithgps.com/api/v1/routes/${id}.json`, { headers: authHeaders(env) });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      await res.body?.cancel();
+      return null;
+    }
     const body = (await res.json()) as RwgpsRoute | { route: RwgpsRoute };
     const r = "route" in body ? body.route : body;
     return r?.track_points?.length ? r : null;
@@ -80,7 +84,12 @@ export async function getRoute(env: Env, id: number): Promise<Route | null> {
   if (row?.json && row.fetched_at && Date.now() - Date.parse(row.fetched_at) < STALE_MS)
     return JSON.parse(row.json) as Route;
   const raw = await fetchRaw(env, id);
-  if (!raw) return row?.json ? (JSON.parse(row.json) as Route) : null;
+  if (!raw) {
+    if (row && !row.json)
+      // remember the failed try, so the library fill doesn't retry it every run
+      await env.DB.prepare("update route_cache set fetched_at = ? where rwgps_route_id = ?").bind(nowIso(), id).run();
+    return row?.json ? (JSON.parse(row.json) as Route) : null;
+  }
   const route = simplify(raw);
   await env.DB.prepare(
     `insert into route_cache (rwgps_route_id, name, json, fetched_at) values (?, ?, ?, ?)
@@ -96,7 +105,10 @@ export async function syncCaptainLibrary(env: Env): Promise<void> {
   const res = await fetch("https://ridewithgps.com/api/v1/routes.json?page=1&page_size=200", {
     headers: authHeaders(env),
   });
-  if (!res.ok) return;
+  if (!res.ok) {
+    await res.body?.cancel();
+    return;
+  }
   const body = (await res.json()) as { routes?: { id: number; name: string }[] };
   const routes = body.routes ?? [];
   if (!routes.length) return;
@@ -110,12 +122,12 @@ export async function syncCaptainLibrary(env: Env): Promise<void> {
   );
 }
 
-/** Fetches up to `limit` library routes that haven't been fetched yet. */
+/** Fetches up to `limit` library routes not fetched yet; one that failed waits a week before the next try. */
 export async function fillLibrary(env: Env, limit: number): Promise<void> {
   const { results } = await env.DB.prepare(
-    "select rwgps_route_id as id from route_cache where in_library = 1 and json is null limit ?",
+    "select rwgps_route_id as id from route_cache where in_library = 1 and json is null and (fetched_at is null or fetched_at < ?) order by fetched_at is not null, rwgps_route_id limit ?",
   )
-    .bind(limit)
+    .bind(new Date(Date.now() - STALE_MS).toISOString(), limit)
     .all<{ id: number }>();
   await Promise.allSettled(results.map((r) => getRoute(env, r.id)));
 }

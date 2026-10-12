@@ -1,6 +1,5 @@
 // SVG charts: elevation profile, route outline (map fallback) and rain bars. Narrow viewBox on phones keeps labels legible.
-import type { Route } from "../../shared/ride.ts";
-import { FT_PER_M, M_PER_MI } from "../../shared/ride.ts";
+import { FT_PER_M, M_PER_MI, type Route } from "../../shared/ride.ts";
 import { nyNow } from "../../shared/time.ts";
 import { fIdx, type Series } from "../../shared/weather.ts";
 import type { Units } from "../lib/units.ts";
@@ -28,7 +27,7 @@ export function ElevationChart({ route, stopMile, u }: { route: Route; stopMile:
   const step = maxD > 45 ? 20 : maxD > 30 ? 10 : 5;
   const ticks: number[] = [];
   for (let d = 0; d <= maxD; d += step) if (x(d) < W - P.r - 22) ticks.push(d);
-  const sm = stopMile == null ? null : metric ? stopMile * 1.609344 : stopMile;
+  const sm = stopMile == null ? null : u.mi(stopMile);
   const unit = metric ? "m" : "′";
   return (
     <svg

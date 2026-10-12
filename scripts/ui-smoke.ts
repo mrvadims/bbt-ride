@@ -47,7 +47,7 @@ page.on("console", (m) => {
 });
 
 await page.goto(BASE);
-await page.waitForURL("**/signin");
+await page.waitForURL(/\/signin/);
 check(
   await page.getByRole("button", { name: "Continue with Google" }).isVisible(),
   "signed out → sign-in page with Google",

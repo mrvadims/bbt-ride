@@ -1,14 +1,12 @@
 // Top bar (the only navigation): logo home, Plan and Settings icons for roles that have them, and the account menu.
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
-import type { Me } from "../../shared/api.ts";
+import { type Me, ROLE_LABEL } from "../../shared/api.ts";
 import { authClient } from "../lib/api.ts";
 import { type Prefs, setPref, usePrefs } from "../lib/prefs.ts";
 import { currentSubscription, disablePush, enablePush, pushSupported } from "../lib/push.ts";
 import { Link, navigate, useLocation } from "../lib/router.tsx";
 import { GearIcon, Logo, PlanIcon } from "./icons.tsx";
-
-const ROLE_LABEL = { view: "View", edit: "Edit", admin: "Admin" } as const;
 
 function Seg<T extends string>({
   label,

@@ -2,7 +2,7 @@
 import { useState } from "react";
 import type { Me, RideDetail, RideSummary } from "../../shared/api.ts";
 import { M_PER_MI } from "../../shared/ride.ts";
-import { dayLabel, fmtTime, nyNow, weekendDates } from "../../shared/time.ts";
+import { dayLabel, fmtStamp, fmtTime, nyNow, weekendDates } from "../../shared/time.ts";
 import { EditIcon, LevelIcon, ShareIcon } from "../components/icons.tsx";
 import { RideBody } from "../components/RideBody.tsx";
 import { Riders } from "../components/Riders.tsx";
@@ -128,16 +128,7 @@ function RideView({ ride, me, days }: { ride: RideDetail; me: Me; days: string[]
       ) : (
         last && (
           <div className="notice">
-            <b>
-              Updated{" "}
-              {new Date(last.at).toLocaleString("en-US", {
-                timeZone: "America/New_York",
-                weekday: "short",
-                hour: "numeric",
-                minute: "2-digit",
-              })}
-            </b>{" "}
-            · {last.text}
+            <b>Updated {fmtStamp(last.at)}</b> · {last.text}
           </div>
         )
       )}
@@ -191,6 +182,10 @@ export function RidePage({ me, date }: { me: Me; date: string | undefined }) {
   }
   return detail.data ? (
     <RideView key={detail.data.id} ride={detail.data} me={me} days={days} />
+  ) : detail.isError ? (
+    <p className="small" role="alert">
+      Couldn't load the ride: {detail.error.message}
+    </p>
   ) : (
     <p className="muted small">Loading the ride…</p>
   );

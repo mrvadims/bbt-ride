@@ -31,7 +31,6 @@ export function useRideModel(ride: RideLike | null, routeIndex = 0) {
     loading: false as const,
     spot,
     route,
-    rt,
     routeById: (id: number): Route | undefined => [main, alt].find((r) => r?.id === id),
     t,
     se,

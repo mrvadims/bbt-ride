@@ -52,6 +52,10 @@ export const hhmmToMin = (s: string): number => {
   return h * 60 + m;
 };
 
+/** A moment as "Sat 9:12 PM" in New York time (message and update stamps). */
+export const fmtStamp = (iso: string): string =>
+  new Date(iso).toLocaleString("en-US", { timeZone: TZ, weekday: "short", hour: "numeric", minute: "2-digit" });
+
 export function fmtTime(min: number): string {
   const m = Math.round(min);
   const h = Math.floor(m / 60) % 24;

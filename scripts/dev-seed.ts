@@ -21,11 +21,15 @@ const put = (name: string, value: unknown) => {
   writeFileSync(file, JSON.stringify(value));
   wrangler("kv", "key", "put", name, "--path", file, "--binding", "CACHE", "--local");
 };
-// worker/routes/weather.ts cache format: one entry per kind, { "<id>:<lat>:<lng>": { at, value } }; a far-future `at`
-// keeps the sample "fresh".
+// worker/routes/weather.ts cache format: one entry per kind, { tried, pins, values: { "<id>:<lat>:<lng>": { at, value } } };
+// far-future times keep the sample "fresh". The sample has no data for spots added later.
 const far = Date.now() + 10 * 365 * 864e5;
-const perSpot = (value: unknown) =>
-  Object.fromEntries(spots.map((s) => [`${s.id}:${s.lat}:${s.lng}`, { at: far, value }]));
+const pins = spots.map((s) => `${s.id}:${s.lat}:${s.lng}`);
+const perSpot = (value: unknown) => ({
+  tried: far,
+  pins,
+  values: Object.fromEntries(pins.map((p) => [p, { at: far, value }])),
+});
 put("forecast", perSpot(sample));
 put("alerts", perSpot([]));
 

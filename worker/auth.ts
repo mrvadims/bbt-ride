@@ -1,7 +1,8 @@
 // Better Auth in the Worker (DESIGN.md → Users and roles). Built per request because bindings come from `env`.
 import { betterAuth } from "better-auth";
 import { APIError } from "better-auth/api";
-import { authPlugins, RATE_LIMIT, type Role } from "./auth-plugins.ts";
+import type { Role } from "../shared/api.ts";
+import { authPlugins, RATE_LIMIT } from "./auth-plugins.ts";
 import { hashPassword, verifyPassword } from "./password.ts";
 import { nowIso } from "./util.ts";
 
@@ -47,7 +48,7 @@ export function createAuth(env: Env) {
     trustedOrigins: [env.BETTER_AUTH_URL],
     emailAndPassword: {
       enabled: true,
-      disableSignUp: true, // password accounts are created only through invite links (worker/routes/links.ts)
+      disableSignUp: true, // password accounts are created only through invite links (worker/routes/users.ts → links)
       minPasswordLength: 10,
       maxPasswordLength: 128,
       password: { hash: hashPassword, verify: verifyPassword },

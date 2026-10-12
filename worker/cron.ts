@@ -37,7 +37,7 @@ async function recordWeather(env: Env): Promise<void> {
     const t = route ? rideTimes(route, r.rollout, r.pace_mph, r.stop, s) : null;
     if (!t || (r.date === now.date && t.end > now.min)) continue; // ride window not over yet
     const om = byId[r.spot_id];
-    if (!om) continue; // spot archived since
+    if (!om) continue; // no forecast this run; the next run tries again
     const se = toSeries(om);
     const f = fIdx(se, r.date, t.start);
     if (f == null) continue;
@@ -67,10 +67,10 @@ async function recordWeather(env: Env): Promise<void> {
   }
 }
 
+// One task after another: recorded weather first, then the library, a few routes per run so the job stays well
+// inside the Workers free plan's 50 outbound requests per run.
 export async function scheduled(env: Env): Promise<void> {
-  const results = await Promise.allSettled([
-    recordWeather(env),
-    syncCaptainLibrary(env).then(() => fillLibrary(env, 40)),
-  ]);
-  for (const r of results) if (r.status === "rejected") console.error("scheduled job:", r.reason);
+  for (const task of [() => recordWeather(env), () => syncCaptainLibrary(env), () => fillLibrary(env, 10)]) {
+    await task().catch((err) => console.error("scheduled job:", err));
+  }
 }

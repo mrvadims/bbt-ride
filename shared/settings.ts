@@ -1,9 +1,11 @@
 import { z } from "zod";
 
+export const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/; // "08:30"
+
 // Team settings (Admin-editable, stored in D1 `settings`, one row per key). Imperial units.
 export const settingsSchema = z.object({
   pace: z.number().min(10).max(25), // mph
-  rollout: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/), // "08:30"
+  rollout: z.string().regex(HHMM),
   durationH: z.number().min(0.5).max(8), // weather window before a route is picked
   stopMin: z.number().int().min(0).max(60), // coffee stop length
   regroupPct: z.number().min(0).max(30), // % of moving time

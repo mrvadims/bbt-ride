@@ -2,16 +2,9 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import type { Me, Message, RideDetail } from "../../shared/api.ts";
+import { fmtStamp } from "../../shared/time.ts";
 import { api } from "../lib/api.ts";
 import { Panel } from "./Panel.tsx";
-
-const when = (iso: string) =>
-  new Date(iso).toLocaleString("en-US", {
-    timeZone: "America/New_York",
-    weekday: "short",
-    hour: "numeric",
-    minute: "2-digit",
-  });
 
 export function Riders({ ride, me, past }: { ride: RideDetail; me: Me; past: boolean }) {
   const qc = useQueryClient();
@@ -60,7 +53,7 @@ export function Riders({ ride, me, past }: { ride: RideDetail; me: Me; past: boo
         <div className="meta">
           <b>{author(m)}</b>{" "}
           <span className="muted">
-            {when(m.createdAt)}
+            {fmtStamp(m.createdAt)}
             {m.editedAt ? " · edited" : ""}
           </span>
         </div>
@@ -75,10 +68,13 @@ export function Riders({ ride, me, past }: { ride: RideDetail; me: Me; past: boo
               <button
                 type="button"
                 className="btn btn-primary btn-sm"
-                onClick={() => {
-                  call.mutate({ path: `/messages/${m.id}`, method: "PATCH", body: { body: editing.body } });
-                  setEditing(null);
-                }}
+                disabled={!editing.body.trim() || call.isPending}
+                onClick={() =>
+                  call.mutate(
+                    { path: `/messages/${m.id}`, method: "PATCH", body: { body: editing.body } },
+                    { onSuccess: () => setEditing(null) }, // a failed save keeps the text
+                  )
+                }
               >
                 Save
               </button>

@@ -126,7 +126,7 @@ function WhatToWear({ kit, feelMin, u }: { kit: KitAdvice; feelMin: number; u: U
       </ul>
       {kit.shed && (
         <div className="addon">
-          Warms up {Math.round(kit.shed.spread)}° — dress for {kit.band.name.toLowerCase()} and pack layers to shed down
+          Warms up {u.tempDelta(kit.shed.spread)} — dress for {kit.band.name.toLowerCase()} and pack layers to shed down
           to {kit.shed.to.name.toLowerCase()}.
         </div>
       )}
@@ -308,8 +308,7 @@ export function RideBody(props: {
             <a href={mapsLink(stop.poi.lat, stop.poi.lng)} target="_blank" rel="noopener noreferrer">
               <b>{stop.poi.name}</b>
             </a>{" "}
-            · {u.distUnit === "km" ? `km ${(stop.mile * 1.609344).toFixed(1)}` : `mile ${stop.mile.toFixed(1)}`} · ≈{" "}
-            {fmtTime(stop.eta)} · {stop.len} min
+            · {u.marker(stop.mile)} · ≈ {fmtTime(stop.eta)} · {stop.len} min
           </p>
         </div>
       )}

@@ -167,13 +167,12 @@ async function changes(db: D1Database, a: RideSummary, b: RideInput): Promise<st
   if (a.date !== b.date) out.push(`moved to ${dayLabel(b.date, true)}`);
   if (a.rollout !== b.rollout) out.push(`roll-out ${fmtTime(hhmmToMin(a.rollout))} → ${fmtTime(hhmmToMin(b.rollout))}`);
   if (a.spotId !== b.spotId) out.push(`start ${await spot(a.spotId)} → ${await spot(b.spotId)}`);
-  const bRoutes = b.routes.map((r) => ({ ...r, stop: r.stop ?? null }));
-  if (routeText(a.routes) !== routeText(bRoutes)) out.push(`route ${routeText(bRoutes)}`);
+  if (routeText(a.routes) !== routeText(b.routes)) out.push(`route ${routeText(b.routes)}`);
   const aStop = a.routes[0]?.stop ?? null;
-  const bStop = bRoutes[0]?.stop ?? null;
+  const bStop = b.routes[0]?.stop ?? null;
   if (aStop !== bStop) out.push(bStop ? `coffee stop ${bStop}` : "no coffee stop");
-  else if ((a.routes[1]?.stop ?? null) !== (bRoutes[1]?.stop ?? null))
-    out.push(`${bRoutes[1]?.label ?? "alternate"} coffee stop updated`);
+  else if ((a.routes[1]?.stop ?? null) !== (b.routes[1]?.stop ?? null))
+    out.push(`${b.routes[1]?.label ?? "alternate"} coffee stop updated`);
   if (a.notes !== b.notes) out.push("notes updated");
   return out;
 }
@@ -183,19 +182,41 @@ const routeRows = (db: D1Database, rideId: string, routes: RideInput["routes"]) 
   ...routes.map((r, i) =>
     db
       .prepare("insert into ride_routes (ride_id, sort, label, rwgps_route_id, stop_poi) values (?, ?, ?, ?, ?)")
-      .bind(rideId, i, r.label, r.routeId, r.stop ?? null),
+      .bind(rideId, i, r.label, r.routeId, r.stop),
   ),
+  // A route choice on an RSVP only makes sense while that labelled alternate exists.
+  routes.length > 1
+    ? db
+        .prepare(
+          `update rsvps set route_label = null where ride_id = ? and route_label not in (${routes.map(() => "?").join(",")})`,
+        )
+        .bind(rideId, ...routes.map((r) => r.label))
+    : db.prepare("update rsvps set route_label = null where ride_id = ?").bind(rideId),
 ];
 const systemMessage = (db: D1Database, rideId: string, kind: Message["kind"], body: string) =>
   db
     .prepare("insert into messages (id, ride_id, kind, body, created_at) values (?, ?, ?, ?, ?)")
     .bind(newId(), rideId, kind, body, nowIso());
 
-async function checkInput(db: D1Database, input: RideInput) {
+/** The date must be today or later, and the spot active (an archived spot may stay on a ride that already uses it). */
+async function checkInput(db: D1Database, input: RideInput, currentSpot?: string) {
   if (input.date < nyNow().date) fail(400, "Pick today or a later date");
-  const spot = await db.prepare("select 1 from spots where id = ? and archived = 0").bind(input.spotId).first();
-  if (!spot) fail(400, "Unknown start spot");
+  const spot = await db
+    .prepare("select archived from spots where id = ?")
+    .bind(input.spotId)
+    .first<{ archived: number }>();
+  if (!spot || (spot.archived && input.spotId !== currentSpot)) fail(400, "Unknown start spot");
 }
+
+/** Replacing a ride cancels the one already posted for that date; it keeps its RSVPs and messages in history. */
+const cancelReplaced = (db: D1Database, rideId: string, userId: string, now: string) => [
+  db
+    .prepare("update rides set status = 'cancelled', updated_by = ?, updated_at = ? where id = ?")
+    .bind(userId, now, rideId),
+  systemMessage(db, rideId, "cancel", "Ride cancelled: replaced by a new plan."),
+];
+const notifyReplaced = (env: Env, rideId: string, date: string) =>
+  notifyRide(env, rideId, `Ride cancelled: ${dayLabel(date)}`, "Replaced by a new plan.");
 
 export const rides = new Hono<AppEnv>()
   // Upcoming rides (today on), published and cancelled.
@@ -212,17 +233,7 @@ export const rides = new Hono<AppEnv>()
     const id = newId();
     const now = nowIso();
     await c.env.DB.batch([
-      // Replacing cancels the old ride; it keeps its RSVPs and messages in history.
-      ...(clash
-        ? [
-            c.env.DB.prepare("update rides set status = 'cancelled', updated_by = ?, updated_at = ? where id = ?").bind(
-              user.id,
-              now,
-              clash.id,
-            ),
-            systemMessage(c.env.DB, clash.id, "cancel", "Ride cancelled: replaced by a new plan."),
-          ]
-        : []),
+      ...(clash ? cancelReplaced(c.env.DB, clash.id, user.id, now) : []),
       c.env.DB.prepare(
         "insert into rides (id, date, rollout, spot_id, pace_mph, notes, status, created_by, updated_by, created_at, updated_at) values (?, ?, ?, ?, ?, ?, 'published', ?, ?, ?, ?)",
       ).bind(id, input.date, input.rollout, input.spotId, input.pace, input.notes, user.id, user.id, now, now),
@@ -230,7 +241,7 @@ export const rides = new Hono<AppEnv>()
       c.env.DB.prepare("delete from drafts where user_id = ?").bind(user.id),
       audit(c.env.DB, user.id, "publish", "ride", id, input),
     ]);
-    if (clash) c.executionCtx.waitUntil(notifyRide(c.env, clash.id, "Ride cancelled", "Replaced by a new plan."));
+    if (clash) c.executionCtx.waitUntil(notifyReplaced(c.env, clash.id, input.date));
     return c.json(await detail(c.env.DB, id), 201);
   })
 
@@ -239,7 +250,8 @@ export const rides = new Hono<AppEnv>()
     const input = c.req.valid("json");
     const [cur] = await summaries(c.env.DB, "r.id = ?", [id]);
     if (!cur) return fail(404, "Ride not found");
-    await checkInput(c.env.DB, input);
+    if (cur.date < nyNow().date) fail(409, "Past rides can't be changed");
+    await checkInput(c.env.DB, input, cur.spotId);
     const user = c.get("user");
     const clash = cur.status === "published" ? await publishedOn(c.env.DB, input.date, id) : null;
     if (clash && !input.replace) fail(409, "A ride is already posted for that date");
@@ -247,16 +259,7 @@ export const rides = new Hono<AppEnv>()
     const what = cur.status === "published" ? await changes(c.env.DB, cur, input) : [];
     const now = nowIso();
     await c.env.DB.batch([
-      ...(clash
-        ? [
-            c.env.DB.prepare("update rides set status = 'cancelled', updated_by = ?, updated_at = ? where id = ?").bind(
-              user.id,
-              now,
-              clash.id,
-            ),
-            systemMessage(c.env.DB, clash.id, "cancel", "Ride cancelled: replaced by a new plan."),
-          ]
-        : []),
+      ...(clash ? cancelReplaced(c.env.DB, clash.id, user.id, now) : []),
       c.env.DB.prepare(
         "update rides set date = ?, rollout = ?, spot_id = ?, pace_mph = ?, notes = ?, updated_by = ?, updated_at = ? where id = ?",
       ).bind(input.date, input.rollout, input.spotId, input.pace, input.notes, user.id, now, id),
@@ -265,6 +268,7 @@ export const rides = new Hono<AppEnv>()
       c.env.DB.prepare("delete from drafts where user_id = ?").bind(user.id),
       audit(c.env.DB, user.id, "update", "ride", id, input),
     ]);
+    if (clash) c.executionCtx.waitUntil(notifyReplaced(c.env, clash.id, input.date));
     if (what.length)
       c.executionCtx.waitUntil(notifyRide(c.env, id, `Ride updated: ${dayLabel(input.date)}`, what.join(" · ")));
     return c.json(await detail(c.env.DB, id));
@@ -339,13 +343,16 @@ export const rides = new Hono<AppEnv>()
     return c.json(await detail(c.env.DB, id));
   })
 
-  // Messages: anyone can post or reply (one level) on upcoming rides.
+  // Messages: anyone can post or reply (one level) on upcoming published rides.
   .post("/:id/messages", zValidator("json", messageInput), async (c) => {
     const id = c.req.param("id");
     const { body, parentId } = c.req.valid("json");
-    const ride = await c.env.DB.prepare("select date from rides where id = ?").bind(id).first<{ date: string }>();
+    const ride = await c.env.DB.prepare("select date, status from rides where id = ?")
+      .bind(id)
+      .first<{ date: string; status: string }>();
     if (!ride) return fail(404, "Ride not found");
     if (ride.date < nyNow().date) fail(409, "Posting is closed on past rides");
+    if (ride.status !== "published") fail(409, "Posting is closed on cancelled rides");
     if (parentId) {
       const parent = await c.env.DB.prepare("select parent_id from messages where id = ? and ride_id = ?")
         .bind(parentId, id)

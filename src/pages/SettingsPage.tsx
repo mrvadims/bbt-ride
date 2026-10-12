@@ -1,17 +1,22 @@
 // Settings (Admin): users and invites, ride defaults, road wetness, warnings, kit chart, spots (DESIGN.md → Settings).
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import type { Invite, Me, Role, TeamSettings, UserRow } from "../../shared/api.ts";
+import {
+  type Invite,
+  type Me,
+  ROLE_LABEL,
+  ROLES,
+  type Role,
+  type TeamSettings,
+  type UserRow,
+} from "../../shared/api.ts";
 import type { KitBand } from "../../shared/kit.ts";
 import type { Settings } from "../../shared/settings.ts";
 import { fmtTime, hhmmToMin } from "../../shared/time.ts";
 import { Panel } from "../components/Panel.tsx";
 import { type SpotFields, SpotForm } from "../components/SpotForm.tsx";
 import { api } from "../lib/api.ts";
-import { type SpotWithState, useSpots, useTeam } from "../lib/data.ts";
-
-const ROLE_LABEL: Record<Role, string> = { view: "View", edit: "Edit", admin: "Admin" };
-const ROLES: Role[] = ["view", "edit", "admin"];
+import { refreshSpots, type SpotWithState, useSpots, useTeam } from "../lib/data.ts";
 
 function useCopyLink() {
   const [shown, setShown] = useState<string | null>(null);
@@ -208,8 +213,8 @@ function Users({ me }: { me: Me }) {
         </button>
       </form>
       <p className="tiny muted" style={{ margin: "8px 0 0" }}>
-        View: see rides, RSVP and post. Edit: also plan, publish, edit and cancel rides, and add start spots. Admin:
-        also settings and users.
+        View: see rides, RSVP and post. Edit: also plan, publish, edit and cancel rides, add start spots and delete any
+        message. Admin: also settings, spots and users.
         <br />
         An invite link (7 days, one use) lets the person continue with Google or set a password. A reset link (24 h, one
         use) lets them choose a new password and signs them out elsewhere.
@@ -347,10 +352,7 @@ function Spots() {
   const spots = useSpots().data ?? [];
   const [editing, setEditing] = useState<string | null>(null); // a spot id, or "new"
   const [error, setError] = useState<string | null>(null);
-  const refresh = async () => {
-    await qc.invalidateQueries({ queryKey: ["spots"] });
-    await qc.invalidateQueries({ queryKey: ["weather"] });
-  };
+  const refresh = () => refreshSpots(qc);
   const archive = useMutation({
     mutationFn: (sp: SpotWithState) =>
       api<SpotWithState>(`/spots/${sp.id}`, { method: "PATCH", body: { archived: !sp.archived } }),

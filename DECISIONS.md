@@ -16,7 +16,7 @@ Every open question from the design review, with what was decided. Details live 
 | Road wetness | Wet ≥ 0.5 mm film or raining; Drying ≥ 0.1 mm; 12 h look-back; Drying is an amber warning. Tune after real rides | 2026-10-09 |
 | Warning thresholds | Cold < 40 / 32 °F bike feel; heat ≥ 92 / 100 °F real feel; wind ≥ 15 / 22; gusts ≥ 25 / 35; rain ≥ 30 / 60 % or ≥ 0.01 / 0.05"; thunder red | 2026-10-09 |
 | No "Go" badge | Show warnings only when something needs attention | 2026-10-09 |
-| NWS alerts | Add active NWS alerts for the spot's zone as warnings | 2026-10-11 |
+| NWS alerts | Add active NWS alerts at the spot's location (by point) as warnings | 2026-10-11 |
 | Coffee-stop forecast | None. Route weather along the course stays in the backlog | 2026-10-11 |
 | Kit chart | Seven bike-feel bands plus add-ons; Admins edit it in Settings | 2026-10-09 |
 | Units | Imperial by default; each rider can switch to metric | 2026-10-11 |
@@ -44,8 +44,8 @@ Every open question from the design review, with what was decided. Details live 
 | Identity system | Better Auth inside the Worker, stored in D1 (free; no outside identity service) | 2026-10-11 |
 | Forgotten password | Admin creates a one-time reset link in Settings → Users and sends it; no reset emails in v1 | 2026-10-11 |
 | Uninvited accounts | Blocked with "Not invited — ask a team admin"; public sign-up off; invites are links the Admin sends | 2026-10-11 |
-| Public pages | Only sign-in and a static `/privacy` page (Google requires a public privacy policy to publish the sign-in app); everything else requires sign-in | 2026-10-11 |
-| RideWithGPS | API key, secret and auth token stored as Worker secrets (verified on the `bbt-ride` Worker) | 2026-10-11 |
+| Public pages | Only sign-in, the invite and reset link pages (valid token required) and a static `/privacy` page (Google requires a public privacy policy to publish the sign-in app); everything else requires sign-in | 2026-10-11 |
+| RideWithGPS | API key and auth token stored as Worker secrets (verified on the `bbt-ride` Worker); the API secret isn't needed | 2026-10-12 |
 | Cloudflare deploys | Scoped API token in GitHub repository secrets; deploy via GitHub Actions; `ride.bbt.team` attached by hand | 2026-10-10 |
 
 ## Notes
