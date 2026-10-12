@@ -7,7 +7,7 @@ Nothing here is ever committed. Values go into Cloudflare Worker secrets, GitHub
 | 1. Cloudflare API token | Done: GitHub repository secrets + local `.env` |
 | 2. RideWithGPS credentials | Done: Worker secrets verified 2026-10-11 |
 | 3. Google sign-in | Done 2026-10-11: app published, client created, `GOOGLE_CLIENT_SECRET` stored (verified), first Admin chosen |
-| 4. Web Push keys | Done 2026-10-12: `VAPID_PRIVATE_KEY` stored as a Worker secret, public key in `wrangler.jsonc` |
+| 4. Web Push keys | Done 2026-10-12: `VAPID_PRIVATE_KEY` stored as a Worker secret (verified), public key in `wrangler.jsonc` |
 | 5. D1 database and KV namespace | Done 2026-10-12: both created, ids in `wrangler.jsonc` |
 | 6. First deploy | Next: merge to `main`, attach `ride.bbt.team`, sign in as the first Admin |
 
