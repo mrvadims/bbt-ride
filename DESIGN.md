@@ -1,6 +1,6 @@
 # BBT Ride — Design
 
-Status: **v1 built** (branch `app-v1`; see README for running it) — design prototype at `prototype/index.html`; decisions in `DECISIONS.md`. Last updated 2026-10-12.
+Status: **v1 deployed** at ride.bbt.team (see README for running it) — design prototype at `prototype/index.html`; decisions in `DECISIONS.md`. Last updated 2026-10-12.
 URL: **ride.bbt.team**
 
 ## Purpose
@@ -139,8 +139,6 @@ Both use `fill="currentColor"` so they can switch between navy, white, and orang
 | Logo navy | `#03144D` | Primary text on light; dark-mode cards |
 | BBT Transition Blue | `#041DB2` | Charts (rain bars, elevation profile) in light mode; dark mode uses `#7FB2FF` |
 
-Navy roles confirmed 2026-10-09: `#020C2B` background, `#03144D` text and cards; `#1C367B` is not used.
-
 - **Top bar** (the only navigation; there is no tab row): white bike logo on the left, which is the way home to Ride; on the right, **Plan** (calendar-plus icon) and **Settings** (gear) for roles that have them (icons only on phones, icon + label on wider screens), then an **account button** with the user's initial. View riders see just the logo and the account button. The account menu shows name, role and sign-in method; **Theme** (Auto / Light / Dark); **Units** (°F · mi / °C · km); **Ride notifications** (on/off for this device); and **Sign out**. Logo `bbt-logo.svg`, ~32px tall, on Light Blue, with a 4px orange stripe directly underneath (no separator). Same bar in light and dark mode; checked on a phone 2026-10-11, no hairline needed. No text next to the logo.
 
 - Warnings use amber and red tinted pills and boxes (icon + label), never brand orange. There is no green "Go" state; a clean forecast shows nothing.
@@ -148,7 +146,7 @@ Navy roles confirmed 2026-10-09: `#020C2B` background, `#03144D` text and cards;
 - PWA icons (180/192/512) are rendered from the wordmark by `npm run icons` (scripts/icons.ts) into `public/icons/`.
 
 ## Algorithms
-All inputs are Open-Meteo hourly values in °F, mph, inches, local time (America/New_York). `precipitation` at hour *h* is the total for the hour ending at *h*. Values between hours are linearly interpolated (wind direction, weather code and rain chance use the nearest hour). Reference implementation: `prototype/src/app.html` (`roadAt`, `bikeFeel`, `evaluate`, `kitAdvice`, `rideTimes`).
+All inputs are Open-Meteo hourly values in °F, mph, inches, local time (America/New_York). `precipitation` at hour *h* is the total for the hour ending at *h*. Values between hours are linearly interpolated (wind direction, weather code and rain chance use the nearest hour). Implementation: `shared/weather.ts` (`roadAt`, `bikeFeel`, `evaluate`), `shared/kit.ts` (`kitAdvice`), `shared/ride.ts` (`rideTimes`).
 
 ### Road wetness (Dry / Drying / Wet)
 A water-film bucket run over the look-back window (default **12 h**) ending at the time being judged. Film `W` is in mm and starts at 0.
@@ -239,9 +237,10 @@ Mile markers come from the POI's distance along the RWGPS track (nearest track p
 - Screens: Sign-in (Google + password), Ride (date tabs + Past; Meet / Route / Weather / Notes / Riders panels; share, calendar, edit), Plan (spot comparison → route → preview that reuses the ride panels; autosaved draft), Settings (panels, incl. Users with invite and reset links). A View / Edit / Admin switcher and a "Sign-in screen" link sit below the top bar.
 - Prototype-only: everything you change lives in this browser or this session; sample rides, riders, messages and past rides are examples. Not in the prototype: the `/privacy` link on the sign-in page (the page itself is `public/privacy.html`), deleting users, NWS alerts, metric display (the Units choice is saved, values stay imperial), Spots management, kit chart editing, disabling users, message edit/delete, notifications, the 30 s refresh, recorded weather (past rides use sample values).
 - Without Leaflet (offline/CDN blocked) maps fall back to an SVG route outline.
+- The prototype predates some app changes: it says "Roll-out" for meet time, uses the browser's date input, puts the spot name in the calendar location, and has no Open in RWGPS link in Plan.
 
 ## Data sources
-- **Forecast and recorded weather:** Open-Meteo (free, no key), hourly, `best_match` (NOAA GFS and HRRR for the US); `past_days=2` supplies the recent rain for road wetness and the recorded weather for past rides. The Worker fetches all spots in one request (10-second timeout) and caches each spot's forecast in KV for 30 minutes. If Open-Meteo fails, each spot keeps its last good forecast for up to 6 hours and a spot without one shows "No forecast" while the others still work; a failed refresh is retried after the next 30 minutes, not on every request. Plan never waits on the forecast.
+- **Forecast and recorded weather:** Open-Meteo (free, no key), hourly, `best_match` (NOAA GFS and HRRR for the US); `past_days=2` supplies the recent rain for road wetness and the recorded weather for past rides. The Worker fetches all spots in one request (10-second timeout) and caches each spot's forecast in KV for 30 minutes. If Open-Meteo fails, each spot keeps its last good forecast for up to 6 hours and a spot without one shows no forecast while the others still work; a failed refresh is retried after the next 30 minutes, not on every request. Plan never waits on the forecast.
 - **Alerts:** NWS active alerts by point (`api.weather.gov/alerts/active?point=lat,lng`, no key; NWS requires a `User-Agent` with a contact, `BBT Ride (info@bbt.team)`), cached per spot in KV for 10 minutes (5-second timeout, same fallback). Radar: link to RainViewer.
 - **Map tiles:** OpenStreetMap (light) and CARTO (dark), loaded by the browser; tile requests send the site's origin as Referer (the site's default is no referrer), as OpenStreetMap's tile policy asks.
 - **Routes:** RideWithGPS. Public route JSON (`/routes/{id}.json`) needs no key; private routes and listing the captain's own routes use the API key and auth token (Worker secrets). The club's routes come from the seed data. The exact list endpoints are confirmed against the live API on first deploy; a pasted route link always works.

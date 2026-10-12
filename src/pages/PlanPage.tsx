@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { RideDetail, RideInput, RouteSummary } from "../../shared/api.ts";
 import { etaAt, FT_PER_M, M_PER_MI, nearest, type Poi, rideTimes, startDistance } from "../../shared/ride.ts";
-import { addDays, dayLabel, fmtTime, hhmmToMin, isWeekend, nyNow, weekendDates } from "../../shared/time.ts";
+import { addDays, dayLabel, fmtTime, hhmmToMin, isDate, isWeekend, nyNow, weekendDates } from "../../shared/time.ts";
 import { evaluate, warnings } from "../../shared/weather.ts";
 import { RainBars } from "../components/charts.tsx";
 import { DatePicker } from "../components/DatePicker.tsx";
@@ -129,7 +129,7 @@ function RouteResults({
 }
 
 const RwgpsLink = ({ url }: { url: string }) => (
-  <a className="tiny" href={url} target="_blank" rel="noopener noreferrer" style={{ marginTop: -6 }}>
+  <a className="tiny rwgps-link" href={url} target="_blank" rel="noopener noreferrer">
     Open in RWGPS ↗
   </a>
 );
@@ -168,6 +168,8 @@ export function PlanPage() {
   const sourceRide = source.data;
   const editingRide = useRide(form?.editing).data; // stays current after Cancel / Restore
   const today = nyNow().date;
+  const dateQuery = query.get("date"); // from a ride page link
+  const dateParam = isDate(dateQuery) ? dateQuery : null;
 
   // The first weekend day in the coming week with no ride yet; otherwise this Saturday.
   const nextFreeDay = (): string => {
@@ -179,7 +181,7 @@ export function PlanPage() {
   };
   const freshForm = (): Form => ({
     editing: null,
-    date: query.get("date") ?? nextFreeDay(),
+    date: dateParam ?? nextFreeDay(),
     time: team?.settings.meetTime ?? "08:30",
     spotId: null,
     routeId: null,
@@ -209,7 +211,7 @@ export function PlanPage() {
       .then((d) => {
         const restored = { ...base, ...(d?.form ?? {}) };
         if (restored.date < today) restored.date = base.date; // stale draft
-        if (query.get("date")) Object.assign(restored, { date: query.get("date"), editing: null });
+        if (dateParam) Object.assign(restored, { date: dateParam, editing: null });
         setForm(restored);
       })
       .catch(() => setForm(base));

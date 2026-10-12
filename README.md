@@ -41,7 +41,7 @@ npm run lint        # Biome
 npm run typecheck   # TypeScript, strict
 npm test            # unit tests, including the worked examples in DESIGN.md
 npm run smoke       # 58 API checks against the local dev server (creates test data locally)
-npm run ui-smoke    # 21 browser checks against the local dev server
+npm run ui-smoke    # 21 browser checks against the local dev server (after npm run dev:seed)
 ```
 
 CI runs lint, typecheck, tests and a build on every push; merging to `main` also deploys (`.github/workflows/deploy.yml`).

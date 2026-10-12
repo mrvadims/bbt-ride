@@ -1238,6 +1238,9 @@ a.linkbtn {
   color: #fff;
   font-weight: 700;
 }
+.cal-d[aria-pressed="true"].today {
+  box-shadow: inset 0 0 0 2px var(--card);
+}
 .cal-d:disabled {
   color: var(--muted);
   opacity: 0.45;
@@ -1249,4 +1252,7 @@ a.linkbtn {
 .cal-d:focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 1px;
+}
+.rwgps-link {
+  margin-top: -6px;
 }

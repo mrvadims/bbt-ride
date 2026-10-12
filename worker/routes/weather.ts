@@ -1,4 +1,5 @@
-// GET /api/weather: Open-Meteo forecast for every active spot (KV, 30 min) and NWS alerts (KV, 10 min), cached per spot.
+// GET /api/weather: Open-Meteo forecast (KV, 30 min) and NWS alerts (KV, 10 min), cached per spot, for every active spot
+// and archived spots that rides still use.
 import { Hono } from "hono";
 import type { WeatherData } from "../../shared/api.ts";
 import { addDays, nyNow, TZ } from "../../shared/time.ts";

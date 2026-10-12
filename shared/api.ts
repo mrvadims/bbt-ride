@@ -162,9 +162,10 @@ export const linkAccept = z.object({
     .optional(),
   password: z.string().min(10).max(128),
 });
-// Browsers' push services: Google (Chrome, Android; e.g. fcm.googleapis.com, jmt17.google.com), Mozilla (Firefox),
-// Apple (Safari, iOS) and Microsoft (Edge). The Worker only ever sends push messages to these domains.
-const PUSH_HOSTS = /(^|\.)(googleapis\.com|google\.com|mozilla\.com|push\.apple\.com|notify\.windows\.com)$/;
+// Browsers' push services, and only those (the Worker sends signed requests to these hosts): Google (Chrome, Android:
+// fcm.googleapis.com, jmt<N>.google.com), Mozilla (Firefox), Apple (Safari, iOS) and Microsoft (Edge).
+const PUSH_HOSTS =
+  /^(fcm\.googleapis\.com|jmt\d+\.google\.com|([a-z0-9-]+\.)?push\.services\.mozilla\.com|web\.push\.apple\.com|[a-z0-9-]+\.notify\.windows\.com)$/;
 export const pushSubscription = z.object({
   endpoint: z
     .string()

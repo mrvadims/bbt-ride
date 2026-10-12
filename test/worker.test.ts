@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import raw from "../data/raw/route_57406828.json";
 import seed from "../data/seed.json";
+import { pushSubscription } from "../shared/api.ts";
 import { hashPassword, verifyPassword } from "../worker/password.ts";
 import { perSpot } from "../worker/routes/weather.ts";
 import { simplify } from "../worker/rwgps.ts";
@@ -59,7 +60,7 @@ describe("Web Push payload", () => {
     };
     const payload = await buildPushPayload(
       {
-        data: JSON.stringify({ title: "Ride updated", body: "roll-out 8:30 → 9:00", url: "/ride/2026-10-17" }),
+        data: JSON.stringify({ title: "Ride updated", body: "meet 8:30 → 9:00", url: "/ride/2026-10-17" }),
         options: { ttl: 86400, urgency: "high" },
       },
       sub,
@@ -116,5 +117,28 @@ describe("per-spot weather cache", () => {
   it("drops copies older than 6 hours", async () => {
     age(7 * 3600_000);
     expect(await perSpot(kv, "forecast", [a, b], 60_000, down)).toEqual({});
+  });
+});
+
+describe("push subscriptions", () => {
+  const keys = { p256dh: "x", auth: "y" };
+  const ok = (endpoint: string) => pushSubscription.safeParse({ endpoint, keys }).success;
+  it("accepts the browsers' push services", () => {
+    for (const host of [
+      "fcm.googleapis.com",
+      "jmt17.google.com",
+      "updates.push.services.mozilla.com",
+      "web.push.apple.com",
+    ])
+      expect(ok(`https://${host}/send/abc`)).toBe(true);
+  });
+  it("refuses other hosts, including other Google services, and malformed URLs", () => {
+    for (const e of [
+      "https://script.google.com/macros/s/x/exec",
+      "https://evil.example/x",
+      "http://fcm.googleapis.com/x",
+      "nope",
+    ])
+      expect(ok(e)).toBe(false);
   });
 });

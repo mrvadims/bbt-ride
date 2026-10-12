@@ -143,7 +143,7 @@ check(
   (await rider("/api/settings", { method: "PUT", body: { pace: 16 } })).status === 403,
   "rider can't change settings",
 );
-await admin("/api/settings/reset", { body: {} });
+await admin("/api/settings/reset", { method: "POST" });
 
 // Spots
 const spot = await admin("/api/spots", {
@@ -250,7 +250,7 @@ check(
 const upd = await admin(`/api/rides/${id}`, { method: "PUT", body: { ...plan, meetTime: "09:00" } });
 check(upd.json?.lastUpdate?.text?.includes("meet 8:30 AM → 9:00 AM"), "update posts what changed");
 check(upd.json.rsvps.length === 1, "RSVPs kept after an update");
-let c = (await admin(`/api/rides/${id}/cancel`, { body: {} })).json;
+let c = (await admin(`/api/rides/${id}/cancel`, { method: "POST" })).json;
 check(
   c.status === "cancelled" && c.messages.some((m: Json) => m.kind === "cancel"),
   "cancel keeps the ride and posts a message",
@@ -268,7 +268,7 @@ check(
   (await rider(`/api/rides/${id}/messages`, { body: { body: "Still on?", parentId: null } })).status === 409,
   "no posting on a cancelled ride",
 );
-c = (await admin(`/api/rides/${id}/restore`, { body: {} })).json;
+c = (await admin(`/api/rides/${id}/restore`, { method: "POST" })).json;
 check(c.status === "published", "restore");
 const rep = await admin("/api/rides", { body: { ...plan, notes: "new plan", replace: true } });
 check(rep.status === 201, "replace publishes the new ride");
@@ -291,7 +291,7 @@ check(
   (await admin(`/api/users/${me.id}`, { method: "PATCH", body: { role: "view" } })).status === 400,
   "admin can't demote themselves",
 );
-const reset = await admin(`/api/users/${riderRow.id}/reset-link`, { body: {} });
+const reset = await admin(`/api/users/${riderRow.id}/reset-link`, { method: "POST" });
 const rider2 = client();
 check(
   (await rider2(`/api/links/${tokenFromUrl(reset.json.url)}`, { body: { password: "new pedal pedal pedal" } }))

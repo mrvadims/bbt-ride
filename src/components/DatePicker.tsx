@@ -1,7 +1,7 @@
 // Date field with its own calendar: weeks start on Monday and weekends are shaded, since most rides are on Sat/Sun.
 // (A native <input type="date"> follows the device's locale and can't shade days.)
-import { useRef, useState } from "react";
-import { addDays, dayLabel, dow, nyNow, pad } from "../../shared/time.ts";
+import { useEffect, useRef, useState } from "react";
+import { addDays, dayLabel, dow, nyNow } from "../../shared/time.ts";
 import { Sheet } from "./Sheet.tsx";
 
 const WEEKDAYS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
@@ -36,27 +36,26 @@ export function DatePicker({
 }) {
   const [open, setOpen] = useState(false);
   const [month, setMonth] = useState(monthOf(value));
-  const [focus, setFocus] = useState(value);
   const grid = useRef<HTMLDivElement>(null);
   const today = nyNow().date;
+  const focusDay = (d: string) =>
+    requestAnimationFrame(() => grid.current?.querySelector<HTMLButtonElement>(`[data-date="${d}"]`)?.focus());
+  // The dialog focuses its first control; start on the selected day instead.
+  useEffect(() => {
+    if (open) focusDay(value);
+  }, [open, value]);
 
   const show = () => {
     setMonth(monthOf(value));
-    setFocus(value);
     setOpen(true);
   };
   const pick = (d: string) => {
     onChange(d);
     setOpen(false);
   };
-  // Arrow keys move a day or a week (crossing months as needed); Enter/Space picks via the button itself.
-  const move = (d: string) => {
-    if (d < min) return;
-    setFocus(d);
-    setMonth(monthOf(d));
-    requestAnimationFrame(() => grid.current?.querySelector<HTMLButtonElement>(`[data-date="${d}"]`)?.focus());
-  };
+  // Arrow keys move a day or a week from the focused day, crossing months as needed; Enter/Space picks it.
   const keys: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7 };
+  const tabStop = month === monthOf(value) ? value : `${month}-01` < min ? min : `${month}-01`;
 
   return (
     <div className="field">
@@ -65,7 +64,7 @@ export function DatePicker({
         type="button"
         className="datefield"
         aria-haspopup="dialog"
-        aria-label={`${label}: ${dayLabel(value, true)}`}
+        aria-label={`${label}: ${dayLabel(value, true)}, ${value.slice(0, 4)}`}
         onClick={show}
       >
         {dayLabel(value)}, {value.slice(0, 4)}
@@ -94,13 +93,18 @@ export function DatePicker({
           </div>
           <div
             className="cal"
-            role="grid"
+            role="group"
+            aria-label={monthLabel(month)}
             ref={grid}
             onKeyDown={(e) => {
               const step = keys[e.key];
-              if (step === undefined) return;
+              const from = (e.target as HTMLElement).dataset.date;
+              if (step === undefined || !from) return;
               e.preventDefault();
-              move(addDays(focus, step));
+              const to = addDays(from, step);
+              if (to < min) return;
+              setMonth(monthOf(to));
+              focusDay(to);
             }}
           >
             {WEEKDAYS.map((w, i) => (
@@ -117,14 +121,15 @@ export function DatePicker({
                   className={`cal-d${i % 7 > 4 ? " we" : ""}${d === today ? " today" : ""}`}
                   aria-label={dayLabel(d, true)}
                   aria-pressed={d === value}
+                  aria-current={d === today ? "date" : undefined}
                   disabled={d < min}
-                  tabIndex={d === (monthOf(focus) === month ? focus : `${month}-01`) ? 0 : -1}
+                  tabIndex={d === tabStop ? 0 : -1}
                   onClick={() => pick(d)}
                 >
                   {Number(d.slice(8))}
                 </button>
               ) : (
-                <span key={`x${month}${pad(i)}`} className="cal-d empty" />
+                <span key={i} className="cal-d empty" />
               ),
             )}
           </div>
