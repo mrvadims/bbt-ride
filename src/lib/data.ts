@@ -1,0 +1,69 @@
+// Server data via TanStack Query: cached per endpoint, refetched when stale.
+import { keepPreviousData, QueryClient, useQuery } from "@tanstack/react-query";
+import type { Me, RideDetail, RideSummary, RouteSummary, Spot, TeamSettings, WeatherData } from "../../shared/api.ts";
+import type { Route } from "../../shared/ride.ts";
+import { type Series, toSeries } from "../../shared/weather.ts";
+import { ApiError, api } from "./api.ts";
+
+export const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 60_000,
+      retry: (n, err) => !(err instanceof ApiError && err.status < 500) && n < 2,
+      refetchOnWindowFocus: true,
+    },
+  },
+});
+
+export type SpotWithState = Spot & { archived: boolean };
+
+export const useMe = () =>
+  useQuery({ queryKey: ["me"], queryFn: () => api<Me>("/me"), retry: false, staleTime: 5 * 60_000 });
+export const useTeam = () => useQuery({ queryKey: ["settings"], queryFn: () => api<TeamSettings>("/settings") });
+export const useSpots = () => useQuery({ queryKey: ["spots"], queryFn: () => api<SpotWithState[]>("/spots") });
+export const useRides = () => useQuery({ queryKey: ["rides"], queryFn: () => api<RideSummary[]>("/rides") });
+export const usePast = () =>
+  useQuery({ queryKey: ["rides", "past"], queryFn: () => api<RideSummary[]>("/rides/past") });
+
+/** One ride with RSVPs and messages; refreshed every 30 s while the page is open (DESIGN.md → Riders). */
+export const useRide = (id: string | null | undefined) =>
+  useQuery({
+    queryKey: ["ride", id],
+    queryFn: () => api<RideDetail>(`/rides/${id}`),
+    enabled: Boolean(id),
+    refetchInterval: 30_000,
+  });
+
+export const useRoute = (id: number | null | undefined) =>
+  useQuery({
+    queryKey: ["route", id],
+    queryFn: () => api<Route>(`/routes/${id}`),
+    enabled: Boolean(id),
+    staleTime: 24 * 3600_000,
+  });
+
+export const useRouteSearch = (q: string) =>
+  useQuery({
+    queryKey: ["routes", q],
+    queryFn: () => api<RouteSummary[]>(`/routes?q=${encodeURIComponent(q)}`),
+    placeholderData: keepPreviousData,
+  });
+
+export interface Weather {
+  fetchedAt: string;
+  series: Record<string, Series>;
+  alerts: WeatherData["alerts"];
+}
+export const useWeather = () =>
+  useQuery({
+    queryKey: ["weather"],
+    queryFn: async (): Promise<Weather> => {
+      const w = await api<WeatherData>("/weather");
+      return {
+        fetchedAt: w.fetchedAt,
+        alerts: w.alerts,
+        series: Object.fromEntries(Object.entries(w.forecast).map(([id, om]) => [id, toSeries(om)])),
+      };
+    },
+    staleTime: 10 * 60_000,
+  });

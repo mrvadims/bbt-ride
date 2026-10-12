@@ -1,0 +1,37 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "bbt-ride",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  // Only ride.bbt.team (attached by hand in the dashboard); no workers.dev or preview URLs.
+  "workers_dev": false,
+  "preview_urls": false,
+  "assets": {
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "bbt-ride",
+      "database_id": "008ded1a-414f-4f1c-a5da-ef40cf34615a",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "CACHE",
+      "id": "7b924a895d8e466aa83b4bffa01159fd"
+    }
+  ],
+  "triggers": { "crons": ["15 */3 * * *"] },
+  "vars": {
+    "BETTER_AUTH_URL": "https://ride.bbt.team",
+    "GOOGLE_CLIENT_ID": "788843663115-civobe823j0r2vnkpgsjg7o8vqvik76c.apps.googleusercontent.com",
+    "BOOTSTRAP_ADMIN_EMAIL": "mrvadims@gmail.com",
+    "VAPID_SUBJECT": "mailto:info@bbt.team",
+    "VAPID_PUBLIC_KEY": "BK_cH2klhAgri3DQcLil8IWeV6O6Qm6hXq5Ndvz2p7PJzVd3y4HCKVT676Y3_OylM9le6b7et60tD2t-nzCDyyM"
+  },
+  "observability": { "enabled": true }
+}

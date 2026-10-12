@@ -1,0 +1,14 @@
+{
+  "name": "BBT Ride",
+  "short_name": "BBT Ride",
+  "description": "Ride planning and weather for the BBT cycling team",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F3F6FA",
+  "theme_color": "#0077D1",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
