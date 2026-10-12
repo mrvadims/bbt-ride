@@ -7,9 +7,9 @@ Nothing here is ever committed. Values go into Cloudflare Worker secrets, GitHub
 | 1. Cloudflare API token | Done: GitHub repository secrets + local `.env` |
 | 2. RideWithGPS credentials | Done: Worker secrets verified 2026-10-11 |
 | 3. Google sign-in | Done 2026-10-11: app published, client created, `GOOGLE_CLIENT_SECRET` stored (verified), first Admin chosen |
-| 4. Web Push keys | To do: generate and store `VAPID_PRIVATE_KEY`, put the public key in `wrangler.jsonc` |
-| 5. D1 database and KV namespace | To do: create them and put their ids in `wrangler.jsonc` |
-| 6. First deploy | After 4–5: merge to `main`, attach `ride.bbt.team`, sign in as the first Admin |
+| 4. Web Push keys | Done 2026-10-12: `VAPID_PRIVATE_KEY` stored as a Worker secret, public key in `wrangler.jsonc` |
+| 5. D1 database and KV namespace | Done 2026-10-12: both created, ids in `wrangler.jsonc` |
+| 6. First deploy | Next: merge to `main`, attach `ride.bbt.team`, sign in as the first Admin |
 
 ## 1. Cloudflare API token (for deploys)
 
@@ -115,7 +115,7 @@ From your own terminal, in the repo folder:
 npx wrangler d1 create bbt-ride
 npx wrangler kv namespace create CACHE
 ```
-Each prints an id. Put them in `wrangler.jsonc`: the D1 id as `database_id` and the KV id as `id` (both are placeholders of zeros now), then commit. The ids aren't secret.
+Each prints an id. Put them in `wrangler.jsonc`: the D1 id as `database_id` and the KV id as `id`, then commit. The ids aren't secret (done: both are in `wrangler.jsonc`).
 
 Backups: D1 Time Travel is on by default (restore to any minute in the last 7 days on the free plan).
 

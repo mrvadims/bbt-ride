@@ -15,16 +15,14 @@
     {
       "binding": "DB",
       "database_name": "bbt-ride",
-      // Replace with the id printed by `npx wrangler d1 create bbt-ride` (SETUP.md §5).
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "008ded1a-414f-4f1c-a5da-ef40cf34615a",
       "migrations_dir": "migrations"
     }
   ],
   "kv_namespaces": [
     {
       "binding": "CACHE",
-      // Replace with the id printed by `npx wrangler kv namespace create CACHE` (SETUP.md §5).
-      "id": "00000000000000000000000000000000"
+      "id": "7b924a895d8e466aa83b4bffa01159fd"
     }
   ],
   "triggers": { "crons": ["15 */3 * * *"] },
@@ -33,7 +31,7 @@
     "GOOGLE_CLIENT_ID": "788843663115-civobe823j0r2vnkpgsjg7o8vqvik76c.apps.googleusercontent.com",
     "BOOTSTRAP_ADMIN_EMAIL": "mrvadims@gmail.com",
     "VAPID_SUBJECT": "mailto:info@bbt.team",
-    "VAPID_PUBLIC_KEY": ""
+    "VAPID_PUBLIC_KEY": "BK_cH2klhAgri3DQcLil8IWeV6O6Qm6hXq5Ndvz2p7PJzVd3y4HCKVT676Y3_OylM9le6b7et60tD2t-nzCDyyM"
   },
   "observability": { "enabled": true }
 }
