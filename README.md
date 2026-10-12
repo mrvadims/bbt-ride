@@ -40,7 +40,7 @@ No network for the weather and route APIs? `npm run dev:seed` loads the saved Oc
 npm run lint        # Biome
 npm run typecheck   # TypeScript, strict
 npm test            # unit tests, including the worked examples in DESIGN.md
-npm run smoke       # 54 API checks against the local dev server (creates test data locally)
+npm run smoke       # 55 API checks against the local dev server (creates test data locally)
 npm run ui-smoke    # 20 browser checks against the local dev server
 ```
 

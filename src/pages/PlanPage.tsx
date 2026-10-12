@@ -14,6 +14,7 @@ import { SpotForm } from "../components/SpotForm.tsx";
 import { WarningChips } from "../components/Warnings.tsx";
 import { api } from "../lib/api.ts";
 import {
+  NO_WEATHER,
   type SpotWithState,
   useRide,
   useRides,
@@ -150,7 +151,8 @@ export function PlanPage() {
   const qc = useQueryClient();
   const team = useTeam().data;
   const spots = useSpots().data;
-  const weather = useWeather().data;
+  const wq = useWeather();
+  const weather = wq.data ?? (wq.isError ? NO_WEATHER : undefined); // plan without a forecast rather than wait forever
   const rides = useRides().data;
   const u = units(usePrefs().units);
   const [form, setForm] = useState<Form | null>(null);

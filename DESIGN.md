@@ -241,8 +241,8 @@ Mile markers come from the POI's distance along the RWGPS track (nearest track p
 - Without Leaflet (offline/CDN blocked) maps fall back to an SVG route outline.
 
 ## Data sources
-- **Forecast and recorded weather:** Open-Meteo (free, no key), hourly, `best_match` (NOAA GFS and HRRR for the US); `past_days=2` supplies the recent rain for road wetness and the recorded weather for past rides. The Worker fetches all spots in one request and caches it in KV for 30 minutes.
-- **Alerts:** NWS active alerts by point (`api.weather.gov/alerts/active?point=lat,lng`, no key; NWS requires a `User-Agent` with a contact, `BBT Ride (info@bbt.team)`), cached in KV for 10 minutes. Radar: link to RainViewer.
+- **Forecast and recorded weather:** Open-Meteo (free, no key), hourly, `best_match` (NOAA GFS and HRRR for the US); `past_days=2` supplies the recent rain for road wetness and the recorded weather for past rides. The Worker fetches all spots in one request and caches each spot's forecast in KV for 30 minutes. If Open-Meteo fails, each spot keeps its last good forecast for up to 6 hours, and a spot without one shows "No forecast" while the others still work; Plan never waits on the forecast.
+- **Alerts:** NWS active alerts by point (`api.weather.gov/alerts/active?point=lat,lng`, no key; NWS requires a `User-Agent` with a contact, `BBT Ride (info@bbt.team)`), cached per spot in KV for 10 minutes (same fallback). Radar: link to RainViewer.
 - **Map tiles:** OpenStreetMap (light) and CARTO (dark), loaded by the browser.
 - **Routes:** RideWithGPS. Public route JSON (`/routes/{id}.json`) needs no key; listing the captain's and the club's routes uses the API key and auth token (Worker secrets). The exact list endpoints are confirmed against the live API on first deploy; a pasted route link always works.
 

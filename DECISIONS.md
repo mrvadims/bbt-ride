@@ -20,6 +20,7 @@ Every open question from the design review, with what was decided. Details live 
 | Coffee-stop forecast | None. Route weather along the course stays in the backlog | 2026-10-11 |
 | Kit chart | Seven bike-feel bands plus add-ons; Admins edit it in Settings | 2026-10-09 |
 | Units | Imperial by default; each rider can switch to metric | 2026-10-11 |
+| Forecast outages | Forecasts and alerts are cached per spot; on an upstream failure each spot keeps its last good copy (6 h), a spot without one shows "No forecast", and the rest keep working | 2026-10-12 |
 
 ## Rides
 | Topic | Decision | Date |

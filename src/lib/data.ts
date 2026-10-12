@@ -54,6 +54,7 @@ export interface Weather {
   series: Record<string, Series>;
   alerts: WeatherData["alerts"];
 }
+export const NO_WEATHER: Weather = { fetchedAt: "", series: {}, alerts: {} };
 export const useWeather = () =>
   useQuery({
     queryKey: ["weather"],

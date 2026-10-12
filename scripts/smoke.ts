@@ -49,7 +49,7 @@ function sql(command: string) {
 }
 const tokenFromUrl = (url: string) => url.split("/").pop() as string;
 
-// Leftover test spots from an aborted run would change the cached-forecast key; keep only the seeded spots active.
+// Only the seeded spots have sample forecasts; archive test spots an aborted run left in the pick list.
 sql("update spots set archived = 1 where id not in ('suny-purchase', 'armonk', 'reeves')");
 
 // Seed an Admin invite directly (in production the first Admin signs in with Google as BOOTSTRAP_ADMIN_EMAIL).
@@ -148,6 +148,12 @@ const spot = await admin("/api/spots", {
 check(
   spot.status === 201 && spot.json.maps_url.startsWith("https://www.google.com/maps/search/"),
   "unsafe link replaced by a coordinates link",
+);
+// This sandbox can't reach Open-Meteo, so the new spot has no forecast; the seeded spots must still come back.
+const partial = await admin("/api/weather");
+check(
+  partial.status === 200 && partial.json.forecast.armonk && !partial.json.forecast[spot.json.id],
+  "a spot without a forecast doesn't blank the others",
 );
 const fakeMaps = await admin("/api/spots", {
   body: { name: `Fake maps ${stamp}`, link: "https://google.evil.com/@41.2,-73.7", note: "Lot" },

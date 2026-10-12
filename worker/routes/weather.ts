@@ -1,10 +1,10 @@
-// GET /api/weather: Open-Meteo forecast for every active spot (one request, KV 30 min) and NWS alerts (KV 10 min).
+// GET /api/weather: Open-Meteo forecast for every active spot (KV, 30 min) and NWS alerts (KV, 10 min), cached per spot.
 import { Hono } from "hono";
 import type { WeatherData } from "../../shared/api.ts";
 import { TZ } from "../../shared/time.ts";
 import { type Alert, HOURLY_VARS, type OpenMeteoResponse } from "../../shared/weather.ts";
 import type { AppEnv } from "../app.ts";
-import { fail, sha256Hex } from "../util.ts";
+import { fail } from "../util.ts";
 
 export const NWS_HEADERS = { "User-Agent": "BBT Ride (info@bbt.team)", Accept: "application/geo+json" };
 
@@ -14,18 +14,47 @@ interface SpotPoint {
   lng: number;
 }
 
-/** KV cache that refreshes after `fresh` seconds but keeps the last good value for 6 h in case the upstream is down. */
-async function cached<T>(kv: KVNamespace, key: string, fresh: number, load: () => Promise<T>): Promise<T> {
-  const hit = await kv.get<{ at: number; value: T }>(key, "json");
-  if (hit && Date.now() - hit.at < fresh * 1000) return hit.value;
-  try {
-    const value = await load();
-    await kv.put(key, JSON.stringify({ at: Date.now(), value }), { expirationTtl: 6 * 3600 });
-    return value;
-  } catch (err) {
-    if (hit) return hit.value;
-    throw err;
+interface Cached<T> {
+  at: number;
+  value: T;
+}
+type Entries<T> = Record<string, Cached<T>>; // by spot id
+
+const KEEP_MS = 6 * 3600_000; // a last good copy stays usable this long while an upstream is down
+const pin = (s: SpotPoint) => `${s.id}:${s.lat}:${s.lng}`; // moving a pin starts that spot afresh
+
+/**
+ * One KV entry per kind holding a value per spot. When any spot is older than `freshMs` (or new), all are refreshed in
+ * one `load` call, so they stay on one cycle and each refresh is one write. If it fails, each spot keeps its last good
+ * copy (up to 6 h) and a spot without one is left out, so one bad spot or an outage never blanks the rest.
+ */
+export async function perSpot<T>(
+  kv: KVNamespace,
+  kind: string,
+  spots: SpotPoint[],
+  freshMs: number,
+  load: (spots: SpotPoint[]) => Promise<(T | undefined)[]>,
+): Promise<Entries<T>> {
+  const stored = (await kv.get<Record<string, Cached<T>>>(kind, "json")) ?? {};
+  const now = Date.now();
+  const out: Entries<T> = {};
+  for (const s of spots) {
+    const hit = stored[pin(s)];
+    if (hit && now - hit.at < KEEP_MS) out[s.id] = hit;
   }
+  if (spots.every((s) => out[s.id] && now - (out[s.id] as Cached<T>).at < freshMs)) return out;
+  try {
+    const values = await load(spots);
+    spots.forEach((s, i) => {
+      const value = values[i];
+      if (value !== undefined) out[s.id] = { at: now, value };
+    });
+    const next = Object.fromEntries(spots.flatMap((s) => (out[s.id] ? [[pin(s), out[s.id]]] : [])));
+    await kv.put(kind, JSON.stringify(next));
+  } catch (err) {
+    console.error(`${kind} refresh failed; serving the last good copies`, err);
+  }
+  return out;
 }
 
 /** One multi-location Open-Meteo request; `past_days=2` supplies recent rain and recorded weather. */
@@ -60,29 +89,26 @@ async function fetchAlerts(s: SpotPoint): Promise<Alert[]> {
     .map((p) => ({ event: p.event, headline: p.headline ?? p.event, level: p.event.endsWith("Warning") ? 2 : 1 }));
 }
 
-/** Forecast for every active spot (by spot id), from the 30-minute KV cache. Used by /api/weather and the scheduled job. */
+/** Forecast for every active spot (by spot id), refreshed every 30 minutes. Used by /api/weather and the scheduled job. */
 export async function spotForecasts(env: Env) {
   const { results: spots } = await env.DB.prepare(
     "select id, lat, lng from spots where archived = 0 order by name",
   ).all<SpotPoint>();
-  if (!spots.length)
-    return { spots, key: "", fetchedAt: new Date().toISOString(), byId: {} as Record<string, OpenMeteoResponse> };
-  const key = await sha256Hex(spots.map((s) => `${s.id}:${s.lat}:${s.lng}`).join("|"));
-  const forecast = await cached(env.CACHE, `forecast:${key}`, 30 * 60, async () => ({
-    fetchedAt: new Date().toISOString(),
-    data: await fetchForecast(spots),
-  }));
-  const byId = Object.fromEntries(spots.flatMap((s, i) => (forecast.data[i] ? [[s.id, forecast.data[i]]] : [])));
-  return { spots, key, fetchedAt: forecast.fetchedAt, byId };
+  const entries = await perSpot(env.CACHE, "forecast", spots, 30 * 60_000, fetchForecast);
+  const oldest = Math.min(...Object.values(entries).map((e) => e.at)); // so "updated" never overstates freshness
+  return {
+    spots,
+    fetchedAt: new Date(Number.isFinite(oldest) ? oldest : Date.now()).toISOString(),
+    byId: Object.fromEntries(Object.entries(entries).map(([id, e]) => [id, e.value])),
+  };
 }
 
 export const weather = new Hono<AppEnv>().get("/", async (c) => {
-  const { spots, key, fetchedAt, byId } = await spotForecasts(c.env);
-  if (!spots.length) return c.json<WeatherData>({ fetchedAt, forecast: {}, alerts: {} });
-  const alerts = await cached(c.env.CACHE, `alerts:${key}`, 10 * 60, async () => Promise.all(spots.map(fetchAlerts)));
+  const { spots, fetchedAt, byId } = await spotForecasts(c.env);
+  const alerts = await perSpot(c.env.CACHE, "alerts", spots, 10 * 60_000, (all) => Promise.all(all.map(fetchAlerts)));
   return c.json<WeatherData>({
     fetchedAt,
     forecast: byId,
-    alerts: Object.fromEntries(spots.map((s, i) => [s.id, alerts[i] ?? []])),
+    alerts: Object.fromEntries(spots.map((s) => [s.id, alerts[s.id]?.value ?? []])),
   });
 });
