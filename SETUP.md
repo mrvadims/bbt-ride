@@ -9,7 +9,7 @@ Nothing here is ever committed. Values go into Cloudflare Worker secrets, GitHub
 | 3. Google sign-in | Done 2026-10-11: app published, client created, `GOOGLE_CLIENT_SECRET` stored (verified), first Admin chosen |
 | 4. Web Push keys | Done 2026-10-12: `VAPID_PRIVATE_KEY` stored as a Worker secret (verified), public key in `wrangler.jsonc` |
 | 5. D1 database and KV namespace | Done 2026-10-12: both created, ids in `wrangler.jsonc` |
-| 6. First deploy | Next: merge to `main`, attach `ride.bbt.team`, sign in as the first Admin |
+| 6. First deploy | Deployed and `ride.bbt.team` attached 2026-10-12. Next: sign in as the first Admin, check live data |
 
 ## 1. Cloudflare API token (for deploys)
 
@@ -37,7 +37,7 @@ Nothing here is ever committed. Values go into Cloudflare Worker secrets, GitHub
 8. **Create Token**, then copy it. Cloudflare shows it only once.
 9. Copy your **Account ID**: Workers & Pages → Overview, right sidebar.
 
-No DNS permission on purpose. When the Worker is ready, attach `ride.bbt.team` once by hand: Workers & Pages → bbt-ride → Settings → Domains & Routes → Add → Custom domain. Cloudflare creates the DNS record for you, and the deploy token never needs DNS edit rights.
+No DNS permission on purpose. When the Worker is ready, attach `ride.bbt.team` once by hand: Workers & Pages → bbt-ride → **Domains** tab → add a Custom domain. Cloudflare creates the DNS record for you, and the deploy token never needs DNS edit rights.
 
 **Where to put it:**
 - GitHub: repository → Settings → Secrets and variables → Actions → add `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. The deploy workflow uses these.
@@ -122,7 +122,7 @@ Backups: D1 Time Travel is on by default (restore to any minute in the last 7 da
 ## 6. First deploy
 
 1. Merge the app into `main`. The Deploy workflow runs the checks, applies the D1 migrations (tables, the three start spots, the club route library, the kit chart) and deploys the Worker.
-2. Attach the domain once: Workers & Pages → bbt-ride → Settings → Domains & Routes → Add → Custom domain → `ride.bbt.team`.
+2. Attach the domain once: Workers & Pages → bbt-ride → **Domains** tab → add a Custom domain → `ride.bbt.team`. It stays in the dashboard, not in `wrangler.jsonc`: declaring it there would make every deploy need DNS rights on the token.
 3. Open https://ride.bbt.team and **Continue with Google** as the first Admin (`BOOTSTRAP_ADMIN_EMAIL`). Then invite the team from Settings → Users.
 4. The route library fills within a few hours (the scheduled job runs every 3 hours). Check that searching for a club route works; if your own private routes don't appear, the RideWithGPS list endpoint needs adjusting (DESIGN.md → Data sources).
 
