@@ -3,7 +3,7 @@
 import { LOW_LIGHT_MIN, type Settings } from "./settings.ts";
 import { hhmmToMin, pad } from "./time.ts";
 
-export const MM_PER_IN = 25.4;
+const MM_PER_IN = 25.4;
 export const HOURLY_VARS = [
   "temperature_2m",
   "apparent_temperature",
@@ -122,8 +122,8 @@ export function dryingRate(se: Series, i: number): number {
   return d;
 }
 
-export type RoadState = "Dry" | "Drying" | "Wet";
-export type Level = 0 | 1 | 2; // none, amber, red
+type RoadState = "Dry" | "Drying" | "Wet";
+type Level = 0 | 1 | 2; // none, amber, red
 export interface Road {
   state: RoadState;
   rainIn: number; // rain in the look-back window
@@ -169,7 +169,7 @@ export interface WindowStats {
   thunder: boolean;
   warms: boolean; // bike feel at the finish above the start
 }
-export type Factor = "Road" | "Cold" | "Heat" | "Wind" | "Rain";
+type Factor = "Road" | "Cold" | "Heat" | "Wind" | "Rain";
 export interface Evaluation {
   st: WindowStats;
   factors: { k: Factor; level: Level }[];

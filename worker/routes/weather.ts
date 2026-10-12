@@ -6,7 +6,7 @@ import { type Alert, HOURLY_VARS, type OpenMeteoResponse } from "../../shared/we
 import type { AppEnv } from "../app.ts";
 import { fail } from "../util.ts";
 
-export const NWS_HEADERS = { "User-Agent": "BBT Ride (info@bbt.team)", Accept: "application/geo+json" };
+const NWS_HEADERS = { "User-Agent": "BBT Ride (info@bbt.team)", Accept: "application/geo+json" };
 
 interface SpotPoint {
   id: string;
@@ -58,7 +58,7 @@ export async function perSpot<T>(
 }
 
 /** One multi-location Open-Meteo request; `past_days=2` supplies recent rain and recorded weather. */
-export async function fetchForecast(spots: SpotPoint[]): Promise<OpenMeteoResponse[]> {
+async function fetchForecast(spots: SpotPoint[]): Promise<OpenMeteoResponse[]> {
   const params = new URLSearchParams({
     latitude: spots.map((s) => s.lat.toFixed(4)).join(","),
     longitude: spots.map((s) => s.lng.toFixed(4)).join(","),
