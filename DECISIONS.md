@@ -50,4 +50,4 @@ Every open question from the design review, with what was decided. Details live 
 - **Nearest spot.** Use the route's first track point to find the nearest start spot (the seed file's RWGPS start point differs by about 45 m).
 
 ## Still to do (outside the code)
-- The first deploy (SETUP.md §6). Accounts, secrets, Web Push keys, the D1 database and the KV namespace are in place.
+- Sign in as the first Admin and check live weather, alerts and route search (SETUP.md §6). The app is deployed at `ride.bbt.team`.
