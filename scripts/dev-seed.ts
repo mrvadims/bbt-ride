@@ -1,10 +1,12 @@
-// LOCAL development only: loads the saved Open-Meteo sample (data/raw/om_purchase.json, Oct 7–11 2026) into the local
-// KV cache for every spot, and the four sample routes into the local route cache, so the app works without network.
+// LOCAL development only: loads the saved Open-Meteo sample (data/raw/om_purchase.json, Wed Oct 7 – Sun Oct 11 2026),
+// moved by whole weeks so its Sunday is the coming Sunday, into the local KV cache for every spot, and the four sample
+// routes into the local route cache, so the app works without network.
 // Run after `npm run db:migrate:local`: node scripts/dev-seed.ts
 import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { addDays, dow, nyNow, weekendDates } from "../shared/time.ts";
 import { simplify } from "../worker/rwgps.ts";
 
 const wrangler = (...args: string[]) => execFileSync("npx", ["wrangler", ...args], { encoding: "utf8" });
@@ -16,6 +18,11 @@ const d1 = (sql: string) =>
 
 const spots = d1("select id, lat, lng from spots where archived = 0") as { id: string; lat: number; lng: number }[];
 const sample = JSON.parse(readFileSync(join(import.meta.dirname, "..", "data/raw/om_purchase.json"), "utf8"));
+const sunday = weekendDates(nyNow().date).find((d) => dow(d) === 0) as string;
+const shift = Math.round((Date.parse(sunday) - Date.parse("2026-10-11")) / 864e5);
+const moved = (t: string) => addDays(t.slice(0, 10), shift) + t.slice(10);
+for (const block of [sample.hourly, sample.daily, sample.minutely_15])
+  for (const key of ["time", "sunrise", "sunset"]) if (block?.[key]) block[key] = block[key].map(moved);
 const put = (name: string, value: unknown) => {
   const file = join(tmpdir(), `bbt-${name.replace(/\W/g, "_")}.json`);
   writeFileSync(file, JSON.stringify(value));

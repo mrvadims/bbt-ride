@@ -8,7 +8,7 @@ Nothing here is ever committed. Values go into Cloudflare Worker secrets, GitHub
 | 2. RideWithGPS credentials | Done: Worker secrets verified 2026-10-11 |
 | 3. Google sign-in | Done 2026-10-11: app published, client created, `GOOGLE_CLIENT_SECRET` stored (verified), first Admin chosen |
 | 4. Web Push keys | Done 2026-10-12: `VAPID_PRIVATE_KEY` stored as a Worker secret (verified), public key in `wrangler.jsonc` |
-| 5. D1 database and KV namespace | Done 2026-10-12: both created, ids in `wrangler.jsonc` |
+| 5. D1 database, KV namespace and Queue | D1 and KV done 2026-10-12. **To do before the next deploy: create the `bbt-ride-push` Queue and add Queues to the deploy token (§5)** |
 | 6. First deploy | Deployed and `ride.bbt.team` attached 2026-10-12. Next: sign in as the first Admin, check live data |
 
 ## 1. Cloudflare API token (for deploys)
@@ -23,6 +23,7 @@ Nothing here is ever committed. Values go into Cloudflare Worker secrets, GitHub
    | Account | Workers Scripts | Edit |
    | Account | Workers KV Storage | Edit |
    | Account | **D1** | **Edit** (add this row) |
+   | Account | **Queues** | **Edit** (add this row) |
    | Account | Account Settings | Read |
    | Account | Workers Tail | Read |
    | User | User Details | Read |
@@ -108,14 +109,17 @@ npx wrangler secret put VAPID_PRIVATE_KEY --name bbt-ride   # paste the private 
 ```
 The public key isn't secret; it goes in `wrangler.jsonc` under `vars` as `VAPID_PUBLIC_KEY` (`VAPID_SUBJECT` is already `mailto:info@bbt.team`). Without the keys the app works; the "Ride notifications" switch just says "Not set up yet".
 
-## 5. D1 database and KV namespace
+## 5. D1 database, KV namespace and Queue
 
 From your own terminal, in the repo folder:
 ```
 npx wrangler d1 create bbt-ride
 npx wrangler kv namespace create CACHE
+npx wrangler queues create bbt-ride-push
 ```
-Each prints an id. Put them in `wrangler.jsonc`: the D1 id as `database_id` and the KV id as `id`, then commit. The ids aren't secret (done: both are in `wrangler.jsonc`).
+The first two print an id. Put them in `wrangler.jsonc`: the D1 id as `database_id` and the KV id as `id`, then commit. The ids aren't secret (done: both are in `wrangler.jsonc`). The Queue (ride notifications) is referenced by name, so it needs no id; it's on the Workers free plan.
+
+The deploy token also needs **Account → Queues → Edit** so `wrangler deploy` can attach the Worker to the Queue: My Profile → API Tokens → `bbt-ride deploy` → **Edit** → add the row → **Continue to summary** → **Update Token**. The token's value doesn't change.
 
 Backups: D1 Time Travel is on by default (restore to any minute in the last 7 days on the free plan).
 
@@ -124,5 +128,5 @@ Backups: D1 Time Travel is on by default (restore to any minute in the last 7 da
 1. Merge the app into `main`. The Deploy workflow runs the checks, applies the D1 migrations (tables, the three start spots, the club route library, the kit chart) and deploys the Worker.
 2. Attach the domain once: Workers & Pages → bbt-ride → **Domains** tab → add a Custom domain → `ride.bbt.team`. It stays in the dashboard, not in `wrangler.jsonc`: declaring it there would make every deploy need DNS rights on the token.
 3. Open https://ride.bbt.team and **Continue with Google** as the first Admin (`BOOTSTRAP_ADMIN_EMAIL`). Then invite the team from Settings → Users.
-4. The route library fills over about 12 hours (10 routes per run; the scheduled job runs every 3 hours); route search lists a route once it's fetched, and a pasted RideWithGPS link always works. Check that searching for a club route works; if your own private routes don't appear, the RideWithGPS list endpoint needs adjusting (DESIGN.md → Data sources).
+4. The route library fills over about 2.5 days (2 routes per run; the scheduled job runs every 3 hours); route search lists a route once it's fetched, and a pasted RideWithGPS link always works. Check that searching for a club route works; if your own private routes don't appear, the RideWithGPS list endpoint needs adjusting (DESIGN.md → Data sources).
 

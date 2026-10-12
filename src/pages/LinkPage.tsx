@@ -1,15 +1,14 @@
-// Invite (/invite/:token) and reset (/reset/:token) links: continue with Google, or set a password.
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+// Invite (/invite/:token) and reset (/reset/:token) links: continue with Google, or set a password and then sign in.
+import { useQuery } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { api } from "../lib/api.ts";
 import { navigate } from "../lib/router.tsx";
 import { continueWithGoogle, GoogleMark } from "./SignIn.tsx";
 
 export function LinkPage({ kind, token }: { kind: "invite" | "reset"; token: string }) {
-  const qc = useQueryClient();
   const link = useQuery({
     queryKey: ["link", token],
-    queryFn: () => api<{ kind: string; email: string }>(`/links/${token}`),
+    queryFn: () => api<{ kind: string; email: string }>("/links", { body: { token } }),
     retry: false,
   });
   const [error, setError] = useState<string | null>(null);
@@ -24,10 +23,11 @@ export function LinkPage({ kind, token }: { kind: "invite" | "reset"; token: str
     setError(null);
     try {
       const body =
-        kind === "invite" ? { name: f.get("name"), username: f.get("username") || undefined, password } : { password };
-      await api(`/links/${token}`, { body });
-      await qc.invalidateQueries();
-      navigate("/", true);
+        kind === "invite"
+          ? { token, name: f.get("name"), username: f.get("username") || undefined, password }
+          : { token, password };
+      await api("/links/accept", { body });
+      navigate("/signin?password=set", true);
     } catch (err) {
       setError((err as Error).message);
       setBusy(false);

@@ -32,7 +32,7 @@ npm run dev                      # http://localhost:8787
 
 Sign in with **Continue with Google** as `BOOTSTRAP_ADMIN_EMAIL` (localhost:8787 is registered with Google), then invite others from Settings.
 
-No network for the weather and route APIs? `npm run dev:seed` loads the saved Oct 7–11 2026 Open-Meteo sample and four sample routes into the local cache.
+No network for the weather and route APIs? `npm run dev:seed` loads the saved Open-Meteo sample (moved onto the coming week) and four sample routes into the local cache.
 
 ### Checks
 
@@ -40,7 +40,7 @@ No network for the weather and route APIs? `npm run dev:seed` loads the saved Oc
 npm run lint        # Biome
 npm run typecheck   # TypeScript, strict
 npm test            # unit tests, including the worked examples in DESIGN.md
-npm run smoke       # 58 API checks against the local dev server (creates test data locally)
+npm run smoke       # 66 API checks against the local dev server (creates test data locally)
 npm run ui-smoke    # 21 browser checks against the local dev server (after npm run dev:seed)
 ```
 

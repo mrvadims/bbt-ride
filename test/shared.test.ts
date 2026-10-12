@@ -3,7 +3,7 @@ import fallback from "../data/raw/om_purchase.json";
 import seed from "../data/seed.json";
 import { DEFAULT_KIT, kitAdvice, kitBand } from "../shared/kit.ts";
 import { parseLatLng, type Route, rideTimes } from "../shared/ride.ts";
-import { DEFAULT_SETTINGS as S } from "../shared/settings.ts";
+import { DEFAULT_SETTINGS as S, settingsProblem } from "../shared/settings.ts";
 import { fmtDur, fmtTime, isDate, nyToUTC, weekendDates } from "../shared/time.ts";
 import {
   bikeFeel,
@@ -17,6 +17,7 @@ import {
   warnings,
   windChill,
 } from "../shared/weather.ts";
+import { fold } from "../src/lib/calendar.ts";
 
 /** Fails the test when a value is unexpectedly missing. */
 function must<T>(v: T | null | undefined): T {
@@ -182,5 +183,25 @@ describe("dates from URLs", () => {
       false,
       false,
     ]);
+  });
+});
+
+describe("settings checks", () => {
+  it("accepts the defaults", () => expect(settingsProblem(S)).toBeNull());
+  it("needs red beyond amber", () => {
+    expect(settingsProblem({ ...S, feelNoGo: S.feelCaution })).toMatch(/Cold/);
+    expect(settingsProblem({ ...S, heatNoGo: S.heatCaution })).toMatch(/Heat/);
+    expect(settingsProblem({ ...S, dryingMm: S.wetMm })).not.toBeNull();
+  });
+});
+
+describe(".ics line folding", () => {
+  it("keeps short lines", () => expect(fold("SUMMARY:Ride")).toBe("SUMMARY:Ride"));
+  it("folds at 75 bytes without splitting a character", () => {
+    const lines = fold(`DESCRIPTION:${"é".repeat(60)}`).split("\r\n");
+    expect(lines.length).toBe(2);
+    for (const l of lines) expect(new TextEncoder().encode(l).length).toBeLessThanOrEqual(75);
+    expect(lines[1]?.startsWith(" ")).toBe(true);
+    expect(lines.map((l, i) => (i ? l.slice(1) : l)).join("")).toBe(`DESCRIPTION:${"é".repeat(60)}`);
   });
 });

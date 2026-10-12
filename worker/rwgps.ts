@@ -6,6 +6,8 @@ import { nowIso } from "./util.ts";
 
 const MAX_POINTS = 350;
 const STALE_MS = 7 * 24 * 60 * 60 * 1000;
+const MISS_MS = 60 * 60 * 1000;
+const PAGE = 200;
 const timeout = () => AbortSignal.timeout(10_000);
 
 interface RwgpsRoute {
@@ -39,6 +41,7 @@ async function fetchRaw(env: Env, id: number): Promise<RwgpsRoute | null> {
           signal: timeout(),
         });
     if (!res.ok) {
+      console.error(`RideWithGPS route ${id}: HTTP ${res.status}`);
       await res.body?.cancel();
       return null;
     }
@@ -83,18 +86,23 @@ export function simplify(r: RwgpsRoute): Route {
   };
 }
 
-/** Cached route, refreshed weekly; null if RideWithGPS doesn't return it. */
+/** Cached route, refreshed weekly; null if RideWithGPS doesn't return it (a miss is remembered for an hour). */
 export async function getRoute(env: Env, id: number): Promise<Route | null> {
   const row = await env.DB.prepare("select json, fetched_at from route_cache where rwgps_route_id = ?")
     .bind(id)
     .first<{ json: string | null; fetched_at: string | null }>();
-  if (row?.json && row.fetched_at && Date.now() - Date.parse(row.fetched_at) < STALE_MS)
-    return JSON.parse(row.json) as Route;
+  const age = row?.fetched_at ? Date.now() - Date.parse(row.fetched_at) : Number.POSITIVE_INFINITY;
+  if (row?.json && age < STALE_MS) return JSON.parse(row.json) as Route;
+  if (row && !row.json && age < MISS_MS) return null;
   const raw = await fetchRaw(env, id);
   if (!raw) {
-    // Remember the failed try, so neither the library fill nor each view retries it before the week is up.
-    if (row)
-      await env.DB.prepare("update route_cache set fetched_at = ? where rwgps_route_id = ?").bind(nowIso(), id).run();
+    // Remember the failed try, so neither the library fill nor repeated views call RideWithGPS again right away.
+    await env.DB.prepare(
+      `insert into route_cache (rwgps_route_id, fetched_at) values (?, ?)
+       on conflict (rwgps_route_id) do update set fetched_at = excluded.fetched_at`,
+    )
+      .bind(id, nowIso())
+      .run();
     return row?.json ? (JSON.parse(row.json) as Route) : null;
   }
   const route = simplify(raw);
@@ -109,16 +117,21 @@ export async function getRoute(env: Env, id: number): Promise<Route | null> {
 
 /** Adds the captain's own routes to the library (best effort; runs from the scheduled job). */
 export async function syncCaptainLibrary(env: Env): Promise<void> {
-  const res = await fetch("https://ridewithgps.com/api/v1/routes.json?page=1&page_size=200", {
-    headers: authHeaders(env),
-    signal: timeout(),
-  });
-  if (!res.ok) {
-    await res.body?.cancel();
-    return;
+  const routes: { id: number; name: string }[] = [];
+  for (let page = 1; page <= 5; page++) {
+    const res = await fetch(`https://ridewithgps.com/api/v1/routes.json?page=${page}&page_size=${PAGE}`, {
+      headers: authHeaders(env),
+      signal: timeout(),
+    });
+    if (!res.ok) {
+      console.error(`RideWithGPS route list: HTTP ${res.status}`);
+      await res.body?.cancel();
+      break;
+    }
+    const got = ((await res.json()) as { routes?: { id: number; name: string }[] }).routes ?? [];
+    routes.push(...got);
+    if (got.length < PAGE) break;
   }
-  const body = (await res.json()) as { routes?: { id: number; name: string }[] };
-  const routes = body.routes ?? [];
   if (!routes.length) return;
   await env.DB.batch(
     routes.map((r) =>

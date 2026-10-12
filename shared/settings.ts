@@ -28,6 +28,21 @@ export const settingsSchema = z.object({
 
 export type Settings = z.infer<typeof settingsSchema>;
 
+/** What's inconsistent across settings (red must be beyond amber; drying below wet), or null. */
+export function settingsProblem(s: Settings): string | null {
+  if (s.feelNoGo >= s.feelCaution) return "Cold: the red threshold must be below the amber one.";
+  if (s.heatNoGo <= s.heatCaution) return "Heat: the red threshold must be above the amber one.";
+  for (const [name, a, r] of [
+    ["Wind", s.windCaution, s.windNoGo],
+    ["Gusts", s.gustCaution, s.gustNoGo],
+    ["Rain chance", s.rainProbCaution, s.rainProbNoGo],
+    ["Rain amount", s.rainAmtCaution, s.rainAmtNoGo],
+  ] as const)
+    if (r <= a) return `${name}: the red threshold must be above the amber one.`;
+  if (s.dryingMm >= s.wetMm) return "Road wetness: Drying must start below Wet.";
+  return null;
+}
+
 export const DEFAULT_SETTINGS: Settings = {
   pace: 17,
   meetTime: "08:30",

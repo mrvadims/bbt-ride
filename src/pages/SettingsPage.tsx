@@ -11,7 +11,7 @@ import {
   type UserRow,
 } from "../../shared/api.ts";
 import type { KitBand } from "../../shared/kit.ts";
-import type { Settings } from "../../shared/settings.ts";
+import { type Settings, settingsProblem } from "../../shared/settings.ts";
 import { fmtTime, hhmmToMin } from "../../shared/time.ts";
 import { Panel } from "../components/Panel.tsx";
 import { type SpotFields, SpotForm } from "../components/SpotForm.tsx";
@@ -236,7 +236,7 @@ function NumberField({
   unit?: string;
   step: number;
   s: Settings;
-  onSave: (p: Partial<Settings>) => void;
+  onSave: (p: Partial<Settings>) => boolean; // false: refused, so the field goes back to the saved value
 }) {
   return (
     <label className="field">
@@ -249,7 +249,8 @@ function NumberField({
         key={String(s[k])}
         onBlur={(e) => {
           const v = Number(e.target.value);
-          if (e.target.value !== "" && Number.isFinite(v) && v !== s[k]) onSave({ [k]: v });
+          if (e.target.value !== "" && Number.isFinite(v) && v !== s[k] && !onSave({ [k]: v }))
+            e.target.value = String(s[k]);
         }}
       />
     </label>
@@ -453,8 +454,14 @@ export function SettingsPage({ me }: { me: Me }) {
   });
   if (!team) return <p className="muted small">Loading…</p>;
   const s = team.settings;
+  const saveSetting = (p: Partial<Settings>) => {
+    const problem = settingsProblem({ ...s, ...p });
+    if (problem) setError(problem);
+    else save.mutate(p);
+    return !problem;
+  };
   const num = (k: keyof Settings, label: string, step = 1, unit?: string) => (
-    <NumberField k={k} label={label} unit={unit} step={step} s={s} onSave={(p) => save.mutate(p)} />
+    <NumberField k={k} label={label} unit={unit} step={step} s={s} onSave={saveSetting} />
   );
   return (
     <>

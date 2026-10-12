@@ -84,6 +84,11 @@ export function SignIn() {
               {error}
             </p>
           )}
+          {!error && query.get("password") === "set" && (
+            <p className="small" role="status" style={{ textAlign: "center", margin: 0 }}>
+              Password saved. Sign in with your email or username and the new password.
+            </p>
+          )}
           <button type="button" className="btn btn-outline gbtn" onClick={() => continueWithGoogle(nextPath(query))}>
             <GoogleMark />
             Continue with Google

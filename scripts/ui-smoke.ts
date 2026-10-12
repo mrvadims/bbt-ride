@@ -4,11 +4,15 @@ import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { chromium, type Page } from "playwright";
+import { dayLabel, dow, nyNow, weekendDates } from "../shared/time.ts";
 
 const BASE = "http://localhost:8787";
 const shots = process.argv[2] ?? "";
 if (shots) mkdirSync(shots, { recursive: true });
 const stamp = Date.now().toString(36);
+// The coming Sunday: scripts/dev-seed.ts moves the sample forecast onto it.
+const sunday = weekendDates(nyNow().date).find((d) => dow(d) === 0) as string;
+const sundayLabel = dayLabel(sunday);
 const errors: string[] = [];
 let failures = 0;
 const check = (cond: unknown, what: string) => {
@@ -37,7 +41,13 @@ execFileSync(
 );
 
 const browser = await chromium.launch();
-const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
+// Sign-in is rate-limited per client IP; locally it comes from this header (Cloudflare sets it in production).
+const ip = `10.${Date.now() % 250}.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}`;
+const ctx = await browser.newContext({
+  viewport: { width: 390, height: 844 },
+  deviceScaleFactor: 2,
+  extraHTTPHeaders: { "cf-connecting-ip": ip },
+});
 // Map tiles can't load in this sandbox; the app falls back to the route outline.
 await ctx.route(/tile\.openstreetmap\.org|basemaps\.cartocdn\.com/, (r) => r.abort());
 const page = await ctx.newPage();
@@ -61,6 +71,10 @@ await page.getByLabel("Password (at least").fill("pedal pedal pedal");
 await page.getByLabel("Password again").fill("pedal pedal pedal");
 await shot(page, "invite");
 await page.getByRole("button", { name: "Create account" }).click();
+await page.waitForURL(/\/signin\?password=set/);
+await page.getByLabel("Username or email").fill(`cap${stamp}`);
+await page.getByLabel("Password").fill("pedal pedal pedal");
+await page.getByRole("button", { name: "Sign in", exact: true }).click();
 await page.waitForURL(`${BASE}/`);
 await page.getByTitle("Plan a ride").waitFor();
 check(await page.getByTitle("Settings").isVisible(), "joined by invite as Admin; Plan and Settings in the top bar");
@@ -72,7 +86,7 @@ await page.waitForURL("**/plan");
 await page.getByRole("button", { name: /^Date \(any day\)/ }).click();
 check((await page.locator(".cal-wd").first().textContent()) === "Mo", "date picker weeks start on Monday");
 await page.keyboard.press("Escape");
-await page.getByRole("button", { name: /Sun, Oct 11/ }).click();
+await page.getByRole("button", { name: sundayLabel }).click();
 await page.getByRole("radio", { name: /SUNY Purchase/ }).click();
 check(await page.getByText(/feels/).first().isVisible(), "spot list shows the weather window");
 await page.getByPlaceholder("e.g. Katonah").fill("Katonah");
@@ -86,7 +100,7 @@ check(await page.getByText("Tazza Cafe").first().isVisible(), "coffee stop sugge
 await page.getByLabel("Notes").fill("Regroup at the top of every climb.");
 await shot(page, "plan");
 await publishBtn.click();
-await page.waitForURL("**/ride/2026-10-11");
+await page.waitForURL(`**/ride/${sunday}`);
 for (const p of ["Meet", "Route", "Weather", "Notes", "Riders"])
   check(await page.getByRole("button", { name: p, exact: true }).isVisible(), `ride page: ${p} panel`);
 check(
@@ -120,10 +134,10 @@ await page.keyboard.press("Escape");
 // Edit: change the meet time → "Updated" note
 await page.getByLabel("Edit this ride").click();
 await page.waitForURL("**/plan?edit=*");
-await page.getByText(/Editing the Sun, Oct 11 ride/).waitFor();
+await page.getByText(`Editing the ${sundayLabel} ride`).waitFor();
 await page.getByLabel("Meet time").fill("09:00");
 await page.getByRole("button", { name: "Update ride" }).click();
-await page.waitForURL("**/ride/2026-10-11");
+await page.waitForURL(`**/ride/${sunday}`);
 check(
   await page
     .getByText(/meet 8:30 AM → 9:00 AM/)
@@ -166,7 +180,7 @@ await shot(page, "settings");
 // Desktop, dark
 await page.setViewportSize({ width: 1280, height: 900 });
 await page.emulateMedia({ colorScheme: "dark" });
-await page.goto(`${BASE}/ride/2026-10-11`);
+await page.goto(`${BASE}/ride/${sunday}`);
 await page.getByRole("button", { name: "Weather", exact: true }).waitFor();
 await shot(page, "ride-desktop-dark");
 await page.goto(`${BASE}/past`);

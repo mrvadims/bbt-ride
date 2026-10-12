@@ -1,6 +1,15 @@
 // Account and team management: /api/me (everyone), users and invites (Admin), invite and reset links (public).
 import { Hono } from "hono";
-import { type Invite, inviteInput, linkAccept, type Me, type Role, type UserRow, userEdit } from "../../shared/api.ts";
+import {
+  type Invite,
+  inviteInput,
+  linkAccept,
+  linkToken,
+  type Me,
+  type Role,
+  type UserRow,
+  userEdit,
+} from "../../shared/api.ts";
 import { type AppEnv, requireRole } from "../app.ts";
 import { audit, fail, nowIso, randomToken, sha256Hex } from "../util.ts";
 import { validate } from "../validate.ts";
@@ -8,14 +17,13 @@ import { validate } from "../validate.ts";
 const INVITE_DAYS = 7;
 const RESET_HOURS = 24;
 
-async function methodsOf(db: D1Database, userIds: string[]): Promise<Map<string, ("google" | "password")[]>> {
-  if (!userIds.length) return new Map();
-  const { results } = await db
-    .prepare(
-      `select "userId" as user_id, "providerId" as provider from account where "userId" in (${userIds.map(() => "?").join(",")})`,
-    )
-    .bind(...userIds)
-    .all<{ user_id: string; provider: string }>();
+/** Sign-in methods per user: one user's, or everyone's (D1 binds at most 100 variables, so no IN list). */
+async function methodsOf(db: D1Database, userId?: string): Promise<Map<string, ("google" | "password")[]>> {
+  const q = `select "userId" as user_id, "providerId" as provider from account`;
+  const { results } = await (userId ? db.prepare(`${q} where "userId" = ?`).bind(userId) : db.prepare(q)).all<{
+    user_id: string;
+    provider: string;
+  }>();
   const out = new Map<string, ("google" | "password")[]>();
   for (const r of results)
     out.set(r.user_id, [...(out.get(r.user_id) ?? []), r.provider === "google" ? "google" : "password"]);
@@ -59,7 +67,7 @@ async function openLink(db: D1Database, token: string) {
 
 export const me = new Hono<AppEnv>().get("/", async (c) => {
   const u = c.get("user");
-  const methods = (await methodsOf(c.env.DB, [u.id])).get(u.id) ?? [];
+  const methods = (await methodsOf(c.env.DB, u.id)).get(u.id) ?? [];
   return c.json<Me>({ ...u, methods, vapidPublicKey: c.env.VAPID_PUBLIC_KEY });
 });
 
@@ -81,10 +89,7 @@ export const users = new Hono<AppEnv>()
         .bind(nowIso())
         .all<{ email: string; role: Role; expires_at: string }>(),
     ]);
-    const methods = await methodsOf(
-      c.env.DB,
-      rows.map((r) => r.id),
-    );
+    const methods = await methodsOf(c.env.DB);
     return c.json({
       users: rows.map(
         (r): UserRow => ({
@@ -133,23 +138,30 @@ export const users = new Hono<AppEnv>()
   .delete("/:id", async (c) => {
     const id = c.req.param("id");
     if (id === c.get("user").id) fail(400, "You can't delete your own account");
+    const u = await c.env.DB.prepare(`select email from "user" where id = ?`).bind(id).first<{ email: string }>();
+    if (!u) return fail(404, "User not found");
     await c.get("auth").api.removeUser({ body: { userId: id }, headers: c.req.raw.headers });
-    await audit(c.env.DB, c.get("user").id, "delete", "user", id).run();
+    // The email also sits in old links and in the audit trail of invites; the privacy page promises it goes too.
+    await c.env.DB.batch([
+      c.env.DB.prepare("delete from links where email = ?").bind(u.email),
+      c.env.DB.prepare("update audit_log set entity_id = ? where entity_id = ?").bind(id, u.email),
+      audit(c.env.DB, c.get("user").id, "delete", "user", id),
+    ]);
     return c.body(null, 204);
   });
 
 // Public: the invite and reset pages read their link, then set a password (and create the account for invites).
+// The person then signs in on the sign-in page, so each request hashes the password once (Workers CPU limit).
+const EXPIRED = "This link has expired or was already used. Ask a team admin for a new one.";
 export const links = new Hono<AppEnv>()
-  .get("/:token", async (c) => {
-    const link = await openLink(c.env.DB, c.req.param("token"));
-    return link
-      ? c.json({ kind: link.kind, email: link.email })
-      : fail(404, "This link has expired or was already used. Ask a team admin for a new one.");
+  .post("/", validate("json", linkToken), async (c) => {
+    const link = await openLink(c.env.DB, c.req.valid("json").token);
+    return link ? c.json({ kind: link.kind, email: link.email }) : fail(404, EXPIRED);
   })
-  .post("/:token", validate("json", linkAccept), async (c) => {
-    const link = await openLink(c.env.DB, c.req.param("token"));
-    if (!link) return fail(404, "This link has expired or was already used. Ask a team admin for a new one.");
-    const { name, username, password } = c.req.valid("json");
+  .post("/accept", validate("json", linkAccept), async (c) => {
+    const { token, name, username, password } = c.req.valid("json");
+    const link = await openLink(c.env.DB, token);
+    if (!link) return fail(404, EXPIRED);
     const ctx = await c.get("auth").$context;
     const hash = await ctx.password.hash(password);
     if (link.kind === "invite") {
@@ -182,6 +194,5 @@ export const links = new Hono<AppEnv>()
         await ctx.internalAdapter.linkAccount({ userId, providerId: "credential", accountId: userId, password: hash });
       await ctx.internalAdapter.deleteUserSessions(userId); // sign out everywhere else
     }
-    // Sign in with the new password; the response carries the session cookie.
-    return c.get("auth").api.signInEmail({ body: { email: link.email, password }, asResponse: true });
+    return c.body(null, 204);
   });

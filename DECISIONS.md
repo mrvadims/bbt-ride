@@ -35,8 +35,10 @@ Every open question from the design review, with what was decided. Details live 
 | Drafts | No Save draft button; the form autosaves. Edit, Update, Replace, Cancel and Restore ride | 2026-10-10 |
 | RSVP | In / Out (route choice only for In on rides with an alternate); message thread with one-level replies | 2026-10-10 |
 | RSVP reminders | None in v1 | 2026-10-11 |
-| Notifications | Only when a ride is updated, cancelled or restored; Web Push only (opt-in per device), no email service | 2026-10-11 |
-| History | Past tab on the Ride page; read-only past rides with observed weather; Reuse this plan | 2026-10-11 |
+| Notifications | Only when a ride is updated, cancelled or restored; Web Push only (opt-in per device), no email service; delivered through a Cloudflare Queue in batches of 5 devices, to stay inside the free plan's CPU limit (no device limit) | 2026-10-12 |
+| Notification audience | Every member who turned ride notifications on, whether or not they've answered In / Out | 2026-10-12 |
+| History | Past tab on the Ride page (latest 200); read-only past rides with recorded weather; Reuse this plan. Routes and times stay live (not frozen at publish) | 2026-10-12 |
+| Edit conflicts | Update ride is refused if the ride changed after the editor opened it | 2026-10-12 |
 | Start spots | Name, Google Maps link and parking notes all required. Settings lists spots with Open in Maps, Edit (in place), Archive and Add a spot; archived spots fold into a collapsed list | 2026-10-12 |
 | Settings layout | One column of panels on every screen width, so an open panel never leaves a gap beside it; fields in a row line up at the input | 2026-10-12 |
 
@@ -45,6 +47,8 @@ Every open question from the design review, with what was decided. Details live 
 |---|---|---|
 | Sign-in | Google sign-in (main) plus username/email + password on the same account; invite-only; roles View / Edit / Admin | 2026-10-11 |
 | Identity system | Better Auth inside the Worker, stored in D1 (free; no outside identity service) | 2026-10-11 |
+| Free plan | Stay on the Workers free plan: notifications via a Queue, 2 library routes per scheduled run, one password hash per request (invite/reset links then go to sign-in) | 2026-10-12 |
+| Admin endpoints | Better Auth's own admin endpoints are blocked; user management goes through the app's API (checks + audit) | 2026-10-12 |
 | Forgotten password | Admin creates a one-time reset link in Settings → Users and sends it; no reset emails in v1 | 2026-10-11 |
 | Uninvited accounts | Blocked with "Not invited — ask a team admin"; public sign-up off; invites are links the Admin sends | 2026-10-11 |
 | Public pages | Only sign-in, the invite and reset link pages (valid token required) and a static `/privacy` page (Google requires a public privacy policy to publish the sign-in app); everything else requires sign-in | 2026-10-11 |
@@ -56,4 +60,5 @@ Every open question from the design review, with what was decided. Details live 
 - **Nearest spot.** Use the route's first track point to find the nearest start spot (the seed file's RWGPS start point differs by about 45 m).
 
 ## Still to do (outside the code)
-- Sign in as the first Admin and check live weather, alerts and route search (SETUP.md §6). The app is deployed at `ride.bbt.team`.
+- Before the next deploy: create the `bbt-ride-push` Queue and add Queues → Edit to the deploy token (SETUP.md §5).
+- Try one password sign-in in production (Workers free plan CPU limit); check live route search and notifications.

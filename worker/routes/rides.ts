@@ -10,6 +10,7 @@ import {
   type RideSummary,
   type Rsvp,
   rideInput,
+  rideUpdate,
   rsvpInput,
 } from "../../shared/api.ts";
 import type { RideRoute } from "../../shared/ride.ts";
@@ -27,6 +28,7 @@ interface RideRow {
   pace_mph: number;
   notes: string;
   status: "published" | "cancelled";
+  updated_at: string;
   observed_json: string | null;
 }
 
@@ -35,38 +37,39 @@ async function summaries(
   db: D1Database,
   where: string,
   binds: unknown[],
-  order = "r.date",
+  order = "r.date, r.created_at",
   limit?: number,
 ): Promise<RideSummary[]> {
+  const pick = `from rides r where ${where} order by ${order}${limit ? ` limit ${limit}` : ""}`;
   const { results: rides } = await db
     .prepare(
-      `select r.id, r.date, r.meet_time, r.spot_id, r.pace_mph, r.notes, r.status, r.observed_json from rides r where ${where} order by ${order}${limit ? ` limit ${limit}` : ""}`,
+      `select r.id, r.date, r.meet_time, r.spot_id, r.pace_mph, r.notes, r.status, r.updated_at, r.observed_json ${pick}`,
     )
     .bind(...binds)
     .all<RideRow>();
   if (!rides.length) return [];
-  const ids = rides.map((r) => r.id);
-  const marks = ids.map(() => "?").join(",");
+  // The same rides again as a subquery: D1 binds at most 100 variables, so no list of ids.
+  const marks = `select r.id ${pick}`;
   const [routes, rsvps, msgs, updates] = await db.batch<Record<string, unknown>>([
     db
       .prepare(
         `select rr.ride_id, rr.label, rr.rwgps_route_id, rr.stop_poi, rc.name from ride_routes rr left join route_cache rc on rc.rwgps_route_id = rr.rwgps_route_id where rr.ride_id in (${marks}) order by rr.ride_id, rr.sort`,
       )
-      .bind(...ids),
+      .bind(...binds),
     db
       .prepare(`select ride_id, status, count(*) as n from rsvps where ride_id in (${marks}) group by ride_id, status`)
-      .bind(...ids),
+      .bind(...binds),
     db
       .prepare(
         `select ride_id, count(*) as n from messages where ride_id in (${marks}) and deleted_at is null group by ride_id`,
       )
-      .bind(...ids),
+      .bind(...binds),
     db
       .prepare(
         `select ride_id, body, created_at from messages m where ride_id in (${marks}) and kind = 'update'
          and created_at = (select max(created_at) from messages where ride_id = m.ride_id and kind = 'update')`,
       )
-      .bind(...ids),
+      .bind(...binds),
   ]);
   const by = <T>(rows: Record<string, unknown>[] | undefined, id: string) =>
     (rows ?? []).filter((x) => x.ride_id === id) as T[];
@@ -81,6 +84,7 @@ async function summaries(
       pace: r.pace_mph,
       notes: r.notes,
       status: r.status,
+      updatedAt: r.updated_at,
       routes: by<{ label: string; rwgps_route_id: number; stop_poi: string | null; name: string | null }>(
         routes?.results,
         r.id,
@@ -221,13 +225,17 @@ const cancelReplaced = (db: D1Database, rideId: string, userId: string, now: str
     .bind(userId, now, rideId),
   systemMessage(db, rideId, "cancel", "Ride cancelled: replaced by a new plan."),
 ];
+const STALE = "Someone changed this ride after you opened it. Discard your changes and edit it again.";
+
 const notifyReplaced = (env: Env, rideId: string, date: string) =>
   notifyRide(env, rideId, `Ride cancelled: ${dayLabel(date)}`, "Replaced by a new plan.");
 
 export const rides = new Hono<AppEnv>()
   // Upcoming rides (today on), published and cancelled.
   .get("/", async (c) => c.json(await summaries(c.env.DB, "r.date >= ?", [nyNow().date])))
-  .get("/past", async (c) => c.json(await summaries(c.env.DB, "r.date < ?", [nyNow().date], "r.date desc", 200)))
+  .get("/past", async (c) =>
+    c.json(await summaries(c.env.DB, "r.date < ?", [nyNow().date], "r.date desc, r.created_at desc", 200)),
+  )
   .get("/:id", async (c) => c.json(await detail(c.env.DB, c.req.param("id"))))
 
   .post("/", requireRole("edit"), validate("json", rideInput), async (c) => {
@@ -251,12 +259,13 @@ export const rides = new Hono<AppEnv>()
     return c.json(await detail(c.env.DB, id), 201);
   })
 
-  .put("/:id", requireRole("edit"), validate("json", rideInput), async (c) => {
+  .put("/:id", requireRole("edit"), validate("json", rideUpdate), async (c) => {
     const id = c.req.param("id");
     const input = c.req.valid("json");
     const [cur] = await summaries(c.env.DB, "r.id = ?", [id]);
     if (!cur) return fail(404, "Ride not found");
     if (cur.date < nyNow().date) fail(409, "Past rides can't be changed");
+    if (input.baseUpdatedAt !== cur.updatedAt) fail(409, STALE);
     await checkInput(c.env.DB, input, cur.spotId);
     const user = c.get("user");
     const clash = cur.status === "published" ? await publishedOn(c.env.DB, input.date, id) : null;
@@ -265,6 +274,10 @@ export const rides = new Hono<AppEnv>()
     const what = cur.status === "published" ? await changes(c.env.DB, cur, input) : [];
     const now = nowIso();
     await c.env.DB.batch([
+      // Re-checked inside the transaction: json('stale') fails, rolling back the batch, if the ride changed meanwhile.
+      c.env.DB.prepare(
+        "select case when (select updated_at from rides where id = ?) = ? then 1 else json('stale') end",
+      ).bind(id, cur.updatedAt),
       ...(clash ? cancelReplaced(c.env.DB, clash.id, user.id, now) : []),
       c.env.DB.prepare(
         "update rides set date = ?, meet_time = ?, spot_id = ?, pace_mph = ?, notes = ?, updated_by = ?, updated_at = ? where id = ?",
@@ -273,7 +286,10 @@ export const rides = new Hono<AppEnv>()
       ...(what.length ? [systemMessage(c.env.DB, id, "update", what.join(" · "))] : []),
       c.env.DB.prepare("delete from drafts where user_id = ?").bind(user.id),
       audit(c.env.DB, user.id, "update", "ride", id, input),
-    ]);
+    ]).catch((e) => {
+      if (/malformed JSON/i.test(String(e))) fail(409, STALE);
+      throw e;
+    });
     if (clash) c.executionCtx.waitUntil(notifyReplaced(c.env, clash.id, input.date));
     if (what.length)
       c.executionCtx.waitUntil(notifyRide(c.env, id, `Ride updated: ${dayLabel(input.date)}`, what.join(" · ")));
