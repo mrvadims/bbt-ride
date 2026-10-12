@@ -7,7 +7,7 @@ import { type SpotWithState, useRoute, useSpots, useTeam, useWeather } from "./d
 import { usePrefs } from "./prefs.ts";
 
 /** The ride fields the model needs (a published ride or a draft from Plan). */
-export type RideLike = Pick<RideSummary, "date" | "rollout" | "spotId" | "pace" | "notes" | "routes" | "status">;
+export type RideLike = Pick<RideSummary, "date" | "meetTime" | "spotId" | "pace" | "notes" | "routes" | "status">;
 
 export function useRideModel(ride: RideLike | null, routeIndex = 0) {
   const prefs = usePrefs();
@@ -24,7 +24,7 @@ export function useRideModel(ride: RideLike | null, routeIndex = 0) {
   const spot: SpotWithState | undefined = spots.find((s) => s.id === ride.spotId);
   if (!spot || !route) return { loading: true as const };
   const s = team.settings;
-  const t = rideTimes(route, ride.rollout, ride.pace, rt.stop, s);
+  const t = rideTimes(route, ride.meetTime, ride.pace, rt.stop, s);
   const se = weather?.series[spot.id];
   const ev = se ? evaluate(se, ride.date, t.start, t.end - t.start, ride.pace, s) : null;
   return {

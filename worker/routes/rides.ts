@@ -22,7 +22,7 @@ import { validate } from "../validate.ts";
 interface RideRow {
   id: string;
   date: string;
-  rollout: string;
+  meet_time: string;
   spot_id: string;
   pace_mph: number;
   notes: string;
@@ -34,7 +34,7 @@ interface RideRow {
 async function summaries(db: D1Database, where: string, binds: unknown[], order = "r.date"): Promise<RideSummary[]> {
   const { results: rides } = await db
     .prepare(
-      `select r.id, r.date, r.rollout, r.spot_id, r.pace_mph, r.notes, r.status, r.observed_json from rides r where ${where} order by ${order}`,
+      `select r.id, r.date, r.meet_time, r.spot_id, r.pace_mph, r.notes, r.status, r.observed_json from rides r where ${where} order by ${order}`,
     )
     .bind(...binds)
     .all<RideRow>();
@@ -70,7 +70,7 @@ async function summaries(db: D1Database, where: string, binds: unknown[], order 
     return {
       id: r.id,
       date: r.date,
-      rollout: r.rollout,
+      meetTime: r.meet_time,
       spotId: r.spot_id,
       pace: r.pace_mph,
       notes: r.notes,
@@ -165,7 +165,7 @@ async function changes(db: D1Database, a: RideSummary, b: RideInput): Promise<st
     (await db.prepare("select name from spots where id = ?").bind(id).first<{ name: string }>())?.name ?? id;
   const out: string[] = [];
   if (a.date !== b.date) out.push(`moved to ${dayLabel(b.date, true)}`);
-  if (a.rollout !== b.rollout) out.push(`meet ${fmtTime(hhmmToMin(a.rollout))} → ${fmtTime(hhmmToMin(b.rollout))}`);
+  if (a.meetTime !== b.meetTime) out.push(`meet ${fmtTime(hhmmToMin(a.meetTime))} → ${fmtTime(hhmmToMin(b.meetTime))}`);
   if (a.spotId !== b.spotId) out.push(`start ${await spot(a.spotId)} → ${await spot(b.spotId)}`);
   if (routeText(a.routes) !== routeText(b.routes)) out.push(`route ${routeText(b.routes)}`);
   const aStop = a.routes[0]?.stop ?? null;
@@ -235,8 +235,8 @@ export const rides = new Hono<AppEnv>()
     await c.env.DB.batch([
       ...(clash ? cancelReplaced(c.env.DB, clash.id, user.id, now) : []),
       c.env.DB.prepare(
-        "insert into rides (id, date, rollout, spot_id, pace_mph, notes, status, created_by, updated_by, created_at, updated_at) values (?, ?, ?, ?, ?, ?, 'published', ?, ?, ?, ?)",
-      ).bind(id, input.date, input.rollout, input.spotId, input.pace, input.notes, user.id, user.id, now, now),
+        "insert into rides (id, date, meet_time, spot_id, pace_mph, notes, status, created_by, updated_by, created_at, updated_at) values (?, ?, ?, ?, ?, ?, 'published', ?, ?, ?, ?)",
+      ).bind(id, input.date, input.meetTime, input.spotId, input.pace, input.notes, user.id, user.id, now, now),
       ...routeRows(c.env.DB, id, input.routes),
       c.env.DB.prepare("delete from drafts where user_id = ?").bind(user.id),
       audit(c.env.DB, user.id, "publish", "ride", id, input),
@@ -261,8 +261,8 @@ export const rides = new Hono<AppEnv>()
     await c.env.DB.batch([
       ...(clash ? cancelReplaced(c.env.DB, clash.id, user.id, now) : []),
       c.env.DB.prepare(
-        "update rides set date = ?, rollout = ?, spot_id = ?, pace_mph = ?, notes = ?, updated_by = ?, updated_at = ? where id = ?",
-      ).bind(input.date, input.rollout, input.spotId, input.pace, input.notes, user.id, now, id),
+        "update rides set date = ?, meet_time = ?, spot_id = ?, pace_mph = ?, notes = ?, updated_by = ?, updated_at = ? where id = ?",
+      ).bind(input.date, input.meetTime, input.spotId, input.pace, input.notes, user.id, now, id),
       ...routeRows(c.env.DB, id, input.routes),
       ...(what.length ? [systemMessage(c.env.DB, id, "update", what.join(" · "))] : []),
       c.env.DB.prepare("delete from drafts where user_id = ?").bind(user.id),

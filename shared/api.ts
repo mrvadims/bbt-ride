@@ -42,7 +42,7 @@ export interface RecordedWeather {
 export interface RideSummary {
   id: string;
   date: string;
-  rollout: string;
+  meetTime: string;
   spotId: string;
   pace: number;
   notes: string;
@@ -108,7 +108,7 @@ const hhmm = z.string().regex(HHMM);
 
 export const rideInput = z.object({
   date,
-  rollout: hhmm,
+  meetTime: hhmm,
   spotId: z.string().min(1).max(80),
   pace: z.number().min(10).max(25),
   notes: z.string().max(4000),

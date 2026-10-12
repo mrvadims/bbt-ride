@@ -61,7 +61,7 @@ function fromRide(r: RideDetail, date: string, editing: string | null, fallbackP
   return {
     editing,
     date,
-    time: r.rollout,
+    time: r.meetTime,
     spotId: r.spotId,
     routeId: main?.routeId ?? null,
     q: main?.name ?? "",
@@ -180,7 +180,7 @@ export function PlanPage() {
   const freshForm = (): Form => ({
     editing: null,
     date: query.get("date") ?? nextFreeDay(),
-    time: team?.settings.rollout ?? "08:30",
+    time: team?.settings.meetTime ?? "08:30",
     spotId: null,
     routeId: null,
     altOn: false,
@@ -280,7 +280,7 @@ export function PlanPage() {
     form?.routeId && form.spotId && route
       ? {
           date: form.date,
-          rollout: form.time,
+          meetTime: form.time,
           spotId: form.spotId,
           pace: form.pace,
           notes: form.notes,
@@ -312,7 +312,7 @@ export function PlanPage() {
       if (!form || !draftRide) throw new Error("Pick a start spot and a route");
       const body: RideInput = {
         date: draftRide.date,
-        rollout: draftRide.rollout,
+        meetTime: draftRide.meetTime,
         spotId: draftRide.spotId,
         pace: draftRide.pace,
         notes: draftRide.notes,
@@ -333,7 +333,7 @@ export function PlanPage() {
   });
   const toggleCancel = useMutation({
     mutationFn: (r: RideDetail) =>
-      api<RideDetail>(`/rides/${r.id}/${r.status === "cancelled" ? "restore" : "cancel"}`, { body: {} }),
+      api<RideDetail>(`/rides/${r.id}/${r.status === "cancelled" ? "restore" : "cancel"}`, { method: "POST" }),
     onSuccess: async (ride) => {
       qc.setQueryData(["ride", ride.id], ride);
       await qc.invalidateQueries({ queryKey: ["rides"] });
@@ -484,7 +484,7 @@ export function PlanPage() {
                   type="time"
                   value={form.time}
                   step={900}
-                  onChange={(e) => set({ time: e.target.value || s.rollout })}
+                  onChange={(e) => set({ time: e.target.value || s.meetTime })}
                 />
               </label>
             </div>

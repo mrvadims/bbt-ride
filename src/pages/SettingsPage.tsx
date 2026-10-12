@@ -119,7 +119,7 @@ function Users({ me }: { me: Me }) {
                       <button
                         type="button"
                         className="linkbtn"
-                        onClick={() => act.mutate({ path: `/users/${u.id}/reset-link`, body: {} })}
+                        onClick={() => act.mutate({ path: `/users/${u.id}/reset-link`, method: "POST" })}
                       >
                         Reset link
                       </button>{" "}
@@ -446,7 +446,10 @@ export function SettingsPage({ me }: { me: Me }) {
     onSuccess: done,
     onError: (e) => setError(e.message),
   });
-  const reset = useMutation({ mutationFn: () => api<TeamSettings>("/settings/reset", { body: {} }), onSuccess: done });
+  const reset = useMutation({
+    mutationFn: () => api<TeamSettings>("/settings/reset", { method: "POST" }),
+    onSuccess: done,
+  });
   if (!team) return <p className="muted small">Loading…</p>;
   const s = team.settings;
   const num = (k: keyof Settings, label: string, step = 1, unit?: string) => (
@@ -470,7 +473,7 @@ export function SettingsPage({ me }: { me: Me }) {
           label="Ride defaults"
           titled
           collapsed
-          summary={`meet ${fmtTime(hhmmToMin(s.rollout))} · ${s.durationH} h · ${s.pace} mph · coffee ${s.stopMin} min · regroups ${s.regroupPct}%`}
+          summary={`meet ${fmtTime(hhmmToMin(s.meetTime))} · ${s.durationH} h · ${s.pace} mph · coffee ${s.stopMin} min · regroups ${s.regroupPct}%`}
         >
           <div className="settings-grid">
             {num("pace", "Pace", 0.5, "mph")}
@@ -479,10 +482,10 @@ export function SettingsPage({ me }: { me: Me }) {
               <input
                 type="time"
                 step={900}
-                defaultValue={s.rollout}
-                key={s.rollout}
+                defaultValue={s.meetTime}
+                key={s.meetTime}
                 onBlur={(e) =>
-                  e.target.value && e.target.value !== s.rollout && save.mutate({ rollout: e.target.value })
+                  e.target.value && e.target.value !== s.meetTime && save.mutate({ meetTime: e.target.value })
                 }
               />
             </label>

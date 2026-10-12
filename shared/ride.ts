@@ -52,7 +52,7 @@ interface RideTimes {
 /** k = 1 + regroup buffer; ETA at mile m = meet time + (m ÷ pace) × k; the stop adds its length. */
 export function rideTimes(
   route: Route,
-  rollout: string,
+  meetTime: string,
   pace: number,
   stopName: string | null,
   s: Settings,
@@ -60,7 +60,7 @@ export function rideTimes(
   const distMi = route.distance_m / M_PER_MI;
   const movingH = distMi / pace;
   const k = 1 + s.regroupPct / 100;
-  const start = hhmmToMin(rollout);
+  const start = hhmmToMin(meetTime);
   const poi = stopName ? (route.pois.find((p) => p.name === stopName) ?? null) : null;
   const len = poi ? s.stopMin : 0;
   return {

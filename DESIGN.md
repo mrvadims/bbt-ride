@@ -42,7 +42,7 @@ links(token_hash PRIMARY KEY, kind CHECK(kind IN ('invite','reset')), email, rol
 settings(key PRIMARY KEY, value_json, updated_by NULL, updated_at)   -- one row per setting
 kit_bands(id, min_feel_f, name, items_json)                          -- editable kit chart, ordered by min_feel_f
 spots(id, name UNIQUE, lat, lng, maps_url, note, archived DEFAULT 0, created_at)
-rides(id, date, rollout, spot_id, pace_mph, notes, observed_json NULL, status CHECK(status IN ('published','cancelled')),
+rides(id, date, meet_time, spot_id, pace_mph, notes, observed_json NULL, status CHECK(status IN ('published','cancelled')),
       created_by NULL, updated_by NULL, created_at, updated_at)   -- UNIQUE(date) WHERE status = 'published'
 ride_routes(ride_id, sort, label, rwgps_route_id, stop_poi NULL, PRIMARY KEY(ride_id, sort))  -- stop_poi = name of the route's POI
 route_cache(rwgps_route_id PRIMARY KEY, name NULL, json NULL, in_library DEFAULT 0, fetched_at NULL)  -- in_library = listed in route search

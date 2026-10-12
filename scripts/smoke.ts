@@ -207,7 +207,7 @@ check(
 const day = new Date(Date.now() + (400 + (Math.floor(Date.now() / 1000) % 90000)) * 864e5).toISOString().slice(0, 10); // unique per second
 const plan = {
   date: day,
-  rollout: "08:30",
+  meetTime: "08:30",
   spotId: "suny-purchase",
   pace: 17,
   notes: "Lights on",
@@ -247,7 +247,7 @@ check(
   "only the author edits a message",
 );
 
-const upd = await admin(`/api/rides/${id}`, { method: "PUT", body: { ...plan, rollout: "09:00" } });
+const upd = await admin(`/api/rides/${id}`, { method: "PUT", body: { ...plan, meetTime: "09:00" } });
 check(upd.json?.lastUpdate?.text?.includes("meet 8:30 AM → 9:00 AM"), "update posts what changed");
 check(upd.json.rsvps.length === 1, "RSVPs kept after an update");
 let c = (await admin(`/api/rides/${id}/cancel`, { body: {} })).json;
@@ -255,8 +255,9 @@ check(
   c.status === "cancelled" && c.messages.some((m: Json) => m.kind === "cancel"),
   "cancel keeps the ride and posts a message",
 );
-c = (await admin(`/api/rides/${id}`, { method: "PUT", body: { ...plan, rollout: "09:00", notes: "still cancelled?" } }))
-  .json;
+c = (
+  await admin(`/api/rides/${id}`, { method: "PUT", body: { ...plan, meetTime: "09:00", notes: "still cancelled?" } })
+).json;
 check(c.status === "cancelled", "editing a cancelled ride keeps it cancelled");
 check(c.lastUpdate?.text === upd.json.lastUpdate?.text, "editing a cancelled ride posts no update");
 check(
