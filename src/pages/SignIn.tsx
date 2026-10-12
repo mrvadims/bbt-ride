@@ -34,7 +34,7 @@ const errorText = (code: string | null) =>
       : "Google sign-in didn't complete. Try again.";
 
 /** Where to go after signing in: the ?next= path the app was opened at, if it's one of ours. */
-export const nextPath = (query: URLSearchParams) => {
+const nextPath = (query: URLSearchParams) => {
   const next = query.get("next") ?? "/";
   return next.startsWith("/") && !next.startsWith("//") ? next : "/";
 };

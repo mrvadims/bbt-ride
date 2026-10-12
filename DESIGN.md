@@ -46,7 +46,7 @@ rides(id, date, meet_time, spot_id, pace_mph, notes, observed_json NULL, status 
       created_by NULL, updated_by NULL, created_at, updated_at)   -- UNIQUE(date) WHERE status = 'published'
 ride_routes(ride_id, sort, label, rwgps_route_id, stop_poi NULL, PRIMARY KEY(ride_id, sort))  -- stop_poi = name of the route's POI
 route_cache(rwgps_route_id PRIMARY KEY, name NULL, json NULL, in_library DEFAULT 0, fetched_at NULL)  -- in_library = listed in route search
-drafts(user_id PRIMARY KEY, ride_id NULL, form_json, updated_at)  -- editor autosave; ride_id set when editing
+drafts(user_id PRIMARY KEY, form_json, updated_at)                 -- editor autosave (the form says which ride it edits)
 rsvps(ride_id, user_id, status CHECK(status IN ('in','out')), route_label NULL, updated_at, PRIMARY KEY(ride_id, user_id))
 messages(id, ride_id, user_id NULL, parent_id NULL, kind CHECK(kind IN ('user','update','cancel','restore')) DEFAULT 'user',
          body, created_at, edited_at NULL, deleted_at NULL)       -- parent_id = reply to; kind 'update' etc. = "Ride update" posts;
@@ -267,9 +267,9 @@ Never in the repo, the built assets, or any response to the browser. All third-p
 - Worker routes: `/api/auth/*` (Better Auth) and `/api/*` (the app's JSON API, Hono); everything else is static assets (the app shell, `/privacy`). See Users and roles for the checks.
 - D1: the tables in Data model. KV: forecast and NWS alert cache.
 - Scheduled job (Cron Trigger, every 3 hours), one task after another: saves recorded weather on rides whose window has passed (from the cached forecast's past hours), syncs the captain's RWGPS routes, then fetches up to 10 library routes (a route that fails is retried a week later), staying well inside the free plan's 50 outbound requests per run.
-- Push: sent from the Worker with a Web Crypto-based Web Push library, in the background (`waitUntil`); a subscription the push service reports gone (404/410) is deleted.
+- Push: sent from the Worker with a Web Crypto-based Web Push library, in the background (`waitUntil`); a subscription the push service reports gone (404/410) is deleted. One request per device, so the free plan's 50 outbound requests per invocation cap a notification at about 48 devices; batching or a Queue is the next step if the team grows past that.
 - Backups: D1 Time Travel (restore to any minute in the last 7 days on the free plan).
-- Deploys: GitHub Actions on merge to `main` (`.github/workflows/deploy.yml`): lint, typecheck, tests, build, `wrangler d1 migrations apply --remote`, then `wrangler deploy`, using the repository's Cloudflare secrets. `ride.bbt.team` is attached once by hand in the Cloudflare dashboard. Pushes to other branches run the same checks without deploying (`ci.yml`); a pull request shows those results.
+- Deploys: GitHub Actions on merge to `main` (`.github/workflows/deploy.yml`): the CI checks (`ci.yml`: lint, typecheck, tests, build), then build, `wrangler d1 migrations apply --remote` and `wrangler deploy`; only the two Wrangler steps get the repository's Cloudflare secrets. Actions are pinned to commit SHAs; Node 22 (`.nvmrc`). A column rename breaks the old Worker for the minute between migration and deploy; the app shows a Reload screen if an open page meets the new API. `ride.bbt.team` is attached once by hand in the Cloudflare dashboard. Pushes to other branches run the same checks without deploying (`ci.yml`); a pull request shows those results.
 - Tests: unit tests for the shared algorithms (the worked examples in this document), password hashing, route simplification, the Web Push payload and the per-spot weather cache; `scripts/smoke.ts` (API checks) and `scripts/ui-smoke.ts` (browser checks) run against the local dev server.
 
 ## Backlog (post-v1)

@@ -7,6 +7,9 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { failed: 
   static getDerivedStateFromError() {
     return { failed: true };
   }
+  componentDidCatch(error: unknown) {
+    console.error(error);
+  }
   render() {
     if (!this.state.failed) return this.props.children;
     return (

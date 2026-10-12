@@ -11,7 +11,7 @@ import { useRide, useRides, useSpots } from "../lib/data.ts";
 import { usePrefs } from "../lib/prefs.ts";
 import { type RideModel, useRideModel } from "../lib/rideModel.ts";
 import { Link, navigate } from "../lib/router.tsx";
-import { units } from "../lib/units.ts";
+import { type Units, units } from "../lib/units.ts";
 
 /** Tabs: this weekend plus any upcoming day with a ride (published or cancelled). */
 export function rideDays(rides: RideSummary[]): string[] {
@@ -39,7 +39,7 @@ export function DayTabs({ days, current }: { days: string[]; current: string }) 
   );
 }
 
-function shareText(ride: RideDetail, m: RideModel, u: ReturnType<typeof units>): string {
+function shareText(ride: RideDetail, m: RideModel, u: Units): string {
   const st = m.ev?.st;
   const lines = [
     `${ride.status === "cancelled" ? "CANCELLED: " : ""}BBT ride · ${dayLabel(ride.date, true)}`,

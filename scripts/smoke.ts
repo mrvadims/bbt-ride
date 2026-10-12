@@ -4,7 +4,6 @@ import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 
 const BASE = "http://localhost:8787";
-if (!BASE.includes("localhost")) throw new Error("local only");
 const stamp = Date.now().toString(36);
 // Sign-in is rate-limited per client IP; locally the IP comes from this header (Cloudflare sets it in production).
 const ip = `10.${Date.now() % 250}.${Math.floor(Math.random() * 250)}.${Math.floor(Math.random() * 250)}`;

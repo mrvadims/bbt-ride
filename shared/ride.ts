@@ -87,7 +87,6 @@ export function haversine(lat1: number, lng1: number, lat2: number, lng2: number
   return 2 * 6371000 * Math.asin(Math.sqrt(x));
 }
 
-/** Distance (m) from a route's first track point to a spot. */
 /** The point nearest to lat/lng, e.g. the start spot a route begins at. */
 export function nearest<T extends { lat: number; lng: number }>(lat: number, lng: number, points: T[]): T | undefined {
   let best: { p: T; d: number } | undefined;
@@ -98,6 +97,7 @@ export function nearest<T extends { lat: number; lng: number }>(lat: number, lng
   return best?.p;
 }
 
+/** Distance (m) from a route's first track point to a spot. */
 export function startDistance(route: Route, spot: Spot): number {
   const [lat, lng] = route.track[0] ?? [spot.lat, spot.lng];
   return haversine(lat, lng, spot.lat, spot.lng);

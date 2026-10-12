@@ -126,7 +126,7 @@ export function PastRide({ id, me }: { id: string; me: Me }) {
           <LevelIcon level={2} />
           <div>
             <b>Ride cancelled</b>
-            <span>{ride.messages.find((x) => x.kind === "cancel")?.body ?? ""}</span>
+            <span>{ride.messages.findLast((x) => x.kind === "cancel")?.body ?? ""}</span>
           </div>
         </div>
       )}

@@ -1,7 +1,7 @@
 // Server data via TanStack Query: cached per endpoint, refetched when stale.
 import { keepPreviousData, QueryClient, useQuery } from "@tanstack/react-query";
-import type { Me, RideDetail, RideSummary, RouteSummary, Spot, TeamSettings, WeatherData } from "../../shared/api.ts";
-import type { Route } from "../../shared/ride.ts";
+import type { Me, RideDetail, RideSummary, RouteSummary, TeamSettings, WeatherData } from "../../shared/api.ts";
+import type { Route, Spot } from "../../shared/ride.ts";
 import { type Series, toSeries } from "../../shared/weather.ts";
 import { ApiError, api } from "./api.ts";
 

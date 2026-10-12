@@ -6,6 +6,7 @@ import { nowIso } from "./util.ts";
 
 const MAX_POINTS = 350;
 const STALE_MS = 7 * 24 * 60 * 60 * 1000;
+const timeout = () => AbortSignal.timeout(10_000);
 
 interface RwgpsRoute {
   id: number;
@@ -26,11 +27,17 @@ function authHeaders(env: Env): HeadersInit {
 
 async function fetchRaw(env: Env, id: number): Promise<RwgpsRoute | null> {
   try {
-    const pub = await fetch(`https://ridewithgps.com/routes/${id}.json`, { headers: { Accept: "application/json" } });
+    const pub = await fetch(`https://ridewithgps.com/routes/${id}.json`, {
+      headers: { Accept: "application/json" },
+      signal: timeout(),
+    });
     if (!pub.ok) await pub.body?.cancel();
     const res = pub.ok
       ? pub
-      : await fetch(`https://ridewithgps.com/api/v1/routes/${id}.json`, { headers: authHeaders(env) });
+      : await fetch(`https://ridewithgps.com/api/v1/routes/${id}.json`, {
+          headers: authHeaders(env),
+          signal: timeout(),
+        });
     if (!res.ok) {
       await res.body?.cancel();
       return null;
@@ -85,8 +92,8 @@ export async function getRoute(env: Env, id: number): Promise<Route | null> {
     return JSON.parse(row.json) as Route;
   const raw = await fetchRaw(env, id);
   if (!raw) {
-    if (row && !row.json)
-      // remember the failed try, so the library fill doesn't retry it every run
+    // Remember the failed try, so neither the library fill nor each view retries it before the week is up.
+    if (row)
       await env.DB.prepare("update route_cache set fetched_at = ? where rwgps_route_id = ?").bind(nowIso(), id).run();
     return row?.json ? (JSON.parse(row.json) as Route) : null;
   }
@@ -104,6 +111,7 @@ export async function getRoute(env: Env, id: number): Promise<Route | null> {
 export async function syncCaptainLibrary(env: Env): Promise<void> {
   const res = await fetch("https://ridewithgps.com/api/v1/routes.json?page=1&page_size=200", {
     headers: authHeaders(env),
+    signal: timeout(),
   });
   if (!res.ok) {
     await res.body?.cancel();

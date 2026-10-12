@@ -449,6 +449,7 @@ export function SettingsPage({ me }: { me: Me }) {
   const reset = useMutation({
     mutationFn: () => api<TeamSettings>("/settings/reset", { method: "POST" }),
     onSuccess: done,
+    onError: (e) => setError(e.message),
   });
   if (!team) return <p className="muted small">Loading…</p>;
   const s = team.settings;

@@ -169,7 +169,7 @@ export function PlanPage() {
   const editingRide = useRide(form?.editing).data; // stays current after Cancel / Restore
   const today = nyNow().date;
   const dateQuery = query.get("date"); // from a ride page link
-  const dateParam = isDate(dateQuery) ? dateQuery : null;
+  const dateParam = isDate(dateQuery) && dateQuery >= today ? dateQuery : null;
 
   // The first weekend day in the coming week with no ride yet; otherwise this Saturday.
   const nextFreeDay = (): string => {
@@ -207,10 +207,10 @@ export function PlanPage() {
       return setForm({ ...base, ...fromRide(sourceRide, sourceRide.date, sourceRide.id, team.settings.pace) });
     if (reuseId && sourceRide)
       return setForm({ ...base, ...fromRide(sourceRide, nextFreeDay(), null, team.settings.pace) });
-    api<{ rideId: string | null; form: Partial<Form> } | null>("/draft")
+    api<{ form: Partial<Form> } | null>("/draft")
       .then((d) => {
         const restored = { ...base, ...(d?.form ?? {}) };
-        if (restored.date < today) restored.date = base.date; // stale draft
+        if (restored.date < today) Object.assign(restored, { date: base.date, editing: null }); // stale draft
         if (dateParam) Object.assign(restored, { date: dateParam, editing: null });
         setForm(restored);
       })
@@ -224,7 +224,7 @@ export function PlanPage() {
   useEffect(() => {
     if (!form || !dirty.current) return;
     const t = setTimeout(() => {
-      saving.current = api("/draft", { method: "PUT", body: { rideId: form.editing, form } }).catch(() => undefined);
+      saving.current = api("/draft", { method: "PUT", body: { form } }).catch(() => undefined);
     }, 800);
     return () => clearTimeout(t);
   }, [form]);
@@ -312,6 +312,7 @@ export function PlanPage() {
   const publish = useMutation({
     mutationFn: async (replace: boolean) => {
       if (!form || !draftRide) throw new Error("Pick a start spot and a route");
+      if (form.altOn && form.altId && !altRoute) throw new Error("The alternate route hasn't loaded yet");
       const body: RideInput = {
         date: draftRide.date,
         meetTime: draftRide.meetTime,

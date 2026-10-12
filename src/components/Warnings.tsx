@@ -1,4 +1,5 @@
 // Warnings as boxes (ride page) or chips (Plan's spot list), in the rider's units.
+import type { ReactNode } from "react";
 import { fmtTime } from "../../shared/time.ts";
 import { compass, type Warning } from "../../shared/weather.ts";
 import type { Units } from "../lib/units.ts";
@@ -72,7 +73,7 @@ export function WarningBoxes({ list, u, lookback }: { list: Warning[]; u: Units;
   );
 }
 
-export function Pill({ level, children }: { level: 0 | 1 | 2; children: React.ReactNode }) {
+export function Pill({ level, children }: { level: 0 | 1 | 2; children: ReactNode }) {
   return (
     <span className={`pill lv${level}`}>
       <LevelIcon level={level} />

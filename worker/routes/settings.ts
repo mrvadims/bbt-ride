@@ -13,9 +13,11 @@ export async function loadSettings(db: D1Database): Promise<Settings> {
     .prepare("select key, value_json from settings")
     .all<{ key: string; value_json: string }>();
   const stored = Object.fromEntries(results.map((r) => [r.key, JSON.parse(r.value_json)]));
-  // Stored values override the first-run defaults; anything invalid falls back to the default.
-  const parsed = settingsSchema.partial().safeParse(stored);
-  return { ...DEFAULT_SETTINGS, ...(parsed.success ? parsed.data : {}) };
+  // Stored values override the first-run defaults; each invalid one falls back to its default.
+  const valid = Object.entries(stored).filter(
+    ([k, v]) => settingsSchema.shape[k as keyof Settings]?.safeParse(v).success,
+  );
+  return { ...DEFAULT_SETTINGS, ...Object.fromEntries(valid) };
 }
 
 async function loadKit(db: D1Database): Promise<KitBand[]> {

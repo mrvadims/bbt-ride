@@ -1,7 +1,7 @@
 // JSON shapes exchanged between the Worker (/api/*) and the React app, plus request schemas the Worker validates.
 import { z } from "zod";
 import type { KitBand } from "./kit.ts";
-import type { RideRoute, Spot } from "./ride.ts";
+import type { RideRoute } from "./ride.ts";
 import { HHMM, type Settings } from "./settings.ts";
 import type { Alert, OpenMeteoResponse } from "./weather.ts";
 
@@ -100,8 +100,6 @@ export interface RouteSummary {
   start: [number, number]; // lat, lng of the first track point
 }
 
-export type { Spot };
-
 // ---- request schemas ----
 const date = z.iso.date(); // a real calendar date, YYYY-MM-DD
 const hhmm = z.string().regex(HHMM);
@@ -145,7 +143,7 @@ export const spotInput = z.object({
 export const spotEdit = spotInput.partial().extend({ archived: z.boolean().optional() });
 
 export const inviteInput = z.object({
-  email: z.string().trim().toLowerCase().email(),
+  email: z.string().trim().toLowerCase().pipe(z.email()),
   role: z.enum(ROLES),
 });
 export const userEdit = z.object({
@@ -167,13 +165,6 @@ export const linkAccept = z.object({
 const PUSH_HOSTS =
   /^(fcm\.googleapis\.com|jmt\d+\.google\.com|([a-z0-9-]+\.)?push\.services\.mozilla\.com|web\.push\.apple\.com|[a-z0-9-]+\.notify\.windows\.com)$/;
 export const pushSubscription = z.object({
-  endpoint: z
-    .string()
-    .url()
-    .max(1000)
-    .refine((u) => {
-      const url = URL.parse(u); // zod still runs this when .url() fails
-      return url?.protocol === "https:" && PUSH_HOSTS.test(url.hostname);
-    }, "Not a browser push service"),
+  endpoint: z.url({ protocol: /^https$/, hostname: PUSH_HOSTS, error: "Not a browser push service" }).max(1000),
   keys: z.object({ p256dh: z.string().max(200), auth: z.string().max(100) }),
 });

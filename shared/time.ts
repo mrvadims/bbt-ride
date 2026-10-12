@@ -1,4 +1,6 @@
 // All ride times are America/New_York wall-clock: a date "YYYY-MM-DD" plus minutes after midnight.
+import { z } from "zod";
+
 export const TZ = "America/New_York";
 
 const NY_FMT = new Intl.DateTimeFormat("en-CA", {
@@ -44,12 +46,10 @@ export function addDays(date: string, n: number): string {
   return t.toISOString().slice(0, 10);
 }
 
+/** A real calendar date in YYYY-MM-DD form (e.g. from a URL; rejects 2026-02-31). */
+export const isDate = (v: string | null | undefined): v is string => z.iso.date().safeParse(v).success;
+
 /** Day of week, 0 = Sunday. */
-/** A real calendar date in YYYY-MM-DD form (e.g. from a URL). */
-export const isDate = (v: string | null | undefined): v is string => {
-  const t = v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? Date.parse(`${v}T00:00:00Z`) : Number.NaN;
-  return !Number.isNaN(t) && new Date(t).toISOString().startsWith(v as string); // rejects 2026-02-31
-};
 
 export const dow = (date: string): number => new Date(`${date}T00:00:00Z`).getUTCDay();
 

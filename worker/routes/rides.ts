@@ -31,10 +31,16 @@ interface RideRow {
 }
 
 /** Ride summaries for rides matching `where` (a condition on table alias r), with routes, counts and the latest update. */
-async function summaries(db: D1Database, where: string, binds: unknown[], order = "r.date"): Promise<RideSummary[]> {
+async function summaries(
+  db: D1Database,
+  where: string,
+  binds: unknown[],
+  order = "r.date",
+  limit?: number,
+): Promise<RideSummary[]> {
   const { results: rides } = await db
     .prepare(
-      `select r.id, r.date, r.meet_time, r.spot_id, r.pace_mph, r.notes, r.status, r.observed_json from rides r where ${where} order by ${order}`,
+      `select r.id, r.date, r.meet_time, r.spot_id, r.pace_mph, r.notes, r.status, r.observed_json from rides r where ${where} order by ${order}${limit ? ` limit ${limit}` : ""}`,
     )
     .bind(...binds)
     .all<RideRow>();
@@ -221,7 +227,7 @@ const notifyReplaced = (env: Env, rideId: string, date: string) =>
 export const rides = new Hono<AppEnv>()
   // Upcoming rides (today on), published and cancelled.
   .get("/", async (c) => c.json(await summaries(c.env.DB, "r.date >= ?", [nyNow().date])))
-  .get("/past", async (c) => c.json(await summaries(c.env.DB, "r.date < ?", [nyNow().date], "r.date desc limit 200")))
+  .get("/past", async (c) => c.json(await summaries(c.env.DB, "r.date < ?", [nyNow().date], "r.date desc", 200)))
   .get("/:id", async (c) => c.json(await detail(c.env.DB, c.req.param("id"))))
 
   .post("/", requireRole("edit"), validate("json", rideInput), async (c) => {

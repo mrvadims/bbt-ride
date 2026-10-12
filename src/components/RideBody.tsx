@@ -13,12 +13,11 @@ import { ElevationChart } from "./charts.tsx";
 import { HourTable } from "./HourTable.tsx";
 import { WxIcon, wxLabel } from "./icons.tsx";
 import { EmptyPanel, Panel } from "./Panel.tsx";
+import { Sheet } from "./Sheet.tsx";
+import { WarningBoxes } from "./Warnings.tsx";
 
 // The map library is large; load it only when a Route panel opens.
 const RouteMap = lazy(() => import("./RouteMap.tsx").then((m) => ({ default: m.RouteMap })));
-
-import { Sheet } from "./Sheet.tsx";
-import { WarningBoxes } from "./Warnings.tsx";
 
 const WX_APPS: Record<Prefs["wxApp"], { name: string; url: (s: Spot) => string }> = {
   nws: {
