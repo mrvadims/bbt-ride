@@ -163,6 +163,6 @@ console.cloud.google.com → project **bbt-ride** → **Google Auth Platform →
 
 ### D. Build and try it
 
-1. Merge any change to `main` (or re-run the last Deploy). The Deploy run's **android** job should print `Built BBT for Android 1.0 (1), <size>`.
+1. Merge any change to `main` (or re-run the last Deploy). The Deploy run's **android** job should print `Built BBT for Android <versionName> (<versionCode>), <size>`, e.g. `1.1 (2)`.
 2. On an Android phone open https://app.bbt.team/download/, install, sign in with Google, turn on notifications, and have someone post an activity or edit one you're In for (Still in / I'm out).
 3. A new native version (only when `android/` changes): bump `versionCode` and `versionName` in `android/app/build.gradle`; installed apps then show "Update available".

@@ -9,8 +9,8 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         // Bump both when the native shell changes; the web app offers "Update available" when its versionCode is behind
         // /download/android.json (written by scripts/build-apk.sh from these values).
-        versionCode 1
-        versionName "1.0"
+        versionCode 2
+        versionName "1.1"
     }
     // Release signing from the deploy workflow's secrets (DESIGN.md → v2, Android app); without them only debug builds.
     signingConfigs {
