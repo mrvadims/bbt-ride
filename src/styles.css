@@ -1073,8 +1073,18 @@ a.spotrow {
   max-height: calc(100dvh - 76px);
   overflow-y: auto;
 }
-.acctmenu .who b {
-  display: block;
+.acctmenu .who-name {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.acctmenu .who-name b {
+  overflow-wrap: anywhere;
+}
+.acctmenu .row-btns {
+  display: flex;
+  gap: 8px;
 }
 .acctmenu .row2 {
   display: grid;

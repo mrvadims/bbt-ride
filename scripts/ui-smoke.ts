@@ -135,6 +135,13 @@ await page.keyboard.press("Escape");
 check(await page.getByText(/\d km/).first().isVisible(), "metric display after switching units");
 await page.getByLabel("Account menu").click();
 await page.getByRole("button", { name: "°F · mi" }).click();
+// Members can change their own name
+await page.getByRole("button", { name: "Edit name" }).click();
+await page.getByLabel("Your name").fill("Captain Renamed");
+await shot(page, "edit-name");
+await page.getByRole("button", { name: "Save" }).click();
+await page.locator(".who-name b", { hasText: "Captain Renamed" }).waitFor();
+check(await page.getByRole("button", { name: "Edit name" }).isVisible(), "a member changes their own name");
 // New-activity notifications per sport: turning one off is saved and shows as off
 const swim = page.getByRole("group", { name: "Tell me about new" }).getByRole("button", { name: "Swim" });
 await swim.click();
