@@ -66,6 +66,7 @@ Every open question from the design review, with what was decided. Details live 
 | Plan fields | Sport first; title optional (defaults to route or sport name); end time per sport; pace for ride and run, one Details line for the rest; indoor/outdoor for swim (Pool / Open water), pickleball and other | 2026-10-13 |
 | Places | Where = a saved place or a pasted Google Maps pin; v1 spots, with notes now optional | 2026-10-13 |
 | Routes | Ride and run take a RideWithGPS route (search or pasted link); Open in RideWithGPS is a tile with RideWithGPS's vertical logo, no extra text | 2026-10-13 |
+| Buttons | Three kinds everywhere: primary (filled, one per screen), secondary (outlined text), tiles (icon over one word). Every activity has one action row: Directions · Calendar · Share · RideWithGPS (when there's a route) | 2026-10-13 |
 | Weather | Thresholds per weather group (Ride, Run, Ski, Outdoor); indoor = no weather check; kit chart stays ride-only; still no "Good" badge | 2026-10-13 |
 | Spots limit | Not now (backlog: optional cap with waitlist) | 2026-10-13 |
 | Notifications | Adds New activity posted, sent only to people following that sport (per-sport switches in the account menu, all on by default); changes and cancellations still go to everyone with notifications on | 2026-10-13 |

@@ -282,8 +282,13 @@ Everything above is v1 as deployed. v2 turns BBT Ride into **BBT**: the same tea
 - **Name:** the app is called **BBT** (app name, page title, icons). The address stays `ride.bbt.team`. The app and notification icon becomes the full bike logo on Light Blue (today's icon is the "bbt" wordmark).
 - **Sports:** Ride, Run, Swim, Pickleball, Ski and Other. Admins turn sports on or off for the team (Settings → Sports); Plan offers only the ones that are on, plus Other (with its own title). No custom sports beyond Other.
 - **Home:** one list of upcoming activities, soonest first. Each row: sport icon, day · time, title, place, how many are in, and warning chips only when something needs attention (no "Good" state, as in v1). Sport filter buttons (All, then each sport that has something coming up) appear only when more than one sport is coming up. **Past activities** at the bottom opens today's Past list, now with a sport filter. No day tabs.
-- **Activity page:** the v1 ride page, generalised. Header card: sport · indoor/outdoor, title, day · time · details, and the Edit icon for editors. Panels as in v1, shown only when they apply: **Meet** (place, notes, Open in Maps, + Calendar), **Route** (ride and run only), **Weather** (outdoor only), **Notes**, **Who's in** (In / Out in the collapsed header, people, thread; renamed from Riders). Share and the "Updated …" note work as today.
-- **Route button:** wherever a route shows (Plan and the activity page), Open in RideWithGPS is a square tile with RideWithGPS's vertical logo (`ridewithgps-vertical-logo.svg`, supplied by the team) and no extra text; its accessible name is "Open in RideWithGPS".
+- **Activity page:** the v1 ride page, generalised. Header card: sport · indoor/outdoor, title, day · time · details, and the Edit icon for editors. Under it, the **action row** (below). Then panels as in v1, shown only when they apply: **Meet** (place and its notes), **Route** (ride and run only), **Weather** (outdoor only), **Notes**, **Who's in** (In / Out in the collapsed header, people, thread; renamed from Riders). The "Updated …" note works as today.
+- **Action row:** every way to leave the app for something else is one row of equal tiles, in the same place and order on every activity: **Directions** (choose Apple Maps, Google Maps or Waze), **Calendar** (add this activity, or subscribe to the calendar link), **Share** (the phone's share sheet), and **RideWithGPS** for activities with a route. It replaces v1's separate "Open in Google Maps", "+ Calendar", "Open in RWGPS" links and the Share icon.
+- **Buttons:** three kinds, used the same way everywhere.
+  - *Primary* (filled Light Blue, full width): the one main action on a screen, e.g. Publish, Continue, Add this activity.
+  - *Secondary* (white, thin border, text): other choices, e.g. Subscribe, Allow, Discard changes. In / Out and similar either-or choices are a pair where the selected one is filled.
+  - *Tile* (white, thin border, 64 px tall, icon over a one-word label): the action row, plus the RideWithGPS tile beside Plan's route field. RideWithGPS's tile shows only its vertical logo (`ridewithgps-vertical-logo.svg`, supplied by the team), which already carries the name; its accessible name is "Open in RideWithGPS".
+  - Icon-only buttons appear only in the top bar and for Edit (pencil), each with an accessible name.
 - **Top bar:** unchanged from v1 on every screen: logo (home), Plan, Settings, account. No page titles or back buttons in the bar.
 
 ### Plan
@@ -313,7 +318,7 @@ Ride keeps today's thresholds. The others start with first-guess defaults (Run: 
 
 ### Calendar link
 Each person can subscribe their own calendar (Apple, Google, Outlook) to a private feed of everything they're **In** for: upcoming activities plus the last 30 days, with changes and cancellations (shown as cancelled) updating the events by themselves. It needs no app and no calendar permission, so it works on every phone and computer.
-- **Where:** the account menu (**Calendar: Subscribe · Copy link · Reset link**), the + Calendar sheet on an activity, and the Android app's first launch. The one-off **Add this activity** (.ics, Google, Outlook links) stays.
+- **Where:** the account menu (**Calendar: Subscribe · Copy link · Reset link**), the Calendar tile on an activity, and the Android app's first launch. The one-off **Add this activity** (.ics, Google, Outlook links) stays.
 - **How:** `GET /cal/<token>.ics`, where the token is a random secret per person; only its SHA-256 is stored. Reset makes a new token and the old link stops working. This is the one data URL that works without a session, so the feed carries only that person's own activities and no messages.
 - **Refresh:** each calendar app polls on its own schedule; Apple Calendar typically within hours, Google Calendar can take up to a day. Notifications stay the fast path for last-minute changes.
 
