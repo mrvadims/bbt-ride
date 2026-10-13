@@ -1,7 +1,9 @@
 // Sign in with Google (main) or username/email + password (DESIGN.md → Users and roles).
 import { useQueryClient } from "@tanstack/react-query";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { authClient } from "../lib/api.ts";
+import { queryClient } from "../lib/data.ts";
+import { bbt, isApp } from "../lib/native.ts";
 import { navigate, useLocation } from "../lib/router.tsx";
 
 export const GoogleMark = () => (
@@ -39,13 +41,50 @@ const nextPath = (query: URLSearchParams) => {
   return next.startsWith("/") && !next.startsWith("//") ? next : "/";
 };
 
-export const continueWithGoogle = (next = "/") =>
-  authClient.signIn.social({ provider: "google", callbackURL: next, errorCallbackURL: "/signin" });
+let signingIn = false; // the app's account picker is already open
+
+export async function continueWithGoogle(next = "/") {
+  if (!isApp()) {
+    await authClient.signIn.social({ provider: "google", callbackURL: next, errorCallbackURL: "/signin" });
+    return;
+  }
+  // The Android app: Google's own account picker, then Better Auth checks the ID token (Google doesn't allow its
+  // sign-in page inside an app's WebView).
+  if (signingIn) return;
+  signingIn = true;
+  const failed = (code: string) =>
+    navigate(
+      `/signin?error=${encodeURIComponent(code)}${next === "/" ? "" : `&next=${encodeURIComponent(next)}`}`,
+      true,
+    );
+  try {
+    let idToken: string;
+    try {
+      idToken = (await bbt.googleSignIn()).idToken;
+    } catch (e) {
+      if ((e as { code?: string }).code !== "CANCELLED") failed("google");
+      return;
+    }
+    const res = await authClient.signIn.social({ provider: "google", idToken: { token: idToken }, callbackURL: next });
+    if (res.error) {
+      failed(res.error.message ?? "google");
+      return;
+    }
+    await queryClient.invalidateQueries();
+    navigate(next, true);
+  } finally {
+    signingIn = false;
+  }
+}
 
 export function SignIn() {
   const { query } = useLocation();
   const qc = useQueryClient();
   const [error, setError] = useState(errorText(query.get("error")));
+  const errorCode = query.get("error");
+  useEffect(() => {
+    if (errorCode) setError(errorText(errorCode)); // the app's Google sign-in reports back without leaving the page
+  }, [errorCode]);
   const [busy, setBusy] = useState(false);
 
   const submit = async (e: FormEvent<HTMLFormElement>) => {

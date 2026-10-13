@@ -218,6 +218,8 @@ export const linkAccept = linkToken.extend({
 // fcm.googleapis.com, jmt<N>.google.com), Mozilla (Firefox), Apple (Safari, iOS) and Microsoft (Edge).
 const PUSH_HOSTS =
   /^(fcm\.googleapis\.com|jmt\d+\.google\.com|([a-z0-9-]+\.)?push\.services\.mozilla\.com|web\.push\.apple\.com|[a-z0-9-]+\.notify\.windows\.com)$/;
+/** The Android app's Firebase registration token. */
+export const appPushToken = z.object({ token: z.string().regex(/^[\w:-]{20,1024}$/, "Not a Firebase token") });
 export const pushSubscription = z.object({
   endpoint: z.url({ protocol: /^https$/, hostname: PUSH_HOSTS, error: "Not a browser push service" }).max(1000),
   keys: z.object({ p256dh: z.string().max(200), auth: z.string().max(100) }),

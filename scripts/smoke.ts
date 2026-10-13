@@ -142,6 +142,18 @@ check(
   (await rider("/api/push", { body: { endpoint: "not a url", keys: { p256dh: "x", auth: "y" } } })).status === 400,
   "a malformed push endpoint is a 400, not a server error",
 );
+// The Android app's Firebase token
+const fcmToken = `smoke-${stamp}:APA91b${"x".repeat(40)}`;
+check((await rider("/api/push/app", { body: { token: fcmToken } })).status === 204, "the app registers its token");
+check((await rider("/api/push/app", { body: { token: fcmToken } })).status === 204, "registering again is fine");
+check(
+  (await rider("/api/push/app", { body: { token: "no spaces allowed here at all" } })).status === 400,
+  "a malformed app token is refused",
+);
+check(
+  (await rider("/api/push", { method: "DELETE", body: { endpoint: fcmToken } })).status === 204,
+  "the app's token can be removed",
+);
 
 // Settings
 const defaults = (await admin("/api/settings")).json.settings;

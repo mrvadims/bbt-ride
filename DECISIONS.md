@@ -78,6 +78,9 @@ Every open question from the design review, with what was decided. Details live 
 | Android | Signed APK from a download page on app.bbt.team, built by GitHub Actions; push via Firebase (free); native Google sign-in; no Play account for now | 2026-10-13 |
 | iPhone | Stays the Home Screen web app until the Apple fee ($99/year) or a nonprofit waiver is settled; then the same Capacitor project, unlisted App Store link | 2026-10-13 |
 | Leave-by alerts | Not now (backlog; would need location and a traffic API) | 2026-10-13 |
+| Android build | Capacitor 8; one in-app plugin (version, Firebase, Google sign-in, share, open outside) rather than several npm plugins; data-only Firebase messages drawn by the app so Still in / I'm out work in the background | 2026-10-13 |
+| APK hosting | Built in its own Deploy job and served with the site at /download/ (no Releases, R2 or KV); a failed Android build shows red but doesn't block the web deploy | 2026-10-13 |
+| Firebase key | A service account with only "Firebase Cloud Messaging API Admin", not the Admin SDK key | 2026-10-13 |
 
 ## Notes
 - **Prototype data.** In sandboxed previews (such as the private artifact) the prototype can't reach Open-Meteo or map tiles, so it shows the saved Oct 7–11 sample (yellow banner) and an outline map. Opened directly in a browser it fetches live. The real app fetches forecasts through the Worker.

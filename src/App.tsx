@@ -1,8 +1,10 @@
 // Routes and the sign-in gate. Public: /signin, /invite/:token, /reset/:token (and the static /privacy page).
 import { lazy, type ReactNode, Suspense, useEffect } from "react";
+import { AppExtras } from "./components/AppExtras.tsx";
 import { TopBar } from "./components/TopBar.tsx";
 import { ApiError } from "./lib/api.ts";
 import { useMe } from "./lib/data.ts";
+import { isApp } from "./lib/native.ts";
 import { navigate, useLocation } from "./lib/router.tsx";
 import { ActivityPage } from "./pages/ActivityPage.tsx";
 import { HomePage } from "./pages/HomePage.tsx";
@@ -53,6 +55,7 @@ export function App() {
     <>
       <TopBar me={user ?? null} />
       <main>
+        {user && isApp() && <AppExtras />}
         <Suspense fallback={<p className="muted small">Loading…</p>}>{content}</Suspense>
       </main>
     </>

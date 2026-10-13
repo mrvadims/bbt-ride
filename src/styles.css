@@ -87,6 +87,8 @@ html {
 }
 body {
   margin: 0;
+  /* Drawn edge to edge (Android app, iPhone Home Screen): start below the status bar; the top bar's ::before fills it. */
+  padding-top: env(safe-area-inset-top, 0px);
   background: var(--bg);
   color: var(--text);
   font:
@@ -131,6 +133,16 @@ h2 {
   top: env(safe-area-inset-top, 0px);
   z-index: 1500;
   border-bottom: 4px solid var(--stripe);
+}
+/* Behind the phone's status bar when the page is drawn edge to edge (Android app): the same blue as the bar. */
+.topbar::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  height: env(safe-area-inset-top, 0px);
+  background: var(--bar);
 }
 .topbar-inner {
   position: relative;
@@ -197,7 +209,7 @@ h2 {
 main {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 16px 16px 48px;
+  padding: 16px 16px calc(48px + env(safe-area-inset-bottom, 0px));
 }
 .daytabs {
   display: flex;
@@ -664,7 +676,7 @@ dialog.sheet {
   background: transparent;
   width: min(520px, calc(100% - 32px));
   max-width: none;
-  margin: auto auto 16px;
+  margin: auto auto calc(16px + env(safe-area-inset-bottom, 0px));
 }
 dialog.sheet::backdrop {
   background: rgba(2, 12, 43, 0.45);
