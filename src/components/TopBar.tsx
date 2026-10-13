@@ -5,7 +5,7 @@ import { type Me, ROLE_LABEL } from "../../shared/api.ts";
 import { SPORT_LABEL, type Sport } from "../../shared/sports.ts";
 import { api, authClient } from "../lib/api.ts";
 import { useTeam } from "../lib/data.ts";
-import { appPushOn, disableAppPush, enableAppPush, isAndroidBrowser, isApp } from "../lib/native.ts";
+import { appPushOn, disableAppPush, enableAppPush, isAndroidBrowser, isApp, isIosBrowser } from "../lib/native.ts";
 import { type Prefs, setPref, usePrefs } from "../lib/prefs.ts";
 import { currentSubscription, disablePush, enablePush, pushSupported } from "../lib/push.ts";
 import { Link, navigate, useLocation } from "../lib/router.tsx";
@@ -256,8 +256,13 @@ export function TopBar({ me }: { me: Me | null }) {
             <CalendarLink />
           </div>
           {isAndroidBrowser() && (
-            <a className="btn btn-outline btn-sm" href="/download/">
-              Get the Android app
+            <a className="btn btn-outline btn-sm" href="/download/#android">
+              Install on Android
+            </a>
+          )}
+          {isIosBrowser() && (
+            <a className="btn btn-outline btn-sm" href="/download/#iphone">
+              Install on iPhone
             </a>
           )}
           <button type="button" className="btn btn-outline btn-sm" onClick={signOut}>

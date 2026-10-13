@@ -24,13 +24,13 @@ header img{height:38px;width:auto;display:block}
 .btn{display:inline-flex;align-items:center;justify-content:center;min-height:52px;padding:0 24px;border-radius:12px;font-weight:700;font-size:18px;text-decoration:none}
 .btn-primary{background:var(--blue);color:#fff}
 .btn-primary:hover{background:#0067b5}
-.btn-secondary{background:var(--card);color:var(--link);border:1px solid var(--line);font-weight:600;font-size:17px}
+.btn-secondary{background:var(--card);color:var(--link);border:1px solid var(--line);font-weight:600;font-size:17px;gap:8px;padding:0 20px}
 .btn-light{background:#fff;color:#0067b5;min-height:44px;font-size:16px;padding:0 18px;border-radius:10px}
 .hero{display:flex;flex-wrap:wrap;align-items:center;gap:48px;padding-top:72px;padding-bottom:56px}
 .hero-text{flex:999 1 520px;min-width:0;display:flex;flex-direction:column;gap:20px}
 h1{margin:0;font-size:clamp(38px,6vw,62px);line-height:1.04;font-weight:800;letter-spacing:-.01em}
 .lead{margin:0;font-size:20px;color:var(--body);max-width:560px}
-.actions{display:flex;flex-wrap:wrap;gap:12px;padding-top:4px}
+.actions{display:flex;flex-wrap:wrap;gap:12px}
 .small{margin:0;font-size:15px;color:var(--muted)}
 .hero-art{flex:1 1 300px;min-width:0;display:flex;justify-content:center}
 .badge{width:100%;max-width:360px;aspect-ratio:1;border-radius:28px;background:var(--blue);display:flex;align-items:center;justify-content:center;box-shadow:0 18px 40px rgba(3,20,77,.18)}
@@ -68,9 +68,12 @@ footer nav{display:flex;flex-wrap:wrap;gap:20px}
 <p class="lead">The BBT team app: see what's coming up, check the weather for the start, and tell everyone you're in.</p>
 <div class="actions">
 <a class="btn btn-primary" href="https://app.bbt.team">Open BBT</a>
-<a class="btn btn-secondary" href="https://app.bbt.team/download/">Get the Android app</a>
 </div>
-<p class="small">For BBT members: sign in with the account you were invited with. On iPhone, <a href="https://app.bbt.team/download/">add BBT to your Home Screen</a> for notifications.</p>
+<div class="actions" aria-label="Get the app on your phone">
+<a class="btn btn-secondary" href="https://app.bbt.team/download/#iphone"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18h2"/></svg>Get it on iPhone</a>
+<a class="btn btn-secondary" href="https://app.bbt.team/download/#android"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18h2"/></svg>Get it on Android</a>
+</div>
+<p class="small">For BBT members: sign in with the account you were invited with.</p>
 </div>
 <div class="hero-art" aria-hidden="true"><div class="badge"><img src="/logo-white.svg" alt=""></div></div>
 </section>

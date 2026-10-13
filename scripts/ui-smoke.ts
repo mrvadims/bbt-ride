@@ -249,6 +249,12 @@ const hint = ipage.getByRole("region", { name: "Add BBT to your Home Screen" });
 await hint.waitFor();
 check(await hint.getByText("Add to Home Screen").isVisible(), "iPhone browser shows the install hint");
 await shot(ipage, "iphone-install-hint");
+await ipage.getByLabel("Account menu").click();
+check(
+  await ipage.getByRole("link", { name: "Install on iPhone" }).isVisible(),
+  "iPhone account menu offers Install on iPhone",
+);
+await ipage.keyboard.press("Escape");
 await hint.getByRole("button", { name: "Not now" }).click();
 await ipage.reload();
 // The hint and the Welcome sheet need the account; wait for it (and the async notification check) before looking.

@@ -81,6 +81,7 @@ Every open question from the design review, with what was decided. Details live 
 | APK hosting | Built in its own Deploy job and served with the site at /download/ (no Releases, R2 or KV); a failed Android build shows red but doesn't block the web deploy | 2026-10-13 |
 | iPhone | The Home Screen web app for now, with an install hint in iPhone browsers (Not now = 30 days) and the Welcome sheet on first open; once the Apple fee ($99/year) or a nonprofit waiver is settled, the same Capacitor project with an unlisted App Store link | 2026-10-13 |
 | Public site | One static page at www.bbt.team (and bbt.team) with Open BBT and the phone-app links; no sign-up, request-access form or contact address (invitation only); its own static Worker, separate from the app | 2026-10-13 |
+| iPhone and Android equal | Two equal buttons on the home page, two matching cards on the download page (your phone first), "Install on iPhone / Android" in the account menu | 2026-10-13 |
 | Firebase key | A service account with only "Firebase Cloud Messaging API Admin", not the Admin SDK key | 2026-10-13 |
 
 ## Notes
