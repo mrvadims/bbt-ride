@@ -4,7 +4,7 @@
   "main": "worker/index.ts",
   "compatibility_date": "2026-10-01",
   "compatibility_flags": ["nodejs_compat"],
-  // Only ride.bbt.team (attached by hand in the dashboard); no workers.dev or preview URLs.
+  // app.bbt.team, plus ride.bbt.team which the app forwards to it (both attached by hand in the dashboard); no workers.dev or preview URLs.
   "workers_dev": false,
   "preview_urls": false,
   "assets": {
@@ -32,7 +32,7 @@
   },
   "triggers": { "crons": ["15 */3 * * *"] },
   "vars": {
-    "BETTER_AUTH_URL": "https://ride.bbt.team",
+    "BETTER_AUTH_URL": "https://app.bbt.team",
     "GOOGLE_CLIENT_ID": "788843663115-civobe823j0r2vnkpgsjg7o8vqvik76c.apps.googleusercontent.com",
     "BOOTSTRAP_ADMIN_EMAIL": "mrvadims@gmail.com",
     "VAPID_SUBJECT": "mailto:info@bbt.team",

@@ -1,6 +1,6 @@
 # BBT Ride
 
-Ride planning and hyperlocal weather for the BBT cycling team — ride.bbt.team.
+Ride planning and hyperlocal weather for the BBT cycling team — app.bbt.team.
 
 - [DESIGN.md](DESIGN.md): scope, features, algorithms, data model, architecture.
 - [DECISIONS.md](DECISIONS.md): every design decision, with dates.

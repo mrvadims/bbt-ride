@@ -9,7 +9,7 @@ Nothing here is ever committed. Values go into Cloudflare Worker secrets, GitHub
 | 3. Google sign-in | Done 2026-10-11: app published, client created, `GOOGLE_CLIENT_SECRET` stored (verified), first Admin chosen |
 | 4. Web Push keys | Done 2026-10-12: `VAPID_PRIVATE_KEY` stored as a Worker secret (verified), public key in `wrangler.jsonc` |
 | 5. D1 database, KV namespace and Queue | D1 and KV done 2026-10-12; Queue created and deploy token updated 2026-10-12 |
-| 6. First deploy | Deployed and `ride.bbt.team` attached 2026-10-12. Next: sign in as the first Admin, check live data |
+| 6. First deploy | Deployed 2026-10-12 at `ride.bbt.team`; moved to `app.bbt.team` 2026-10-13 (both attached; the old address forwards) |
 
 ## 1. Cloudflare API token (for deploys)
 
@@ -38,7 +38,7 @@ Nothing here is ever committed. Values go into Cloudflare Worker secrets, GitHub
 8. **Create Token**, then copy it. Cloudflare shows it only once.
 9. Copy your **Account ID**: Workers & Pages → Overview, right sidebar.
 
-No DNS permission on purpose. When the Worker is ready, attach `ride.bbt.team` once by hand: Workers & Pages → bbt-ride → **Domains** tab → add a Custom domain. Cloudflare creates the DNS record for you, and the deploy token never needs DNS edit rights.
+No DNS permission on purpose. When the Worker is ready, attach `app.bbt.team` once by hand: Workers & Pages → bbt-ride → **Domains** tab → add a Custom domain. Cloudflare creates the DNS record for you, and the deploy token never needs DNS edit rights.
 
 **Where to put it:**
 - GitHub: repository → Settings → Secrets and variables → Actions → add `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. The deploy workflow uses these.
@@ -75,8 +75,8 @@ Google keeps this under **Google Auth Platform** (APIs & Services → OAuth cons
 1. console.cloud.google.com → project picker → **New project** `bbt-ride` → Create, and select it.
 2. **Google Auth Platform → Get started:** app name `BBT Ride`, support email, audience **External**, contact email → Create.
 3. **Branding** (all of this is needed before you can publish):
-   - Application home page: `https://ride.bbt.team`
-   - Application privacy policy link: `https://ride.bbt.team/privacy` (the page is `public/privacy.html`)
+   - Application home page: `https://app.bbt.team`
+   - Application privacy policy link: `https://app.bbt.team/privacy` (the page is `public/privacy.html`)
    - Authorized domains: `bbt.team`
    - Developer contact information: your email (bottom of the page)
    - No logo: a logo makes Google require brand verification.
@@ -84,8 +84,8 @@ Google keeps this under **Google Auth Platform** (APIs & Services → OAuth cons
 4. **Data Access:** add nothing; `openid`, `email` and `profile` are allowed by default.
 5. **Audience → Publish app → Confirm**, so the status reads **In production**. With only those basic scopes there's no Google review. (In "Testing", only listed test users can sign in.)
 6. **Clients → Create client → Web application**, name `bbt-ride web`:
-   - Authorized JavaScript origins: `https://ride.bbt.team`, `http://localhost:8787`
-   - Authorized redirect URIs: `https://ride.bbt.team/api/auth/callback/google`, `http://localhost:8787/api/auth/callback/google`
+   - Authorized JavaScript origins: `https://app.bbt.team`, `http://localhost:8787`
+   - Authorized redirect URIs: `https://app.bbt.team/api/auth/callback/google`, `http://localhost:8787/api/auth/callback/google`
    - **Create.** Copy the client secret now (or Download JSON): Google shows it only once. If it's lost, use **Add secret** on the client and disable the old one.
 7. Store the secret from your terminal, then add the same line to `.dev.vars` for local development:
    ```
@@ -126,7 +126,7 @@ Backups: D1 Time Travel is on by default (restore to any minute in the last 7 da
 ## 6. First deploy
 
 1. Merge the app into `main`. The Deploy workflow runs the checks, applies the D1 migrations (tables, the three start spots, the club route library, the kit chart) and deploys the Worker.
-2. Attach the domain once: Workers & Pages → bbt-ride → **Domains** tab → add a Custom domain → `ride.bbt.team`. It stays in the dashboard, not in `wrangler.jsonc`: declaring it there would make every deploy need DNS rights on the token.
-3. Open https://ride.bbt.team and **Continue with Google** as the first Admin (`BOOTSTRAP_ADMIN_EMAIL`). Then invite the team from Settings → Users.
+2. Attach the domain once: Workers & Pages → bbt-ride → **Domains** tab → add a Custom domain → `app.bbt.team`. It stays in the dashboard, not in `wrangler.jsonc`: declaring it there would make every deploy need DNS rights on the token.
+3. Open https://app.bbt.team and **Continue with Google** as the first Admin (`BOOTSTRAP_ADMIN_EMAIL`). Then invite the team from Settings → Users.
 4. The route library fills over about 2.5 days (2 routes per run; the scheduled job runs every 3 hours); route search lists a route once it's fetched, and a pasted RideWithGPS link always works. Check that searching for a club route works; if your own private routes don't appear, the RideWithGPS list endpoint needs adjusting (DESIGN.md → Data sources).
 

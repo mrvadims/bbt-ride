@@ -53,12 +53,13 @@ Every open question from the design review, with what was decided. Details live 
 | Uninvited accounts | Blocked with "Not invited — ask a team admin"; public sign-up off; invites are links the Admin sends | 2026-10-11 |
 | Public pages | Only sign-in, the invite and reset link pages (valid token required) and a static `/privacy` page (Google requires a public privacy policy to publish the sign-in app); everything else requires sign-in | 2026-10-11 |
 | RideWithGPS | API key and auth token stored as Worker secrets (verified on the `bbt-ride` Worker); the API secret isn't needed | 2026-10-12 |
-| Cloudflare deploys | Scoped API token in GitHub repository secrets; deploy via GitHub Actions; `ride.bbt.team` attached by hand | 2026-10-10 |
+| Cloudflare deploys | Scoped API token in GitHub repository secrets; deploy via GitHub Actions; `app.bbt.team` attached by hand | 2026-10-10 |
+| Address | Moved from `ride.bbt.team` to `app.bbt.team`; the old address stays attached and the app forwards it (same path). Everyone signs in and turns notifications on again once; iPhone users re-add the Home Screen app | 2026-10-13 |
 
 ## v2: any sport and phone apps (designed, not built)
 | Topic | Decision | Date |
 |---|---|---|
-| Name | The app becomes **BBT**; the address stays `ride.bbt.team`; app and notification icon = full bike logo on Light Blue | 2026-10-13 |
+| Name | The app becomes **BBT**; the address is `app.bbt.team` (old `ride.bbt.team` links forward); app and notification icon = full bike logo on Light Blue | 2026-10-13 |
 | Sports | Ride, Run, Swim, Pickleball, Ski, Other; Admins turn sports on or off; no custom sports beyond Other | 2026-10-13 |
 | One team | Sports are a field on each activity, not separate groups; Edit and Admin plan any sport | 2026-10-13 |
 | Home | One upcoming list, soonest first, with sport filters (shown only when more than one sport is coming up) and a Past activities link; replaces the day tabs | 2026-10-13 |
@@ -71,8 +72,8 @@ Every open question from the design review, with what was decided. Details live 
 | Spots limit | Not now (backlog: optional cap with waitlist) | 2026-10-13 |
 | Notifications | Adds New activity posted, sent only to people following that sport (per-sport switches in the account menu, all on by default); changes and cancellations still go to everyone with notifications on | 2026-10-13 |
 | Calendar | A private per-person calendar link (everything you're In for, self-updating); no native calendar permission | 2026-10-13 |
-| Native approach | Capacitor around the existing web app; the app loads `ride.bbt.team`, so web deploys reach it without a new APK | 2026-10-13 |
-| Android | Signed APK from a download page on ride.bbt.team, built by GitHub Actions; push via Firebase (free); native Google sign-in; no Play account for now | 2026-10-13 |
+| Native approach | Capacitor around the existing web app; the app loads `app.bbt.team`, so web deploys reach it without a new APK | 2026-10-13 |
+| Android | Signed APK from a download page on app.bbt.team, built by GitHub Actions; push via Firebase (free); native Google sign-in; no Play account for now | 2026-10-13 |
 | iPhone | Stays the Home Screen web app until the Apple fee ($99/year) or a nonprofit waiver is settled; then the same Capacitor project, unlisted App Store link | 2026-10-13 |
 | Leave-by alerts | Not now (backlog; would need location and a traffic API) | 2026-10-13 |
 

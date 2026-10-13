@@ -1,7 +1,7 @@
 # BBT Ride — Design
 
-Status: **v1 deployed** at ride.bbt.team (see README for running it) — design prototype at `prototype/index.html`; decisions in `DECISIONS.md`. **v2 (any sport, phone apps) designed, not built** — see [v2](#v2-any-sport-and-phone-apps-designed-2026-10-13-not-built). Last updated 2026-10-13.
-URL: **ride.bbt.team**
+Status: **v1 deployed** at app.bbt.team (see README for running it) — design prototype at `prototype/index.html`; decisions in `DECISIONS.md`. **v2 (any sport, phone apps) designed, not built** — see [v2](#v2-any-sport-and-phone-apps-designed-2026-10-13-not-built). Last updated 2026-10-13.
+URL: **app.bbt.team** (moved from ride.bbt.team on 2026-10-13; the old address stays attached to the Worker and the app forwards it to the same path on the new one)
 
 ## Purpose
 Help the BBT captain plan rides and the team show up prepared:
@@ -256,7 +256,7 @@ Never in the repo, the built assets, or any response to the browser. All third-p
 | `RWGPS_API_KEY`, `RWGPS_AUTH_TOKEN` | Cloudflare Worker secrets (`wrangler secret put …`) | Worker → RideWithGPS |
 | `GOOGLE_CLIENT_ID` (not secret), `GOOGLE_CLIENT_SECRET` | Worker variable / Worker secret | Google sign-in |
 | `SESSION_SECRET` (random 32 bytes) | Worker secret | Better Auth's `secret` (signs cookies and OAuth state) |
-| `BETTER_AUTH_URL`, `BOOTSTRAP_ADMIN_EMAIL` (not secret) | Worker variables | Auth base URL (`https://ride.bbt.team`); first Admin |
+| `BETTER_AUTH_URL`, `BOOTSTRAP_ADMIN_EMAIL` (not secret) | Worker variables | Auth base URL (`https://app.bbt.team`); first Admin |
 | `VAPID_PUBLIC_KEY`, `VAPID_SUBJECT` (`mailto:info@bbt.team`) (not secret), `VAPID_PRIVATE_KEY` | Worker variables / Worker secret | Web Push notifications |
 | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` | GitHub repository secrets (Actions deploy) and your local `.env` (Wrangler commands) | `wrangler deploy`, D1 migrations, secrets |
 
@@ -266,20 +266,20 @@ Never in the repo, the built assets, or any response to the browser. All third-p
 - The browser calls `/api/routes/:id` and `/api/routes?q=`; the Worker adds the RWGPS credentials and caches results in D1 `route_cache` (refreshed weekly; a route RideWithGPS doesn't return is retried after an hour). In Plan, a route is looked up by ID only from a full RideWithGPS link. Route search lists the library (the club's routes from the seed data plus the captain's own routes); the scheduled job fetches library routes not seen yet.
 
 ## Architecture
-- Cloudflare Worker + static assets (React + TypeScript + Vite, `@cloudflare/vite-plugin`) on ride.bbt.team. Code: `worker/` (API), `src/` (React app), `shared/` (weather, kit, ride math and API types used by both), `migrations/` (D1), `public/` (privacy page, service worker, icons).
+- Cloudflare Worker + static assets (React + TypeScript + Vite, `@cloudflare/vite-plugin`) on app.bbt.team. Code: `worker/` (API), `src/` (React app), `shared/` (weather, kit, ride math and API types used by both), `migrations/` (D1), `public/` (privacy page, service worker, icons).
 - Worker routes: `/api/auth/*` (Better Auth) and `/api/*` (the app's JSON API, Hono); everything else is static assets (the app shell, `/privacy`). See Users and roles for the checks.
 - D1: the tables in Data model. KV: forecast and NWS alert cache. Queue: ride notifications.
 - Scheduled job (Cron Trigger, every 3 hours), one task after another: saves recorded weather on rides whose window has passed (from the cached forecast's past hours), syncs the captain's RWGPS routes (all pages), fetches 2 library routes (a route that fails is retried a week later), then deletes expired records. Two routes per run stays well inside the free plan's limits (50 outbound requests and about 10 ms of CPU per run), so the seeded library takes about 2.5 days to fill.
 - Push: a ride change puts the notification on a Cloudflare Queue (`bbt-ride-push`) in batches of up to 5 devices; the Worker's queue consumer sends one batch per run (Web Crypto-based Web Push library), so each run stays inside the free plan's ~10 ms of CPU (encrypting and signing takes about 1–2 ms per device) and 50 outbound requests whatever the number of devices, and delivery doesn't depend on the request that made the change. A subscription the push service reports gone (404/410) is deleted.
 - Backups: D1 Time Travel (restore to any minute in the last 7 days on the free plan).
-- Deploys: GitHub Actions on merge to `main` (`.github/workflows/deploy.yml`): the CI checks (`ci.yml`: lint, typecheck, tests, build), then build, `wrangler d1 migrations apply --remote` and `wrangler deploy`; only the two Wrangler steps get the repository's Cloudflare secrets. Actions are pinned to commit SHAs; Node 22 (`.nvmrc`). A column rename breaks the old Worker for the minute between migration and deploy; the app shows a Reload screen if an open page meets the new API. `ride.bbt.team` is attached once by hand in the Cloudflare dashboard. Pushes to other branches run the same checks without deploying (`ci.yml`); a pull request shows those results.
+- Deploys: GitHub Actions on merge to `main` (`.github/workflows/deploy.yml`): the CI checks (`ci.yml`: lint, typecheck, tests, build), then build, `wrangler d1 migrations apply --remote` and `wrangler deploy`; only the two Wrangler steps get the repository's Cloudflare secrets. Actions are pinned to commit SHAs; Node 22 (`.nvmrc`). A column rename breaks the old Worker for the minute between migration and deploy; the app shows a Reload screen if an open page meets the new API. `app.bbt.team` is attached once by hand in the Cloudflare dashboard. Pushes to other branches run the same checks without deploying (`ci.yml`); a pull request shows those results.
 - Tests: unit tests for the shared algorithms (the worked examples in this document), the settings checks, .ics line folding, password hashing, route simplification, the Web Push payload and the per-spot weather cache; `scripts/smoke.ts` (API checks) and `scripts/ui-smoke.ts` (browser checks) run against the local dev server.
 
 ## v2: any sport and phone apps (designed 2026-10-13, not built)
 Everything above is v1 as deployed. v2 turns BBT Ride into **BBT**: the same team plans rides, runs, swims, pickleball, ski days and anything else, and the app gets an Android version with native notifications. The iPhone keeps the Home Screen web app until a native iPhone app is paid for (Apple's $99/year, or a nonprofit fee waiver). Design canvas: the private "BBT Multi-Sport Prototype" artifact (seven phone screens). Decisions: `DECISIONS.md` → v2.
 
 ### What changes for people
-- **Name:** the app is called **BBT** (app name, page title, icons). The address stays `ride.bbt.team`. The app and notification icon becomes the full bike logo on Light Blue (today's icon is the "bbt" wordmark).
+- **Name:** the app is called **BBT** (app name, page title, icons). The address is `app.bbt.team` (was `ride.bbt.team`, which forwards to it). The app and notification icon becomes the full bike logo on Light Blue (today's icon is the "bbt" wordmark).
 - **Sports:** Ride, Run, Swim, Pickleball, Ski and Other. Admins turn sports on or off for the team (Settings → Sports); Plan offers only the ones that are on, plus Other (with its own title). No custom sports beyond Other.
 - **Home:** one list of upcoming activities, soonest first. Each row: sport icon, day · time, title, place, how many are in, and warning chips only when something needs attention (no "Good" state, as in v1). Sport filter buttons (All, then each sport that has something coming up) appear only when more than one sport is coming up. **Past activities** at the bottom opens today's Past list, now with a sport filter. No day tabs.
 - **Activity page:** the v1 ride page, generalised. Header card: sport · indoor/outdoor, title, day · time · details, and the Edit icon for editors. Under it, the **action row** (below). Then panels as in v1, shown only when they apply: **Meet** (place and its notes), **Route** (ride and run only), **Weather** (outdoor only), **Notes**, **Who's in** (In / Out in the collapsed header, people, thread; renamed from Riders). The "Updated …" note works as today.
@@ -329,10 +329,10 @@ Each person can subscribe their own calendar (Apple, Google, Outlook) to a priva
 - **Delivery:** the v1 Queue, unchanged in shape. Each device is either a Web Push subscription (browsers, iPhone Home Screen app) or a Firebase Cloud Messaging token (Android app). FCM is free; the Worker signs a Google OAuth token from a service-account key (Worker secret `FCM_SERVICE_ACCOUNT`) and caches it in KV for 55 minutes, so each queue run still does one cheap signature at most.
 
 ### Android app
-- **Built with Capacitor** around the same web app, in `android/` in this repo. The app opens `https://ride.bbt.team` in its WebView (Capacitor's `server.url`), so every web deploy reaches Android users at once and the APK only changes when the native shell does. Capacitor's own plugins provide push (FCM), share and opening Maps. Offline, it shows a "No connection" screen with Retry.
+- **Built with Capacitor** around the same web app, in `android/` in this repo. The app opens `https://app.bbt.team` in its WebView (Capacitor's `server.url`), so every web deploy reaches Android users at once and the APK only changes when the native shell does. Capacitor's own plugins provide push (FCM), share and opening Maps. Offline, it shows a "No connection" screen with Retry.
 - **Sign-in:** Google blocks its sign-in page inside app WebViews, so the app uses a native Google sign-in plugin and hands the ID token to Better Auth (`signIn.social` with `idToken`). Username/email + password works as on the web.
 - **First launch:** asks for notifications and offers the calendar link (prototype screen "Android app: first launch"). No location.
-- **Distribution:** a signed APK, built by GitHub Actions (no Mac needed), downloadable from a public page on ride.bbt.team (the APK contains no team data; sign-in stays invite-only). People allow "install unknown apps" once. No Google Play account; Play ($25 once) stays an option. The app checks a version endpoint and shows "Update available" when a newer shell is out.
+- **Distribution:** a signed APK, built by GitHub Actions (no Mac needed), downloadable from a public page on app.bbt.team (the APK contains no team data; sign-in stays invite-only). People allow "install unknown apps" once. No Google Play account; Play ($25 once) stays an option. The app checks a version endpoint and shows "Update available" when a newer shell is out.
 - **Secrets:** the APK signing key and the Firebase config live in GitHub repository secrets; `FCM_SERVICE_ACCOUNT` is a Worker secret.
 
 ### iPhone
