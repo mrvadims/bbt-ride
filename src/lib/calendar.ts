@@ -59,7 +59,7 @@ export function downloadIcs(c: CalEvent, uid: string) {
     "VERSION:2.0",
     "PRODID:-//BBT//Ride//EN",
     "BEGIN:VEVENT",
-    `UID:${uid}@ride.bbt.team`,
+    `UID:${uid}@app.bbt.team`,
     `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, "").slice(0, 15)}Z`,
     `DTSTART:${utc(c, c.start)}`,
     `DTEND:${utc(c, c.end)}`,

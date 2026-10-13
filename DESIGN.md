@@ -1,7 +1,7 @@
 # BBT Ride — Design
 
-Status: **v1 deployed** at ride.bbt.team (see README for running it) — design prototype at `prototype/index.html`; decisions in `DECISIONS.md`. Last updated 2026-10-12.
-URL: **ride.bbt.team**
+Status: **v1 deployed** at app.bbt.team (see README for running it) — design prototype at `prototype/index.html`; decisions in `DECISIONS.md`. **v2 (any sport, phone apps) designed, not built** — see [v2](#v2-any-sport-and-phone-apps-designed-2026-10-13-not-built). Last updated 2026-10-13.
+URL: **app.bbt.team**
 
 ## Purpose
 Help the BBT captain plan rides and the team show up prepared:
@@ -256,7 +256,7 @@ Never in the repo, the built assets, or any response to the browser. All third-p
 | `RWGPS_API_KEY`, `RWGPS_AUTH_TOKEN` | Cloudflare Worker secrets (`wrangler secret put …`) | Worker → RideWithGPS |
 | `GOOGLE_CLIENT_ID` (not secret), `GOOGLE_CLIENT_SECRET` | Worker variable / Worker secret | Google sign-in |
 | `SESSION_SECRET` (random 32 bytes) | Worker secret | Better Auth's `secret` (signs cookies and OAuth state) |
-| `BETTER_AUTH_URL`, `BOOTSTRAP_ADMIN_EMAIL` (not secret) | Worker variables | Auth base URL (`https://ride.bbt.team`); first Admin |
+| `BETTER_AUTH_URL`, `BOOTSTRAP_ADMIN_EMAIL` (not secret) | Worker variables | Auth base URL (`https://app.bbt.team`); first Admin |
 | `VAPID_PUBLIC_KEY`, `VAPID_SUBJECT` (`mailto:info@bbt.team`) (not secret), `VAPID_PRIVATE_KEY` | Worker variables / Worker secret | Web Push notifications |
 | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` | GitHub repository secrets (Actions deploy) and your local `.env` (Wrangler commands) | `wrangler deploy`, D1 migrations, secrets |
 
@@ -266,19 +266,107 @@ Never in the repo, the built assets, or any response to the browser. All third-p
 - The browser calls `/api/routes/:id` and `/api/routes?q=`; the Worker adds the RWGPS credentials and caches results in D1 `route_cache` (refreshed weekly; a route RideWithGPS doesn't return is retried after an hour). In Plan, a route is looked up by ID only from a full RideWithGPS link. Route search lists the library (the club's routes from the seed data plus the captain's own routes); the scheduled job fetches library routes not seen yet.
 
 ## Architecture
-- Cloudflare Worker + static assets (React + TypeScript + Vite, `@cloudflare/vite-plugin`) on ride.bbt.team. Code: `worker/` (API), `src/` (React app), `shared/` (weather, kit, ride math and API types used by both), `migrations/` (D1), `public/` (privacy page, service worker, icons).
+- Cloudflare Worker + static assets (React + TypeScript + Vite, `@cloudflare/vite-plugin`) on app.bbt.team. Code: `worker/` (API), `src/` (React app), `shared/` (weather, kit, ride math and API types used by both), `migrations/` (D1), `public/` (privacy page, service worker, icons).
 - Worker routes: `/api/auth/*` (Better Auth) and `/api/*` (the app's JSON API, Hono); everything else is static assets (the app shell, `/privacy`). See Users and roles for the checks.
 - D1: the tables in Data model. KV: forecast and NWS alert cache. Queue: ride notifications.
 - Scheduled job (Cron Trigger, every 3 hours), one task after another: saves recorded weather on rides whose window has passed (from the cached forecast's past hours), syncs the captain's RWGPS routes (all pages), fetches 2 library routes (a route that fails is retried a week later), then deletes expired records. Two routes per run stays well inside the free plan's limits (50 outbound requests and about 10 ms of CPU per run), so the seeded library takes about 2.5 days to fill.
 - Push: a ride change puts the notification on a Cloudflare Queue (`bbt-ride-push`) in batches of up to 5 devices; the Worker's queue consumer sends one batch per run (Web Crypto-based Web Push library), so each run stays inside the free plan's ~10 ms of CPU (encrypting and signing takes about 1–2 ms per device) and 50 outbound requests whatever the number of devices, and delivery doesn't depend on the request that made the change. A subscription the push service reports gone (404/410) is deleted.
 - Backups: D1 Time Travel (restore to any minute in the last 7 days on the free plan).
-- Deploys: GitHub Actions on merge to `main` (`.github/workflows/deploy.yml`): the CI checks (`ci.yml`: lint, typecheck, tests, build), then build, `wrangler d1 migrations apply --remote` and `wrangler deploy`; only the two Wrangler steps get the repository's Cloudflare secrets. Actions are pinned to commit SHAs; Node 22 (`.nvmrc`). A column rename breaks the old Worker for the minute between migration and deploy; the app shows a Reload screen if an open page meets the new API. `ride.bbt.team` is attached once by hand in the Cloudflare dashboard. Pushes to other branches run the same checks without deploying (`ci.yml`); a pull request shows those results.
+- Deploys: GitHub Actions on merge to `main` (`.github/workflows/deploy.yml`): the CI checks (`ci.yml`: lint, typecheck, tests, build), then build, `wrangler d1 migrations apply --remote` and `wrangler deploy`; only the two Wrangler steps get the repository's Cloudflare secrets. Actions are pinned to commit SHAs; Node 22 (`.nvmrc`). A column rename breaks the old Worker for the minute between migration and deploy; the app shows a Reload screen if an open page meets the new API. `app.bbt.team` is attached once by hand in the Cloudflare dashboard. Pushes to other branches run the same checks without deploying (`ci.yml`); a pull request shows those results.
 - Tests: unit tests for the shared algorithms (the worked examples in this document), the settings checks, .ics line folding, password hashing, route simplification, the Web Push payload and the per-spot weather cache; `scripts/smoke.ts` (API checks) and `scripts/ui-smoke.ts` (browser checks) run against the local dev server.
+
+## v2: any sport and phone apps (designed 2026-10-13, not built)
+Everything above is v1 as deployed. v2 turns BBT Ride into **BBT**: the same team plans rides, runs, swims, pickleball, ski days and anything else, and the app gets an Android version with native notifications. The iPhone keeps the Home Screen web app until a native iPhone app is paid for (Apple's $99/year, or a nonprofit fee waiver). Design canvas: the private "BBT Multi-Sport Prototype" artifact (seven phone screens). Decisions: `DECISIONS.md` → v2.
+
+### What changes for people
+- **Name:** the app is called **BBT** (app name, page title, icons). The address is `app.bbt.team`. The app and notification icon becomes the full bike logo on Light Blue (today's icon is the "bbt" wordmark).
+- **Sports:** Ride, Run, Swim, Pickleball, Ski and Other. Admins turn sports on or off for the team (Settings → Sports); Plan offers only the ones that are on, plus Other (with its own title). No custom sports beyond Other.
+- **Home:** one list of upcoming activities, soonest first. Each row: sport icon, day · time, title, place, how many are in, and warning chips only when something needs attention (no "Good" state, as in v1). Sport filter buttons (All, then each sport that has something coming up) appear only when more than one sport is coming up. **Past activities** at the bottom opens today's Past list, now with a sport filter. No day tabs.
+- **Activity page:** the v1 ride page, generalised. Header card: sport · indoor/outdoor, title, day · time · details, and the Edit icon for editors. Under it, the **action row** (below). Then panels as in v1, shown only when they apply: **Meet** (place and its notes), **Route** (ride and run only), **Weather** (outdoor only), **Notes**, **Who's in** (In / Out in the collapsed header, people, thread; renamed from Riders). The "Updated …" note works as today.
+- **Action row:** every way to leave the app for something else is one row of equal tiles, in the same place and order on every activity: **Directions** (choose Apple Maps, Google Maps or Waze), **Calendar** (add this activity, or subscribe to the calendar link), **Share** (the phone's share sheet), and **RideWithGPS** for activities with a route. It replaces v1's separate "Open in Google Maps", "+ Calendar", "Open in RWGPS" links and the Share icon.
+- **Buttons:** three kinds, used the same way everywhere.
+  - *Primary* (filled Light Blue, full width): the one main action on a screen, e.g. Publish, Continue, Add this activity.
+  - *Secondary* (white, thin border, text): other choices, e.g. Subscribe, Allow, Discard changes. In / Out and similar either-or choices are a pair where the selected one is filled.
+  - *Tile* (white, thin border, 64 px tall, icon over a one-word label): the action row, plus the RideWithGPS tile beside Plan's route field. RideWithGPS's tile shows only its vertical logo (`ridewithgps-vertical-logo.svg`, supplied by the team), which already carries the name; its accessible name is "Open in RideWithGPS".
+  - Icon-only buttons appear only in the top bar and for Edit (pencil), each with an accessible name.
+- **Top bar:** unchanged from v1 on every screen: logo (home), Plan, Settings, account. No page titles or back buttons in the bar.
+
+### Plan
+One form for every sport; choosing the sport first shapes the rest:
+1. **Sport:** a 3 × 2 grid of buttons. Defaults to the editor's last sport.
+2. **When:** date (the v1 date picker), start time (labelled **Meet time** for ride and run, **Carpool leaves** for ski, **Start time** otherwise) and end. Ride and run show **Back about**, computed from route and pace as in v1; other sports have an **Ends** time, defaulting per sport (swim 1 h, pickleball 2 h, ski 10 h, other 2 h).
+3. **Title:** optional, up to 60 characters. Empty = the route's name (ride, run) or the sport's name.
+4. **Where:** a saved place, or paste a Google Maps pin to add one (v1's Add a spot, now usable for pools, courts and resorts). Ride and run keep v1's spot comparison list with each spot's weather.
+5. **Route** (ride and run): search the team library or paste a RideWithGPS link, with the RideWithGPS tile beside the field. Alternate route as in v1. Coffee stop: ride only.
+6. **Details:** pace for ride (mph) and run (min/mi); one short **Details** line for the others (e.g. "2 courts", "Lanes 3–4", "Carpool from SUNY Purchase"), up to 80 characters.
+7. **Indoor / outdoor:** swim (**Pool / Open water**), pickleball and other. Ride, run and ski are always outdoor. Indoor turns the weather check off; everything else (notifications, calendar, who's in) works the same.
+8. **Notes**, then the preview and **Publish** / **Replace** / **Update** as in v1, including autosaved drafts and edit-conflict checks.
+
+**One published activity per sport per day.** A ride and a pickleball session can share a Saturday; a second ride that day offers **Replace ride**, as in v1.
+
+### Weather per sport
+The v1 algorithms stay; what changes is which feel and which warnings apply. Thresholds are per **weather group**, each with its own Settings panel (amber and red, as in v1):
+
+| Group | Sports | Feel | Warnings |
+|---|---|---|---|
+| Ride | ride | bike feel (v1) | all v1 warnings, incl. road wetness and low light |
+| Run | run | run feel: the bike-feel formula with airflow √(run pace² + wind²), run pace in mph | cold (run feel), heat, wind, gusts, rain, thunder, low light, NWS alert |
+| Ski | ski | real feel | cold, wind, gusts, thunder, NWS alert |
+| Outdoor | open-water swim, outdoor pickleball, outdoor other | real feel | cold, heat, wind, gusts, rain, thunder, NWS alert |
+
+Ride keeps today's thresholds. The others start with first-guess defaults (Run: cold below 30 / 15 °F, heat 82 / 90 °F, wind 18 / 25 mph, rain 50 / 80 %), to be tuned like v1's. The weather window is start → end (or Back about). The kit chart stays ride-only. Recorded weather on past activities works for every outdoor activity.
+
+### Calendar link
+Each person can subscribe their own calendar (Apple, Google, Outlook) to a private feed of everything they're **In** for: upcoming activities plus the last 30 days, with changes and cancellations (shown as cancelled) updating the events by themselves. It needs no app and no calendar permission, so it works on every phone and computer.
+- **Where:** the account menu (**Calendar: Subscribe · Copy link · Reset link**), the Calendar tile on an activity, and the Android app's first launch. The one-off **Add this activity** (.ics, Google, Outlook links) stays.
+- **How:** `GET /cal/<token>.ics`, where the token is a random secret per person; only its SHA-256 is stored. Reset makes a new token and the old link stops working. This is the one data URL that works without a session, so the feed carries only that person's own activities and no messages.
+- **Refresh:** each calendar app polls on its own schedule; Apple Calendar typically within hours, Google Calendar can take up to a day. Notifications stay the fast path for last-minute changes.
+
+### Notifications
+- **What:** v1's updated / cancelled / restored, plus **New activity posted**.
+- **Who:** changes, cancellations and restores go to everyone with notifications on, as in v1. A new activity goes only to people who follow that sport: the account menu gets **Notify me about** with one switch per sport (all on by default, stored per person, not per device).
+- **Buttons:** a change to an activity someone is In for carries **Still in** / **I'm out**. They work in the Android app and in Chrome on Android; on iPhone the notification opens the activity instead.
+- **Delivery:** the v1 Queue, unchanged in shape. Each device is either a Web Push subscription (browsers, iPhone Home Screen app) or a Firebase Cloud Messaging token (Android app). FCM is free; the Worker signs a Google OAuth token from a service-account key (Worker secret `FCM_SERVICE_ACCOUNT`) and caches it in KV for 55 minutes, so each queue run still does one cheap signature at most.
+
+### Android app
+- **Built with Capacitor** around the same web app, in `android/` in this repo. The app opens `https://app.bbt.team` in its WebView (Capacitor's `server.url`), so every web deploy reaches Android users at once and the APK only changes when the native shell does. Capacitor's own plugins provide push (FCM), share and opening Maps. Offline, it shows a "No connection" screen with Retry.
+- **Sign-in:** Google blocks its sign-in page inside app WebViews, so the app uses a native Google sign-in plugin and hands the ID token to Better Auth (`signIn.social` with `idToken`). Username/email + password works as on the web.
+- **First launch:** asks for notifications and offers the calendar link (prototype screen "Android app: first launch"). No location.
+- **Distribution:** a signed APK, built by GitHub Actions (no Mac needed), downloadable from a public page on app.bbt.team (the APK contains no team data; sign-in stays invite-only). People allow "install unknown apps" once. No Google Play account; Play ($25 once) stays an option. The app checks a version endpoint and shows "Update available" when a newer shell is out.
+- **Secrets:** the APK signing key and the Firebase config live in GitHub repository secrets; `FCM_SERVICE_ACCOUNT` is a Worker secret.
+
+### iPhone
+- Unchanged for now: the Home Screen web app with Web Push (iOS 16.4+), plus the calendar link. Native notification buttons and an App Store install are what's missing.
+- Later: the same Capacitor project gains `ios/`, push via FCM (which also delivers to Apple's service), distributed by an unlisted App Store link. Needs the Apple Developer Program ($99/year) or Apple's nonprofit fee waiver, which the team is looking into.
+
+### Data model changes (one migration)
+```
+rides → activities: + sport CHECK(sport IN ('ride','run','swim','pickleball','ski','other')) DEFAULT 'ride',
+                    + title NULL, + outdoor DEFAULT 1, + details NULL, + end_time NULL,
+                    meet_time → start_time, pace_mph NULL (ride and run only)
+                    -- UNIQUE(date, sport) WHERE status = 'published'
+ride_routes → activity_routes; ride_id → activity_id in activity_routes, rsvps, messages
+spots: note becomes optional (pools and courts may need none)
+push_subscriptions: + kind CHECK(kind IN ('web','fcm')) DEFAULT 'web'; keys_json NULL for fcm
+notify_off(user_id, sport, PRIMARY KEY(user_id, sport))          -- sports a person muted for new posts
+calendar_tokens(user_id PRIMARY KEY, token_hash UNIQUE, created_at)
+settings: + 'sports' (the enabled list), + warning thresholds per group ('warnings.run', 'warnings.ski', 'warnings.outdoor')
+```
+Existing rides become `sport = 'ride'`, outdoor, with their current titles empty. Pages move to `/a/<id>`; old `/ride/<date>` links redirect to that day's ride.
+
+### Build order
+Each step is its own PR, deployed before the next:
+1. **Any sport on the web:** migration, Plan, home list, activity page, Settings → Sports and the weather groups, the rename to BBT, the RideWithGPS tile.
+2. **Calendar link and per-sport notifications**, including New activity posted.
+3. **Android app:** Capacitor shell, FCM delivery, native Google sign-in, signed APK and its download page.
+4. **iPhone app:** when the Apple fee is settled.
 
 ## Backlog (post-v1)
 1. **Route weather** — forecast at points along the route by ETA; head/tail/crosswind per segment.
 2. **WhatsApp integration** (or another messenger) — post the ride brief to the group chat.
 3. **Model comparison** — HRRR vs NBM vs ECMWF agreement as a confidence hint.
+4. **Leave-by alerts** — "Leave by 8:25" from the phone's location and current traffic (native apps only; needs a traffic API such as Google Routes).
+5. **Spots limit with a waitlist** — optional cap per activity (courts, lanes); the first person on the waitlist moves in when someone drops out.
 
 ## Seed data
 `data/seed.json` (built 2026-10-08 from public sources; raw responses in `data/raw/`):
