@@ -3,6 +3,8 @@ import { z } from "zod";
 import type { KitBand } from "./kit.ts";
 import type { RideRoute } from "./ride.ts";
 import { HHMM, type Settings } from "./settings.ts";
+import { canBeIndoor, hasRoute, PACE_RANGE, SPORT_LABEL, SPORTS, type Sport } from "./sports.ts";
+import { hhmmToMin } from "./time.ts";
 import type { Alert, OpenMeteoResponse } from "./weather.ts";
 
 export const ROLES = ["view", "edit", "admin"] as const;
@@ -34,17 +36,22 @@ export interface RecordedWeather {
   app: number;
   ws: number;
   wg: number;
-  rain: number; // inches in the look-back window before meet time
+  rain: number; // inches in the look-back window before the start
   road: "Dry" | "Drying" | "Wet";
   code: number;
 }
 
-export interface RideSummary {
+export interface Activity {
   id: string;
+  sport: Sport;
+  title: string; // empty: the route's name (ride, run) or the sport's name
   date: string;
-  meetTime: string;
+  startTime: string; // "08:30"; the meet time for ride and run
+  endTime: string | null; // sports without a route; ride and run end when the route says
   spotId: string;
-  pace: number;
+  outdoor: boolean; // false: indoors, no weather check
+  pace: number; // mph for ride and run (a run shows min/mi); 0 for other sports
+  details: string; // one short line, e.g. "2 courts"
   notes: string;
   status: "published" | "cancelled";
   updatedAt: string; // sent back with an update, so a change made meanwhile isn't overwritten
@@ -73,7 +80,7 @@ export interface Rsvp {
   routeLabel: string | null;
 }
 
-export interface RideDetail extends RideSummary {
+export interface ActivityDetail extends Activity {
   rsvps: Rsvp[];
   messages: Message[];
 }
@@ -105,11 +112,16 @@ export interface RouteSummary {
 const date = z.iso.date(); // a real calendar date, YYYY-MM-DD
 const hhmm = z.string().regex(HHMM);
 
-export const rideInput = z.object({
+const activityFields = z.object({
+  sport: z.enum(SPORTS),
+  title: z.string().trim().max(60).default(""),
   date,
-  meetTime: hhmm,
+  startTime: hhmm,
+  endTime: hhmm.nullable().default(null),
   spotId: z.string().min(1).max(80),
-  pace: z.number().min(10).max(25),
+  outdoor: z.boolean().default(true),
+  pace: z.number().min(0).max(25).default(0),
+  details: z.string().trim().max(80).default(""),
   notes: z.string().max(4000),
   routes: z
     .array(
@@ -119,15 +131,47 @@ export const rideInput = z.object({
         stop: z.string().max(200).nullable(),
       }),
     )
-    .min(1)
     .max(2)
-    .refine((r) => new Set(r.map((x) => x.label.toLowerCase())).size === r.length, "Route labels must differ"),
-  replace: z.boolean().default(false), // confirm replacing a ride already published on that date
+    .refine((r) => new Set(r.map((x) => x.label.toLowerCase())).size === r.length, "Route labels must differ")
+    .default([]),
+  replace: z.boolean().default(false), // confirm replacing the same sport's activity already published that day
 });
-export type RideInput = z.input<typeof rideInput>;
-// An update also sends the ride's updatedAt from when the editor opened it, so a later change isn't overwritten.
-export const rideUpdate = rideInput.extend({ baseUpdatedAt: z.string().max(40) });
-export type RideUpdate = z.input<typeof rideUpdate>;
+type ActivityFields = z.output<typeof activityFields>;
+
+/** Ride and run need a route and a pace in range; other sports an end time after the start and no route. */
+function checkSport(a: ActivityFields, ctx: z.RefinementCtx) {
+  if (a.sport === "ride" || a.sport === "run") {
+    const [lo, hi] = PACE_RANGE[a.sport];
+    if (!a.routes.length) ctx.addIssue({ code: "custom", message: "Pick a route", path: ["routes"] });
+    if (a.pace < lo || a.pace > hi) ctx.addIssue({ code: "custom", message: "Pace is out of range", path: ["pace"] });
+  } else {
+    if (a.routes.length) ctx.addIssue({ code: "custom", message: "Only rides and runs have routes", path: ["routes"] });
+    if (!a.endTime || hhmmToMin(a.endTime) <= hhmmToMin(a.startTime))
+      ctx.addIssue({ code: "custom", message: "The end time must be after the start", path: ["endTime"] });
+  }
+}
+/** Fields that don't apply to the sport are stored empty. */
+const normalize = <T extends ActivityFields>(a: T): T => ({
+  ...a,
+  endTime: hasRoute(a.sport) ? null : a.endTime,
+  pace: hasRoute(a.sport) ? a.pace : 0,
+  details: hasRoute(a.sport) ? "" : a.details,
+  outdoor: canBeIndoor(a.sport) ? a.outdoor : true,
+});
+
+export const activityInput = activityFields.superRefine(checkSport).transform(normalize);
+export type ActivityInput = z.input<typeof activityInput>;
+export type ActivityValues = z.output<typeof activityInput>;
+// An update also sends the activity's updatedAt from when the editor opened it, so a later change isn't overwritten.
+export const activityUpdate = activityFields
+  .extend({ baseUpdatedAt: z.string().max(40) })
+  .superRefine(checkSport)
+  .transform(normalize);
+export type ActivityUpdate = z.input<typeof activityUpdate>;
+
+/** The name people see: the title, else the route's name (ride, run), else the sport. */
+export const activityName = (a: Pick<Activity, "title" | "sport" | "routes">): string =>
+  a.title || (hasRoute(a.sport) ? a.routes[0]?.name : null) || SPORT_LABEL[a.sport];
 
 export const rsvpInput = z.object({
   status: z.enum(["in", "out"]).nullable(),
@@ -142,7 +186,7 @@ export const messageEdit = z.object({ body: z.string().trim().min(1).max(2000) }
 export const spotInput = z.object({
   name: z.string().trim().min(1).max(80),
   link: z.string().trim().min(1).max(2000), // Google Maps link or "lat, lng"
-  note: z.string().trim().min(1).max(1000), // parking notes
+  note: z.string().trim().max(1000), // parking, entrance… (optional)
 });
 export const spotEdit = spotInput.partial().extend({ archived: z.boolean().optional() });
 

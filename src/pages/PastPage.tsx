@@ -1,51 +1,62 @@
-// Past rides: newest first, grouped by month, searchable; a past ride opens read-only (DESIGN.md → Past rides).
+// Past activities: newest first, grouped by month, with a sport filter and search; each opens read-only
+// (DESIGN.md → Past rides).
 import { useState } from "react";
-import type { Me } from "../../shared/api.ts";
+import { activityName } from "../../shared/api.ts";
+import { SPORT_LABEL, type Sport } from "../../shared/sports.ts";
 import { dayLabel } from "../../shared/time.ts";
-import { LevelIcon } from "../components/icons.tsx";
-import { RideBody } from "../components/RideBody.tsx";
-import { Riders } from "../components/Riders.tsx";
+import { SportIcon } from "../components/icons.tsx";
 import { Pill } from "../components/Warnings.tsx";
-import { usePast, useRide, useRides, useSpots } from "../lib/data.ts";
+import { usePast, useSpots } from "../lib/data.ts";
 import { usePrefs } from "../lib/prefs.ts";
-import { useRideModel } from "../lib/rideModel.ts";
-import { Link, navigate } from "../lib/router.tsx";
+import { Link } from "../lib/router.tsx";
 import { units } from "../lib/units.ts";
-import { DayTabs, rideDays } from "./RidePage.tsx";
 
 export function PastList() {
   const past = usePast();
   const spots = useSpots().data ?? [];
-  const rides = useRides().data ?? [];
   const u = units(usePrefs().units);
   const [q, setQ] = useState("");
+  const [sport, setSport] = useState<Sport | "all">("all");
   const spotName = (id: string) => spots.find((s) => s.id === id)?.name ?? "";
-  const list = (past.data ?? []).filter((r) => {
-    if (!q.trim()) return true;
-    return `${spotName(r.spotId)} ${r.routes.map((x) => x.name ?? "").join(" ")}`
-      .toLowerCase()
-      .includes(q.trim().toLowerCase());
-  });
+  const all = past.data ?? [];
+  const sports = [...new Set(all.map((a) => a.sport))];
+  const list = all.filter(
+    (a) =>
+      (sport === "all" || a.sport === sport) &&
+      (!q.trim() ||
+        `${activityName(a)} ${spotName(a.spotId)} ${a.routes.map((x) => x.name ?? "").join(" ")}`
+          .toLowerCase()
+          .includes(q.trim().toLowerCase())),
+  );
   const byMonth = new Map<string, typeof list>();
-  for (const r of list) {
-    const m = new Date(`${r.date}T12:00:00Z`).toLocaleDateString("en-US", {
+  for (const a of list) {
+    const m = new Date(`${a.date}T12:00:00Z`).toLocaleDateString("en-US", {
       timeZone: "UTC",
       month: "long",
       year: "numeric",
     });
-    byMonth.set(m, [...(byMonth.get(m) ?? []), r]);
+    byMonth.set(m, [...(byMonth.get(m) ?? []), a]);
   }
   return (
     <>
-      <div className="dayrow">
-        <DayTabs days={rideDays(rides)} current="past" />
-      </div>
-      <h1 className="sr">Past rides</h1>
+      <p className="small" style={{ margin: "0 0 8px" }}>
+        <Link href="/">← Upcoming</Link>
+      </p>
+      <h1 className="sr">Past activities</h1>
+      {sports.length > 1 && (
+        <div className="filters" role="group" aria-label="Show">
+          {(["all", ...sports] as const).map((s) => (
+            <button key={s} type="button" aria-pressed={sport === s} onClick={() => setSport(s)}>
+              {s === "all" ? "All" : SPORT_LABEL[s]}
+            </button>
+          ))}
+        </div>
+      )}
       <label className="field" style={{ marginBottom: 4 }}>
-        Search past rides
+        Search past activities
         <input
           type="search"
-          placeholder="Route or spot, e.g. Katonah"
+          placeholder="Title, route or place, e.g. Katonah"
           value={q}
           onChange={(e) => setQ(e.target.value)}
           autoComplete="off"
@@ -54,28 +65,36 @@ export function PastList() {
       {past.isPending && <p className="muted small">Loading…</p>}
       {past.isError && (
         <p className="small" role="alert">
-          Couldn't load past rides: {past.error.message}
+          Couldn't load past activities: {past.error.message}
         </p>
       )}
-      {[...byMonth].map(([month, rs]) => (
+      {[...byMonth].map(([month, as]) => (
         <div key={month}>
           <div className="kicker" style={{ margin: "14px 0 6px" }}>
             {month}
           </div>
-          <div className="spotlist">
-            {rs.map((r) => (
-              <Link key={r.id} className="spotrow" href={`/past/${r.id}`}>
-                <span className="spotrow-b">
-                  <b>
-                    {dayLabel(r.date)} · {spotName(r.spotId)}
-                  </b>
-                  <span className="small">{r.routes.map((x) => x.name ?? `Route #${x.routeId}`).join(" / ")}</span>
+          <div className="alist">
+            {as.map((a) => (
+              <Link key={a.id} className="arow" href={`/a/${a.id}`}>
+                <span className="arow-icon">
+                  <SportIcon sport={a.sport} />
+                </span>
+                <span className="arow-b">
+                  <span className="kicker">{dayLabel(a.date)}</span>
+                  <b>{activityName(a)}</b>
                   <span className="small muted">
-                    {r.status === "cancelled" ? <Pill level={2}>Cancelled</Pill> : `${r.counts.in} rode · `}
-                    {r.observed
-                      ? ` ${u.temp(r.observed.T)}, feels ${u.temp(r.observed.app)} · wind ${u.speed(r.observed.ws)} · roads ${r.observed.road.toLowerCase()}`
+                    {spotName(a.spotId)}
+                    {a.observed
+                      ? ` · ${u.temp(a.observed.T)}, feels ${u.temp(a.observed.app)} · wind ${u.speed(a.observed.ws)}`
                       : ""}
                   </span>
+                </span>
+                <span className="arow-r">
+                  {a.status === "cancelled" ? (
+                    <Pill level={2}>Cancelled</Pill>
+                  ) : (
+                    <span className="tiny muted">{a.counts.in} joined</span>
+                  )}
                 </span>
               </Link>
             ))}
@@ -84,63 +103,8 @@ export function PastList() {
       ))}
       {past.data && !list.length && (
         <p className="muted small" style={{ marginTop: 12 }}>
-          {q ? "No past rides match." : "No past rides yet."}
+          {q || sport !== "all" ? "Nothing matches." : "Nothing in the past yet."}
         </p>
-      )}
-    </>
-  );
-}
-
-export function PastRide({ id, me }: { id: string; me: Me }) {
-  const rideQ = useRide(id);
-  const ride = rideQ.data;
-  const [routeIndex, setRouteIndex] = useState(0);
-  const m = useRideModel(ride ?? null, routeIndex);
-  const rides = useRides().data ?? [];
-  if (rideQ.isError)
-    return (
-      <p className="small" role="alert">
-        Couldn't load the ride: {rideQ.error.message}
-      </p>
-    );
-  if (!ride) return <p className="muted small">Loading…</p>;
-  const reuse = () => navigate(`/plan?reuse=${ride.id}`);
-  return (
-    <>
-      <div className="dayrow">
-        <DayTabs days={rideDays(rides)} current="past" />
-      </div>
-      <div className="pasthead">
-        <Link className="small" href="/past">
-          ← Past rides
-        </Link>
-        <span className="muted small">{dayLabel(ride.date, true)}</span>
-        {me.role !== "view" && (
-          <button type="button" className="btn btn-outline btn-sm" onClick={reuse}>
-            Reuse this plan
-          </button>
-        )}
-      </div>
-      {ride.status === "cancelled" && (
-        <div className="warn lv2 big">
-          <LevelIcon level={2} />
-          <div>
-            <b>Ride cancelled</b>
-            <span>{ride.messages.findLast((x) => x.kind === "cancel")?.body ?? ""}</span>
-          </div>
-        </div>
-      )}
-      {!m || m.loading ? (
-        <p className="muted small">Loading…</p>
-      ) : (
-        <RideBody
-          ride={ride}
-          model={m}
-          mode="past"
-          routeIndex={routeIndex}
-          onRouteIndex={setRouteIndex}
-          riders={<Riders ride={ride} me={me} past />}
-        />
       )}
     </>
   );

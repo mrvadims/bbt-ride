@@ -39,7 +39,7 @@ export interface RideRoute {
   stop: string | null; // POI name of the coffee stop
 }
 
-interface RideTimes {
+export interface RideTimes {
   distMi: number;
   movingH: number;
   regroupMin: number;

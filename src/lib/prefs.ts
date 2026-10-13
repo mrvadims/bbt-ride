@@ -1,6 +1,8 @@
-// Per-rider preferences kept in this browser (DESIGN.md → Settings): theme, units, kit offset, weather app, open panels.
+// Per-person preferences kept in this browser (DESIGN.md → Settings): theme, units, kit offset, weather app, open
+// panels, the last sport planned.
 import { useSyncExternalStore } from "react";
 import type { KitOffset } from "../../shared/kit.ts";
+import type { Sport } from "../../shared/sports.ts";
 
 export interface Prefs {
   theme: "auto" | "light" | "dark";
@@ -8,8 +10,9 @@ export interface Prefs {
   kitOffset: KitOffset;
   wxApp: "nws" | "weathercom" | "windy" | "google";
   panels: Record<string, boolean>;
+  sport: Sport; // the sport Plan starts with: the last one planned
 }
-const DEFAULTS: Prefs = { theme: "auto", units: "imperial", kitOffset: "avg", wxApp: "nws", panels: {} };
+const DEFAULTS: Prefs = { theme: "auto", units: "imperial", kitOffset: "avg", wxApp: "nws", panels: {}, sport: "ride" };
 const KEY = "bbt.prefs";
 
 function read(): Prefs {

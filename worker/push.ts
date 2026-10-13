@@ -1,4 +1,4 @@
-// Web Push for ride updates, cancellations and restores (DESIGN.md → Notifications), delivered through a Queue.
+// Web Push for activity updates, cancellations and restores (DESIGN.md → Notifications), delivered through a Queue.
 import { buildPushPayload } from "@block65/webcrypto-web-push";
 import { Hono } from "hono";
 import { pushSubscription } from "../shared/api.ts";
@@ -19,14 +19,14 @@ export interface PushJob {
 // so a small batch keeps each run inside the free plan's ~10 ms CPU (and far under 50 outbound requests).
 const BATCH = 5;
 
-/** Queues a ride notification for every opted-in device (disabled members excluded); delivery runs in `deliver`. */
-export async function notifyRide(env: Env, rideId: string, title: string, body: string): Promise<void> {
+/** Queues a notification about an activity for every opted-in device (disabled members excluded); delivery runs in
+ * `deliver`. Tapping it opens the activity. */
+export async function notifyActivity(env: Env, id: string, title: string, body: string): Promise<void> {
   if (!env.VAPID_PUBLIC_KEY || !env.VAPID_PRIVATE_KEY) return; // push not configured (local development)
-  const ride = await env.DB.prepare("select date from rides where id = ?").bind(rideId).first<{ date: string }>();
   const { results } = await env.DB.prepare(
     `select p.endpoint, p.keys_json from push_subscriptions p join "user" u on u.id = p.user_id where coalesce(u.banned, 0) = 0`,
   ).all<Sub>();
-  const data = JSON.stringify({ title, body, url: ride ? `/ride/${ride.date}` : "/" });
+  const data = JSON.stringify({ title, body, url: `/a/${id}` });
   const jobs: { body: PushJob }[] = [];
   for (let i = 0; i < results.length; i += BATCH) jobs.push({ body: { data, subs: results.slice(i, i + BATCH) } });
   if (jobs.length) await env.PUSH.sendBatch(jobs);
@@ -55,7 +55,7 @@ export async function deliver(batch: MessageBatch<PushJob>, env: Env): Promise<v
   }
 }
 
-// The account menu's "Ride notifications" switch: one subscription per device, owned by whoever last turned it on there.
+// The account menu's "Notifications" switch: one subscription per device, owned by whoever last turned it on there.
 export const push = new Hono<AppEnv>()
   .post("/", validate("json", pushSubscription), async (c) => {
     const { endpoint, keys } = c.req.valid("json");

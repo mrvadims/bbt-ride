@@ -1,4 +1,4 @@
-// Add or edit a start spot: name, Google Maps link and parking notes, all required (Plan and Settings).
+// Add or edit a place (start spot, pool, courts…): name and Google Maps link required, notes optional (Plan and Settings).
 import { useState } from "react";
 
 export interface SpotFields {
@@ -23,7 +23,7 @@ export function SpotForm({
   const [f, setF] = useState(initial);
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const complete = f.name.trim() && f.link.trim() && f.note.trim();
+  const complete = f.name.trim() && f.link.trim();
   return (
     <form
       className="newspot"
@@ -59,15 +59,14 @@ export function SpotForm({
         />
       </label>
       <span className="tiny muted" style={{ marginTop: -8 }}>
-        In Google Maps: drop a pin on the parking spot → Share → Copy link.
+        In Google Maps: drop a pin (on the parking spot for rides and runs) → Share → Copy link.
       </span>
       <label className="field">
-        Parking notes
+        Notes (optional)
         <textarea
-          required
           value={f.note}
           onChange={(e) => setF({ ...f, note: e.target.value })}
-          placeholder="Where to park, restrooms, anything riders should know"
+          placeholder="Where to park, entrance, restrooms…"
           maxLength={1000}
         />
       </label>

@@ -3,7 +3,14 @@ import { Hono } from "hono";
 import { z } from "zod";
 import type { TeamSettings } from "../../shared/api.ts";
 import { DEFAULT_KIT, type KitBand } from "../../shared/kit.ts";
-import { DEFAULT_SETTINGS, type Settings, settingsProblem, settingsSchema } from "../../shared/settings.ts";
+import {
+  DEFAULT_SETTINGS,
+  type Settings,
+  settingsChange,
+  settingsProblem,
+  settingsSchema,
+} from "../../shared/settings.ts";
+import { GROUPS, warnSchema } from "../../shared/sports.ts";
 import { type AppEnv, requireRole } from "../app.ts";
 import { audit, fail, nowIso } from "../util.ts";
 import { validate } from "../validate.ts";
@@ -13,11 +20,17 @@ export async function loadSettings(db: D1Database): Promise<Settings> {
     .prepare("select key, value_json from settings")
     .all<{ key: string; value_json: string }>();
   const stored = Object.fromEntries(results.map((r) => [r.key, JSON.parse(r.value_json)]));
-  // Stored values override the first-run defaults; each invalid one falls back to its default.
+  // Stored values override the first-run defaults; each invalid one falls back to its default (weather warnings per group).
   const valid = Object.entries(stored).filter(
-    ([k, v]) => settingsSchema.shape[k as keyof Settings]?.safeParse(v).success,
+    ([k, v]) => k !== "warn" && settingsSchema.shape[k as keyof Settings]?.safeParse(v).success,
   );
-  return { ...DEFAULT_SETTINGS, ...Object.fromEntries(valid) };
+  const warn = Object.fromEntries(
+    GROUPS.map((g) => {
+      const w = warnSchema.safeParse(stored.warn?.[g]);
+      return [g, w.success ? w.data : DEFAULT_SETTINGS.warn[g]];
+    }),
+  ) as Settings["warn"];
+  return { ...DEFAULT_SETTINGS, ...Object.fromEntries(valid), warn };
 }
 
 async function loadKit(db: D1Database): Promise<KitBand[]> {
@@ -63,9 +76,13 @@ const teamSettings = async (db: D1Database): Promise<TeamSettings> => {
 
 export const settings = new Hono<AppEnv>()
   .get("/", async (c) => c.json(await teamSettings(c.env.DB)))
-  .put("/", requireRole("admin"), validate("json", settingsSchema.partial()), async (c) => {
-    const changes = c.req.valid("json");
-    const problem = settingsProblem({ ...(await loadSettings(c.env.DB)), ...changes });
+  .put("/", requireRole("admin"), validate("json", settingsChange), async (c) => {
+    const current = await loadSettings(c.env.DB);
+    const body = c.req.valid("json");
+    // Only the weather groups sent change; the others keep their stored values.
+    const { warn, ...rest } = body;
+    const changes: Partial<Settings> = { ...rest, ...(warn ? { warn: { ...current.warn, ...warn } } : {}) };
+    const problem = settingsProblem({ ...current, ...changes });
     if (problem) return fail(400, problem);
     const user = c.get("user");
     const stmts = Object.entries(changes).map(([key, value]) =>

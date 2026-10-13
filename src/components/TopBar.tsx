@@ -42,10 +42,10 @@ function Notifications({ me }: { me: Me }) {
   if (!pushSupported() || !me.vapidPublicKey)
     return (
       <div className="row2">
-        <span className="tiny muted">Ride notifications</span>
+        <span className="tiny muted">Notifications</span>
         <span className="tiny muted">
           {me.vapidPublicKey
-            ? "Not supported in this browser. On iPhone, add BBT Ride to your Home Screen first."
+            ? "Not supported in this browser. On iPhone, add BBT to your Home Screen first."
             : "Not set up yet."}
         </span>
       </div>
@@ -63,7 +63,7 @@ function Notifications({ me }: { me: Me }) {
   return (
     <>
       <Seg
-        label="Ride notifications"
+        label="Notifications"
         value={on ? "on" : "off"}
         options={[
           ["off", "Off"],
@@ -108,18 +108,18 @@ export function TopBar({ me }: { me: Me | null }) {
   }, [open]);
 
   const signOut = async () => {
-    await disablePush().catch(() => undefined); // the next person on this device shouldn't get this rider's notifications
+    await disablePush().catch(() => undefined); // the next person on this device shouldn't get this person's notifications
     await authClient.signOut();
     qc.clear();
     navigate("/signin");
   };
-  const page = parts[0] ?? "ride";
+  const page = parts[0] ?? "";
   const method = me?.methods.includes("google") ? "Google" : "password";
 
   return (
     <header className="topbar">
       <div className="topbar-inner">
-        <Link className="brandlink" href="/" aria-label="BBT Ride home">
+        <Link className="brandlink" href="/" aria-label="BBT home">
           <Logo />
         </Link>
         <span className="spacer" />
@@ -130,7 +130,7 @@ export function TopBar({ me }: { me: Me | null }) {
                 <Link
                   className="navbtn"
                   href="/plan"
-                  title="Plan a ride"
+                  title="Plan an activity"
                   aria-current={page === "plan" ? "page" : undefined}
                 >
                   <PlanIcon />

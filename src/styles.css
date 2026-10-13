@@ -1,4 +1,4 @@
-/* BBT Ride styles (ported from the prototype). Tokens on :root; dark mode via prefers-color-scheme or data-theme. */
+/* BBT styles (ported from the prototype). Tokens on :root; dark mode via prefers-color-scheme or data-theme. */
 :root {
   --bar: #0077d1;
   --stripe: #ff3115;
@@ -657,27 +657,6 @@ textarea {
     grid-template-columns: minmax(0, 1fr);
   }
 }
-.dayrow {
-  display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  border-bottom: 1px solid var(--line);
-  margin: -4px 0 14px;
-}
-.dayrow .daytabs {
-  border-bottom: 0;
-  margin: 0;
-  flex: 1;
-  min-width: 0;
-  overflow-x: auto; /* many ride days scroll sideways instead of widening the page */
-}
-.iconbtn.share {
-  color: var(--link);
-  margin-bottom: 4px;
-}
-.iconbtn.share:hover {
-  background: var(--win);
-}
 /* Sheets are native <dialog>s: the browser handles focus, Escape and the backdrop. */
 dialog.sheet {
   border: 0;
@@ -1253,6 +1232,204 @@ a.linkbtn {
   outline: 2px solid var(--primary);
   outline-offset: 1px;
 }
-.rwgps-link {
-  margin-top: -6px;
+
+/* ---- v2: activities of any sport ---- */
+/* Sport filters on Home and Past: pill buttons, the selected one filled. */
+.filters {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  margin: 0 0 10px;
+  padding-bottom: 2px;
+}
+.filters button {
+  appearance: none;
+  flex: none;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.filters button[aria-pressed="true"] {
+  background: var(--text);
+  border-color: var(--text);
+  color: var(--bg);
+}
+/* Activity rows on Home and Past. */
+.alist {
+  display: grid;
+  gap: 8px;
+}
+.arow {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  padding: 12px;
+  color: var(--text);
+  text-decoration: none;
+}
+.arow:hover {
+  border-color: var(--primary);
+}
+.arow-icon,
+.ahead-icon {
+  flex: none;
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: var(--win);
+  color: var(--link);
+  display: grid;
+  place-items: center;
+}
+.arow-b {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+.arow-b b {
+  font-size: 16px;
+}
+.arow-r {
+  display: grid;
+  justify-items: end;
+  gap: 6px;
+  flex: none;
+}
+.center {
+  text-align: center;
+  margin: 14px 0 0;
+}
+/* Activity header card. */
+.ahead {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+.ahead-icon {
+  width: 52px;
+  height: 52px;
+}
+.ahead-b {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+.ahead-b h1 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.25;
+}
+.iconbtn.edit {
+  color: var(--link);
+  align-self: flex-start;
+  width: 44px;
+  height: 44px;
+}
+.iconbtn.edit:hover {
+  background: var(--win);
+}
+/* Action row: equal tiles, icon over one word (DESIGN.md → v2, Buttons). */
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.tile {
+  appearance: none;
+  min-height: 64px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  text-decoration: none;
+  cursor: pointer;
+}
+.tile svg {
+  color: var(--primary);
+}
+.tile:hover {
+  border-color: var(--primary);
+}
+.tile img {
+  display: block;
+}
+/* Dark mode: RideWithGPS's logo has black lettering, so its tile stays white. */
+a.tile[aria-label="Open in RideWithGPS"] {
+  background: #fff;
+}
+/* Plan: sport picker, route field with its RideWithGPS tile. */
+.sportgrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.sportgrid button {
+  appearance: none;
+  min-height: 52px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.sportgrid button[aria-checked="true"] {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+.route-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.route-row .fieldbox {
+  flex: 1;
+  min-width: 0;
+}
+.route-row .tile {
+  flex: none;
+  width: 64px;
+  margin-top: 18px;
+}
+.static-value {
+  display: block;
+  min-height: 40px;
+  padding: 9px 0 0;
+  font-weight: 600;
+  color: var(--text);
+}
+.checklist {
+  display: grid;
+  gap: 4px;
 }

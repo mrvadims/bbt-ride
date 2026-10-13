@@ -1,42 +1,78 @@
-// Plan a ride (Edit and Admin): Meet (date, time, start spot) → Route → Notes → Preview → Publish (DESIGN.md → Plan a ride).
-// The form autosaves as a per-editor draft on the server; there is no Save draft button.
+// Plan an activity (Edit and Admin): What (sport, title, details) → When → Where → Route (ride and run) → Notes →
+// Preview → Publish (DESIGN.md → Plan a ride, v2 Plan). The form autosaves as a per-editor draft on the server.
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { RideDetail, RideUpdate, RouteSummary } from "../../shared/api.ts";
+import type { ActivityDetail, ActivityUpdate, RouteSummary } from "../../shared/api.ts";
 import { etaAt, FT_PER_M, M_PER_MI, nearest, type Poi, rideTimes, startDistance } from "../../shared/ride.ts";
-import { addDays, dayLabel, fmtTime, hhmmToMin, isDate, isWeekend, nyNow, weekendDates } from "../../shared/time.ts";
+import {
+  canBeIndoor,
+  DETAILS_HINT,
+  defaultLength,
+  hasRoute,
+  INDOOR_LABELS,
+  minPerMile,
+  mphFromMinPerMile,
+  PACE_RANGE,
+  rulesFor,
+  SPORT_LABEL,
+  SPORTS,
+  type Sport,
+  START_LABEL,
+} from "../../shared/sports.ts";
+import {
+  addDays,
+  dayLabel,
+  fmtTime,
+  hhmmToMin,
+  isDate,
+  isWeekend,
+  nyNow,
+  pad,
+  weekendDates,
+} from "../../shared/time.ts";
 import { evaluate, warnings } from "../../shared/weather.ts";
+import {
+  ActivityBody,
+  ActivityHeader,
+  RwgpsTile,
+  roadNote,
+  WeatherAppRow,
+  wxSummary,
+} from "../components/ActivityBody.tsx";
 import { RainBars } from "../components/charts.tsx";
 import { DatePicker } from "../components/DatePicker.tsx";
 import { HourTable } from "../components/HourTable.tsx";
+import { SportIcon } from "../components/icons.tsx";
 import { EmptyPanel, Panel, Section } from "../components/Panel.tsx";
-import { RideBody, roadNote, WeatherAppRow, wxSummary } from "../components/RideBody.tsx";
 import { SpotForm } from "../components/SpotForm.tsx";
 import { WarningChips } from "../components/Warnings.tsx";
+import { useActivityModel } from "../lib/activityModel.ts";
 import { api } from "../lib/api.ts";
 import {
   NO_WEATHER,
   refreshSpots,
   type SpotWithState,
-  useRide,
-  useRides,
+  useActivities,
+  useActivity,
   useRoute,
   useRouteSearch,
   useSpots,
   useTeam,
   useWeather,
 } from "../lib/data.ts";
-import { usePrefs } from "../lib/prefs.ts";
-import { useRideModel } from "../lib/rideModel.ts";
+import { setPref, usePrefs } from "../lib/prefs.ts";
 import { navigate, useLocation } from "../lib/router.tsx";
 import { units } from "../lib/units.ts";
-import { rideOn } from "./RidePage.tsx";
 
 interface Form {
-  editing: string | null; // id of the published ride being edited
-  base: string | null; // that ride's updatedAt when editing began (the server refuses the update if it changed since)
+  editing: string | null; // id of the published activity being edited
+  base: string | null; // its updatedAt when editing began (the server refuses the update if it changed since)
+  sport: Sport;
+  title: string;
   date: string;
-  time: string;
+  time: string; // start (meet time for ride and run)
+  endTime: string; // sports without a route
+  outdoor: boolean;
   spotId: string | null;
   routeId: number | null;
   altOn: boolean;
@@ -44,13 +80,19 @@ interface Form {
   labelA: string;
   labelB: string;
   stop: string | null | undefined; // undefined = pick the route's first coffee/food stop automatically
-  pace: number;
+  pace: number; // mph (a run shows min/mi)
+  details: string;
   notes: string;
   q: string;
   qAlt: string;
 }
 
 const isCoffee = (p: Poi) => /coffee|food/.test(p.type);
+/** "HH:MM" plus minutes, kept within the same day (an activity ends by 23:45). */
+const addMin = (hhmm: string, min: number) => {
+  const t = Math.max(0, Math.min(23 * 60 + 45, hhmmToMin(hhmm) + min));
+  return `${pad(Math.floor(t / 60))}:${pad(t % 60)}`;
+};
 
 // Only a full RideWithGPS link selects a route by ID: a bare number would be looked up on every keystroke.
 const routeIdFrom = (q: string): number | null => {
@@ -58,14 +100,18 @@ const routeIdFrom = (q: string): number | null => {
   return m ? Number(m[1]) : null;
 };
 
-function fromRide(r: RideDetail, date: string, editing: string | null, fallbackPace: number): Partial<Form> {
-  const [main, alt] = r.routes;
+function fromActivity(a: ActivityDetail, date: string, editing: string | null): Partial<Form> {
+  const [main, alt] = a.routes;
   return {
     editing,
-    base: editing ? r.updatedAt : null,
+    base: editing ? a.updatedAt : null,
+    sport: a.sport,
+    title: a.title,
     date,
-    time: r.meetTime,
-    spotId: r.spotId,
+    time: a.startTime,
+    endTime: a.endTime ?? addMin(a.startTime, defaultLength(a.sport)),
+    outdoor: a.outdoor,
+    spotId: a.spotId,
     routeId: main?.routeId ?? null,
     q: main?.name ?? "",
     stop: main?.stop ?? null,
@@ -74,8 +120,9 @@ function fromRide(r: RideDetail, date: string, editing: string | null, fallbackP
     qAlt: alt?.name ?? "",
     labelA: alt ? (main?.label ?? "Full") : "Full",
     labelB: alt?.label ?? "Short",
-    pace: r.pace || fallbackPace,
-    notes: r.notes,
+    ...(a.pace ? { pace: a.pace } : {}),
+    details: a.details,
+    notes: a.notes,
   };
 }
 
@@ -131,18 +178,12 @@ function RouteResults({
   );
 }
 
-const RwgpsLink = ({ url }: { url: string }) => (
-  <a className="tiny rwgps-link" href={url} target="_blank" rel="noopener noreferrer">
-    Open in RWGPS ↗
-  </a>
-);
-
 function AddSpot({ onAdded, onCancel }: { onAdded: (id: string) => void; onCancel: () => void }) {
   const qc = useQueryClient();
   return (
     <SpotForm
-      title="New start spot"
-      submitLabel="Save spot"
+      title="New place"
+      submitLabel="Save place"
       onCancel={onCancel}
       onSubmit={async (f) => {
         const spot = await api<SpotWithState>("/spots", { body: f });
@@ -156,37 +197,51 @@ function AddSpot({ onAdded, onCancel }: { onAdded: (id: string) => void; onCance
 export function PlanPage() {
   const { query } = useLocation();
   const qc = useQueryClient();
+  const prefs = usePrefs();
   const team = useTeam().data;
   const spots = useSpots().data;
   const wq = useWeather();
   const weather = wq.data ?? NO_WEATHER; // planning never waits on the forecast
-  const rides = useRides().data;
-  const u = units(usePrefs().units);
+  const acts = useActivities().data;
+  const u = units(prefs.units);
   const [form, setForm] = useState<Form | null>(null);
   const [addingSpot, setAddingSpot] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [paceMsg, setPaceMsg] = useState<string | null>(null);
   const editId = query.get("edit");
   const reuseId = query.get("reuse");
-  const source = useRide(editId ?? reuseId);
-  const sourceRide = source.data;
-  const editingRide = useRide(form?.editing).data; // stays current after Cancel / Restore
+  const source = useActivity(editId ?? reuseId);
+  const sourceAct = source.data;
+  const editingAct = useActivity(form?.editing).data; // stays current after Cancel / Restore
   const today = nyNow().date;
-  const dateQuery = query.get("date"); // from a ride page link
+  const dateQuery = query.get("date");
   const dateParam = isDate(dateQuery) && dateQuery >= today ? dateQuery : null;
+  const offered: Sport[] = team ? SPORTS.filter((x) => x === "other" || team.settings.sports.includes(x)) : [];
 
-  // The first weekend day in the coming week with no ride yet; otherwise this Saturday.
-  const nextFreeDay = (): string => {
+  // The first weekend day in the coming week without this sport posted; otherwise this Saturday.
+  const nextFreeDay = (sport: Sport): string => {
     const [sat] = weekendDates(today);
     for (let d = sat; d <= addDays(today, 7); d = addDays(d, 1)) {
-      if (isWeekend(d) && !(rides ?? []).some((r) => r.date === d && r.status === "published")) return d;
+      if (isWeekend(d) && !(acts ?? []).some((a) => a.date === d && a.sport === sport && a.status === "published"))
+        return d;
     }
     return sat;
   };
-  const freshForm = (): Form => ({
+  const defaults = (sport: Sport): Pick<Form, "pace" | "time" | "endTime" | "outdoor"> => {
+    const time = sport === "ride" ? (team?.settings.meetTime ?? "08:30") : "08:00";
+    return {
+      pace: sport === "run" ? 3600 / 540 : (team?.settings.pace ?? 17), // run: 9:00 min/mi
+      time,
+      endTime: addMin(time, defaultLength(sport)),
+      outdoor: sport !== "swim", // a swim starts as a pool swim
+    };
+  };
+  const freshForm = (sport: Sport): Form => ({
     editing: null,
     base: null,
-    date: dateParam ?? nextFreeDay(),
-    time: team?.settings.meetTime ?? "08:30",
+    sport,
+    title: "",
+    date: dateParam ?? nextFreeDay(sport),
     spotId: null,
     routeId: null,
     altOn: false,
@@ -194,37 +249,39 @@ export function PlanPage() {
     labelA: "Full",
     labelB: "Short",
     stop: undefined,
-    pace: team?.settings.pace ?? 17,
+    details: "",
     notes: "",
     q: "",
     qAlt: "",
+    ...defaults(sport),
   });
 
-  // Load the form once: editing a ride, reusing a past ride, the saved draft, or a fresh plan.
+  // Load the form once: editing an activity, reusing a past one, the saved draft, or a fresh plan.
   const loaded = useRef(false);
   useEffect(() => {
-    if (loaded.current || !team || !spots || !rides) return;
-    if ((editId || reuseId) && !sourceRide) return;
+    if (loaded.current || !team || !spots || !acts) return;
+    if ((editId || reuseId) && !sourceAct) return;
     loaded.current = true;
-    const base = freshForm();
-    if (editId && sourceRide)
-      return setForm({ ...base, ...fromRide(sourceRide, sourceRide.date, sourceRide.id, team.settings.pace) });
-    if (reuseId && sourceRide)
-      return setForm({ ...base, ...fromRide(sourceRide, nextFreeDay(), null, team.settings.pace) });
+    const first = offered.includes(prefs.sport) ? prefs.sport : (offered[0] ?? "other");
+    if (editId && sourceAct)
+      return setForm({ ...freshForm(sourceAct.sport), ...fromActivity(sourceAct, sourceAct.date, sourceAct.id) });
+    if (reuseId && sourceAct)
+      return setForm({
+        ...freshForm(sourceAct.sport),
+        ...fromActivity(sourceAct, nextFreeDay(sourceAct.sport), null),
+      });
     api<{ form: Partial<Form> } | null>("/draft")
       .then((d) => {
-        const restored = { ...base, ...(d?.form ?? {}) };
-        if (restored.date < today) Object.assign(restored, { date: base.date, editing: null, base: null }); // stale draft
+        const restored = { ...freshForm(d?.form?.sport ?? first), ...(d?.form ?? {}) };
+        if (restored.date < today)
+          Object.assign(restored, { date: nextFreeDay(restored.sport), editing: null, base: null });
         if (dateParam) Object.assign(restored, { date: dateParam, editing: null, base: null });
-        // Drafts saved before edit conflicts were checked have no base: take the ride as it is now.
-        if (restored.editing && !restored.base)
-          restored.base = rides.find((r) => r.id === restored.editing)?.updatedAt ?? null;
         setForm(restored);
       })
-      .catch(() => setForm(base));
+      .catch(() => setForm(freshForm(first)));
   });
 
-  // Autosave the draft (debounced), but only once the editor changes something: just opening a ride to edit or
+  // Autosave the draft (debounced), but only once the editor changes something: just opening an activity to edit or
   // reuse leaves the saved draft alone. The last save is kept so dropping the draft can wait for it.
   const dirty = useRef(false);
   const saving = useRef<Promise<unknown>>(Promise.resolve());
@@ -247,10 +304,11 @@ export function PlanPage() {
     dirty.current = true;
     setForm((f) => (f ? { ...f, ...patch } : f));
   }, []);
-  const routeQ = useRoute(form?.routeId);
-  const altQ = useRoute(form?.altOn ? form.altId : null);
-  const pastedMainQ = useRoute(form ? routeIdFrom(form.q) : null);
-  const pastedAltQ = useRoute(form ? routeIdFrom(form.qAlt) : null);
+  const routed = form ? hasRoute(form.sport) : false;
+  const routeQ = useRoute(routed ? form?.routeId : null);
+  const altQ = useRoute(routed && form?.altOn ? form.altId : null);
+  const pastedMainQ = useRoute(form && routed ? routeIdFrom(form.q) : null);
+  const pastedAltQ = useRoute(form && routed ? routeIdFrom(form.qAlt) : null);
   const route = routeQ.data;
   const altRoute = altQ.data;
   const pastedMainRoute = pastedMainQ.data;
@@ -268,7 +326,7 @@ export function PlanPage() {
     if (pastedAltRoute && form && form.altId !== pastedAltRoute.id) set({ altId: pastedAltRoute.id });
   }, [pastedAltRoute, form, set]);
 
-  // Picking a route first selects the spot it starts from; a new route picks its first coffee/food stop.
+  // Picking a route first selects the spot it starts from; a new ride route picks its first coffee/food stop.
   useEffect(() => {
     if (!form || !route || !spots) return;
     const patch: Partial<Form> = {};
@@ -281,103 +339,129 @@ export function PlanPage() {
         spots.filter((s) => !s.archived),
       );
     if (!form.spotId && near) patch.spotId = near.id;
-    if (form.stop === undefined) patch.stop = route.pois.find(isCoffee)?.name ?? null;
+    if (form.stop === undefined) patch.stop = form.sport === "ride" ? (route.pois.find(isCoffee)?.name ?? null) : null;
     if (Object.keys(patch).length) set(patch);
   }, [route, form, spots, set]);
 
-  const draftRide =
-    form?.routeId && form.spotId && route
+  const draft =
+    form?.spotId && (!routed || (form.routeId && route))
       ? {
+          sport: form.sport,
+          title: form.title.trim(),
           date: form.date,
-          meetTime: form.time,
+          startTime: form.time,
+          endTime: routed ? null : form.endTime,
           spotId: form.spotId,
-          pace: form.pace,
+          outdoor: canBeIndoor(form.sport) ? form.outdoor : true,
+          pace: routed ? form.pace : 0,
+          details: routed ? "" : form.details.trim(),
           notes: form.notes,
           status: "published" as const,
-          routes: [
-            {
-              label: form.altOn && form.altId ? form.labelA : "Main",
-              routeId: form.routeId,
-              stop: form.stop ?? null,
-              name: route.name,
-            },
-            ...(form.altOn && form.altId && altRoute
+          routes:
+            routed && form.routeId && route
               ? [
                   {
-                    label: form.labelB,
-                    routeId: form.altId,
-                    stop: altRoute.pois.some((p) => p.name === form.stop) ? (form.stop ?? null) : null,
-                    name: altRoute.name,
+                    label: form.altOn && form.altId ? form.labelA : "Main",
+                    routeId: form.routeId,
+                    stop: form.sport === "ride" ? (form.stop ?? null) : null,
+                    name: route.name,
                   },
+                  ...(form.altOn && form.altId && altRoute
+                    ? [
+                        {
+                          label: form.labelB,
+                          routeId: form.altId,
+                          stop:
+                            form.sport === "ride" && altRoute.pois.some((p) => p.name === form.stop)
+                              ? (form.stop ?? null)
+                              : null,
+                          name: altRoute.name,
+                        },
+                      ]
+                    : []),
                 ]
-              : []),
-          ],
+              : [],
         }
       : null;
-  const model = useRideModel(draftRide);
+  const model = useActivityModel(draft);
 
   const publish = useMutation({
     mutationFn: async (replace: boolean) => {
-      if (!form || !draftRide) throw new Error("Pick a start spot and a route");
+      if (!form || !draft) throw new Error(routed ? "Pick a start spot and a route" : "Pick a place");
       if (form.altOn && form.altId && !altRoute) throw new Error("The alternate route hasn't loaded yet");
-      const body: RideUpdate = {
-        date: draftRide.date,
-        meetTime: draftRide.meetTime,
-        spotId: draftRide.spotId,
-        pace: draftRide.pace,
-        notes: draftRide.notes,
-        routes: draftRide.routes.map(({ label, routeId, stop }) => ({ label, routeId, stop })),
+      const body: ActivityUpdate = {
+        ...draft,
+        routes: draft.routes.map(({ label, routeId, stop }) => ({ label, routeId, stop })),
         replace,
         baseUpdatedAt: form.base ?? "", // a POST ignores it
       };
       return form.editing
-        ? api<RideDetail>(`/rides/${form.editing}`, { method: "PUT", body })
-        : api<RideDetail>("/rides", { body });
+        ? api<ActivityDetail>(`/activities/${form.editing}`, { method: "PUT", body })
+        : api<ActivityDetail>("/activities", { body });
     },
-    onSuccess: async (ride) => {
+    onSuccess: async (act) => {
       await dropDraft(); // the server already deleted it; this catches a save that was in flight
-      await qc.invalidateQueries({ queryKey: ["rides"] });
-      qc.setQueryData(["ride", ride.id], ride);
-      navigate(`/ride/${ride.date}`);
+      setPref("sport", act.sport);
+      await qc.invalidateQueries({ queryKey: ["activities"] });
+      qc.setQueryData(["activity", act.id], act);
+      navigate(`/a/${act.id}`);
     },
     onError: (e) => setError(e.message),
   });
   const toggleCancel = useMutation({
-    mutationFn: (r: RideDetail) =>
-      api<RideDetail>(`/rides/${r.id}/${r.status === "cancelled" ? "restore" : "cancel"}`, { method: "POST" }),
-    onSuccess: async (ride, r) => {
-      qc.setQueryData(["ride", ride.id], ride);
+    mutationFn: (a: ActivityDetail) =>
+      api<ActivityDetail>(`/activities/${a.id}/${a.status === "cancelled" ? "restore" : "cancel"}`, { method: "POST" }),
+    onSuccess: async (act, a) => {
+      qc.setQueryData(["activity", act.id], act);
       // Our own Cancel/Restore isn't a conflict, but only if the form was up to date before it.
-      setForm((f) => (f?.editing === ride.id && f.base === r.updatedAt ? { ...f, base: ride.updatedAt } : f));
-      await qc.invalidateQueries({ queryKey: ["rides"] });
+      setForm((f) => (f?.editing === act.id && f.base === a.updatedAt ? { ...f, base: act.updatedAt } : f));
+      await qc.invalidateQueries({ queryKey: ["activities"] });
     },
     onError: (e) => setError(e.message),
   });
   const clear = async () => {
     await dropDraft();
     navigate("/plan", true);
-    setForm({ ...freshForm(), date: nextFreeDay() });
+    setForm(freshForm(form?.sport ?? "ride"));
+  };
+  const pickSport = (sport: Sport) => {
+    if (!form || form.sport === sport) return;
+    const taken = (acts ?? []).some((a) => a.date === form.date && a.sport === sport && a.status === "published");
+    set({ sport, ...defaults(sport), ...(taken ? { date: nextFreeDay(sport) } : {}), stop: undefined });
   };
 
-  if (source.isError) return <p className="small">That ride couldn't be loaded. {source.error.message}</p>;
-  if (!form || !team || !spots || !rides) return <p className="muted small">Loading…</p>;
+  if (source.isError) return <p className="small">That activity couldn't be loaded. {source.error.message}</p>;
+  if (!form || !team || !spots || !acts) return <p className="muted small">Loading…</p>;
   const s = team.settings;
   const active = spots.filter((x) => !x.archived);
   const weekend = weekendDates(today);
   const startMin = hhmmToMin(form.time);
-  const times = route ? rideTimes(route, form.time, form.pace, form.stop ?? null, s) : null;
-  const durMin = times ? times.end - times.start : s.durationH * 60;
+  const times = routed && route ? rideTimes(route, form.time, form.pace, form.stop ?? null, s) : null;
+  const durMin = routed ? (times ? times.end - times.start : s.durationH * 60) : hhmmToMin(form.endTime) - startMin;
+  const outdoor = canBeIndoor(form.sport) ? form.outdoor : true;
+  const rules = rulesFor(form.sport, form.pace, s.warn);
   const spot = active.find((x) => x.id === form.spotId) ?? spots.find((x) => x.id === form.spotId);
-  const clash = rideOn(rides, form.date);
-  const clashOther = clash && clash.status === "published" && clash.id !== form.editing ? clash : undefined;
+  // Publishing (or updating a published activity) replaces the same sport's activity that day; editing a cancelled one
+  // replaces nothing (the server keeps it cancelled).
+  const clash =
+    editingAct?.status === "cancelled"
+      ? undefined
+      : acts.find(
+          (a) => a.date === form.date && a.sport === form.sport && a.status === "published" && a.id !== form.editing,
+        );
+  const sportName = SPORT_LABEL[form.sport].toLowerCase();
   const pois = route
     ? [...route.pois].sort((a, b) => Number(isCoffee(b)) - Number(isCoffee(a)) || a.route_d_m - b.route_d_m)
     : [];
   const far = route && spot ? startDistance(route, spot) : 0;
+  const placeLabel = routed ? "Start spot" : "Place";
+  const indoorLabels = INDOOR_LABELS[form.sport];
+  const runPace = form.sport === "run";
+  const [paceLo, paceHi] = runPace ? PACE_RANGE.run : PACE_RANGE.ride;
 
   const spotRow = (sp: SpotWithState) => {
-    const se = weather.series[sp.id];
-    const ev = se ? evaluate(se, form.date, startMin, durMin, form.pace, s) : null;
+    const se = outdoor ? weather.series[sp.id] : undefined;
+    const ev = se && durMin > 0 ? evaluate(se, form.date, startMin, durMin, rules, s) : null;
     return (
       <button
         key={sp.id}
@@ -392,43 +476,49 @@ export function PlanPage() {
         <span className="radio-dot" aria-hidden="true" />
         <span className="spotrow-b">
           <b>{sp.name}</b>
-          <span className="small">
-            {ev && se ? (
-              <>
-                {wxSummary(ev.st, u)}
-                <WarningChips
-                  list={warnings(ev, se, form.date, startMin, weather.alerts[sp.id] ?? [])}
-                  u={u}
-                  lookback={s.lookback}
-                />
-              </>
-            ) : (
-              <span className="muted">{wq.isPending ? "Loading the forecast…" : "No forecast for this date yet."}</span>
-            )}
-          </span>
+          {outdoor && (
+            <span className="small">
+              {ev && se ? (
+                <>
+                  {wxSummary(ev.st, u)}
+                  <WarningChips
+                    list={warnings(ev, se, form.date, startMin, rules, weather.alerts[sp.id] ?? [])}
+                    u={u}
+                    lookback={s.lookback}
+                  />
+                </>
+              ) : (
+                <span className="muted">
+                  {wq.isPending ? "Loading the forecast…" : "No forecast for this date yet."}
+                </span>
+              )}
+            </span>
+          )}
         </span>
       </button>
     );
   };
 
   const detail = (() => {
-    if (!spot) return null;
+    if (!spot || !outdoor) return null;
     const se = weather.series[spot.id];
-    const ev = se ? evaluate(se, form.date, startMin, durMin, form.pace, s) : null;
+    const ev = se && durMin > 0 ? evaluate(se, form.date, startMin, durMin, rules, s) : null;
     const radar = `https://www.rainviewer.com/map.html?loc=${spot.lat},${spot.lng},9&oFa=0&oC=1&oU=0&oCS=1&oF=0&oAP=1&c=3&o=83&lm=1&layer=radar&sm=1&sn=1`;
+    const feel = form.sport === "ride" ? "Bike" : runPace ? "Run" : undefined;
     return (
-      <Panel id="spotdetail" label="Details" summary={`${spot.name} · weather, parking`} collapsed>
+      <Panel id="spotdetail" label="Details" summary={`${spot.name} · weather${spot.note ? ", notes" : ""}`} collapsed>
         {ev && se && (
           <>
             <p className="small" style={{ margin: "0 0 8px" }}>
-              Bike feel {u.temp(ev.st.feelMin)}–{u.temp(ev.st.feelMax)} · gusts {u.speed(ev.st.wgMax)} {u.speedUnit} ·{" "}
-              {u.rain(ev.st.rain)} rain · {roadNote(ev.st, u, s.lookback)}
+              {feel ? `${feel} feel ${u.temp(ev.st.feelMin)}–${u.temp(ev.st.feelMax)} · ` : ""}gusts{" "}
+              {u.speed(ev.st.wgMax)} {u.speedUnit} · {u.rain(ev.st.rain)} rain
+              {rules.road ? ` · ${roadNote(ev.st, u, s.lookback)}` : ""}
             </p>
             <div className="sub-h" style={{ marginTop: 4 }}>
               Rain −12 h → +8 h
             </div>
             <RainBars se={se} date={form.date} startMin={startMin} endMin={startMin + durMin} u={u} />
-            <HourTable se={se} ev={ev} pace={form.pace} s={s} u={u} />
+            <HourTable se={se} ev={ev} rules={rules} feel={feel} s={s} u={u} />
           </>
         )}
         <WeatherAppRow
@@ -439,27 +529,28 @@ export function PlanPage() {
             </a>
           }
         />
-        <div className="sub">
-          <div className="sub-h">Parking</div>
-          <p>{spot.note || "No notes yet."}</p>
-          <div className="btnrow">
-            <a className="btn btn-outline btn-sm" href={spot.maps_url} target="_blank" rel="noopener noreferrer">
-              Open in Google Maps
-            </a>
+        {spot.note && (
+          <div className="sub">
+            <div className="sub-h">Notes</div>
+            <p>{spot.note}</p>
           </div>
-        </div>
+        )}
       </Panel>
     );
   })();
 
+  const verb = form.editing ? "Update" : clash ? "Replace" : "Publish";
+
   return (
     <>
-      <h1 className="sr">Plan a ride</h1>
-      {editingRide ? (
-        <div className={`editbar${editingRide.status === "cancelled" ? " lv2" : ""}`}>
+      <h1 className="sr">Plan an activity</h1>
+      {editingAct ? (
+        <div className={`editbar${editingAct.status === "cancelled" ? " lv2" : ""}`}>
           <span>
-            <b>Editing the {dayLabel(editingRide.date)} ride</b>
-            {editingRide.status === "cancelled" ? " · cancelled" : ""}
+            <b>
+              Editing the {dayLabel(editingAct.date)} {SPORT_LABEL[editingAct.sport].toLowerCase()}
+            </b>
+            {editingAct.status === "cancelled" ? " · cancelled" : ""}
           </span>
           <button type="button" className="linkbtn" onClick={clear}>
             Discard changes
@@ -475,7 +566,48 @@ export function PlanPage() {
       )}
       <div className="plan-grid">
         <div className="panels">
-          <Section label="Meet">
+          <Section label="What">
+            <div className="sportgrid" role="radiogroup" aria-label="Sport">
+              {(form.editing ? [form.sport] : offered).map((x) => (
+                <button key={x} type="button" role="radio" aria-checked={form.sport === x} onClick={() => pickSport(x)}>
+                  <SportIcon sport={x} size={22} />
+                  {SPORT_LABEL[x]}
+                </button>
+              ))}
+            </div>
+            {indoorLabels && (
+              <div className="seg" role="group" aria-label="Setting">
+                <button type="button" aria-pressed={!form.outdoor} onClick={() => set({ outdoor: false })}>
+                  {indoorLabels[0]}
+                </button>
+                <button type="button" aria-pressed={form.outdoor} onClick={() => set({ outdoor: true })}>
+                  {indoorLabels[1]}
+                </button>
+              </div>
+            )}
+            <label className="field">
+              Title (optional)
+              <input
+                value={form.title}
+                maxLength={60}
+                placeholder={routed ? "The route's name" : SPORT_LABEL[form.sport]}
+                onChange={(e) => set({ title: e.target.value })}
+              />
+            </label>
+            {!routed && (
+              <label className="field">
+                Details (optional)
+                <input
+                  value={form.details}
+                  maxLength={80}
+                  placeholder={DETAILS_HINT[form.sport]}
+                  onChange={(e) => set({ details: e.target.value })}
+                />
+              </label>
+            )}
+          </Section>
+
+          <Section label="When">
             <div className="daytabs" role="group" aria-label="Weekend day">
               {weekend.map((d) => (
                 <button
@@ -489,26 +621,56 @@ export function PlanPage() {
                 </button>
               ))}
             </div>
+            <DatePicker label="Date (any day)" value={form.date} min={today} onChange={(date) => set({ date })} />
             <div className="row">
-              <DatePicker label="Date (any day)" value={form.date} min={today} onChange={(date) => set({ date })} />
               <label className="field">
-                Meet time
+                {START_LABEL[form.sport]}
                 <input
                   type="time"
                   value={form.time}
                   step={900}
-                  onChange={(e) => set({ time: e.target.value || s.meetTime })}
+                  onChange={(e) => {
+                    const time = e.target.value || form.time;
+                    // Moving the start keeps the length the same (at least 15 minutes).
+                    const len = Math.max(15, hhmmToMin(form.endTime) - hhmmToMin(form.time));
+                    set({ time, endTime: addMin(time, len) });
+                  }}
                 />
               </label>
+              {routed ? (
+                <div className="field">
+                  Back about
+                  <span className="static-value">{times ? fmtTime(times.end) : "Pick a route"}</span>
+                </div>
+              ) : (
+                <label className="field">
+                  Ends
+                  <input
+                    type="time"
+                    value={form.endTime}
+                    step={900}
+                    onChange={(e) => set({ endTime: e.target.value || form.endTime })}
+                  />
+                </label>
+              )}
             </div>
+            {!routed && durMin <= 0 && (
+              <p className="tiny" role="alert" style={{ margin: 0, color: "var(--no-fg)" }}>
+                The end time must be after the start.
+              </p>
+            )}
+          </Section>
+
+          <Section label="Where">
             <div className="field" style={{ marginBottom: -4 }}>
-              Start spot · weather {fmtTime(startMin)}–{fmtTime(startMin + durMin)}
+              {placeLabel}
+              {outdoor && durMin > 0 ? ` · weather ${fmtTime(startMin)}–${fmtTime(startMin + durMin)}` : ""}
             </div>
             <div className="spotlist">
               <div
                 className="spotgroup"
                 role="radiogroup"
-                aria-label="Start spot"
+                aria-label={placeLabel}
                 onKeyDown={(e) => {
                   if (!["ArrowDown", "ArrowUp"].includes(e.key) || !active.length) return;
                   e.preventDefault();
@@ -537,7 +699,8 @@ export function PlanPage() {
                     +
                   </span>
                   <span className="spotrow-b">
-                    <b>Add a start spot</b>
+                    <b>Add a place</b>
+                    <span className="small muted">Paste a Google Maps pin</span>
                   </span>
                 </button>
               )}
@@ -545,145 +708,175 @@ export function PlanPage() {
             {detail}
           </Section>
 
-          <Section label="Route">
-            <div className="fieldbox">
-              <label className="field">
-                {spot
-                  ? `Routes from ${spot.name}, or search / paste a RideWithGPS link`
-                  : "Search or paste a RideWithGPS link"}
-                <input
-                  type="search"
-                  value={form.q}
-                  placeholder="e.g. Katonah or ridewithgps.com/routes/57406828"
-                  autoComplete="off"
-                  onChange={(e) => set({ q: e.target.value })}
-                />
-              </label>
-              <RouteResults
-                q={form.q}
-                chosen={form.routeId}
-                spots={spots}
-                spotId={form.spotId}
-                onPick={(r) => set({ routeId: r.id, q: r.name, stop: undefined })}
-              />
-            </div>
-            {routeError ? (
-              <p className="tiny" role="alert" style={{ margin: 0, color: "var(--no-fg)" }}>
-                {routeError}
-              </p>
-            ) : (
-              route && <RwgpsLink url={route.url} />
-            )}
-            {far > 0.3 * M_PER_MI && spot && (
-              <p className="tiny" style={{ margin: 0, color: "var(--cau-fg)" }}>
-                This route starts {u.dist(far / M_PER_MI)} from {spot.name}.
-              </p>
-            )}
-            <label className="radio" style={{ border: 0, padding: 0 }}>
-              <input type="checkbox" checked={form.altOn} onChange={(e) => set({ altOn: e.target.checked })} />
-              <span>
-                <b>Add alternate route</b>
-                <br />
-                <span className="small muted">Same spot and time</span>
-              </span>
-            </label>
-            {form.altOn && (
-              <>
-                <div className="row">
-                  <label className="field">
-                    Main label
-                    <input value={form.labelA} maxLength={30} onChange={(e) => set({ labelA: e.target.value })} />
-                  </label>
-                  <label className="field">
-                    Alternate label
-                    <input value={form.labelB} maxLength={30} onChange={(e) => set({ labelB: e.target.value })} />
-                  </label>
-                </div>
+          {routed && (
+            <Section label="Route">
+              <div className="route-row">
                 <div className="fieldbox">
                   <label className="field">
-                    Alternate route
+                    RideWithGPS route
                     <input
                       type="search"
-                      value={form.qAlt}
-                      placeholder="Search or paste link"
+                      value={form.q}
+                      placeholder="Search the library, or paste a RideWithGPS link"
                       autoComplete="off"
-                      onChange={(e) => set({ qAlt: e.target.value })}
+                      onChange={(e) => set({ q: e.target.value })}
                     />
                   </label>
                   <RouteResults
-                    q={form.qAlt}
-                    chosen={form.altId}
+                    q={form.q}
+                    chosen={form.routeId}
                     spots={spots}
                     spotId={form.spotId}
-                    onPick={(r) => set({ altId: r.id, qAlt: r.name })}
+                    onPick={(r) => set({ routeId: r.id, q: r.name, stop: undefined })}
                   />
                 </div>
-                {altError ? (
-                  <p className="tiny" role="alert" style={{ margin: 0, color: "var(--no-fg)" }}>
-                    {altError}
-                  </p>
-                ) : (
-                  altRoute && <RwgpsLink url={altRoute.url} />
-                )}
-              </>
-            )}
-            <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
-              <legend className="field" style={{ marginBottom: 4 }}>
-                Coffee stop
-              </legend>
-              {route ? (
-                <>
-                  {pois.map((p) => (
-                    <label key={p.name} className="radio">
-                      <input
-                        type="radio"
-                        name="stop"
-                        checked={form.stop === p.name}
-                        onChange={() => set({ stop: p.name })}
-                      />
-                      <span>
-                        <b>{p.name}</b> <span className="tag">{p.type}</span>
-                        <br />
-                        <span className="small muted">
-                          {u.marker(p.route_d_m / M_PER_MI)} · ≈{" "}
-                          {fmtTime(etaAt(p.route_d_m / M_PER_MI, startMin, form.pace, s))}
-                          {p.off_route_m > 50 ? ` · ${u.short(p.off_route_m)} off route` : ""}
-                        </span>
-                      </span>
-                    </label>
-                  ))}
-                  <label className="radio">
-                    <input type="radio" name="stop" checked={!form.stop} onChange={() => set({ stop: null })} />
-                    <span>
-                      <b>No stop</b>
-                    </span>
-                  </label>
-                </>
-              ) : (
-                <span className="small muted">Pick a route first.</span>
+                {route && <RwgpsTile url={route.url} />}
+              </div>
+              {routeError && (
+                <p className="tiny" role="alert" style={{ margin: 0, color: "var(--no-fg)" }}>
+                  {routeError}
+                </p>
               )}
-            </fieldset>
-            <div className="row">
-              <label className="field">
-                Pace (mph)
-                <input
-                  type="number"
-                  min={10}
-                  max={25}
-                  step={0.5}
-                  defaultValue={form.pace}
-                  key={form.pace}
-                  onBlur={(e) => set({ pace: Math.min(25, Math.max(10, Number(e.target.value) || s.pace)) })}
-                />
+              {far > 0.3 * M_PER_MI && spot && (
+                <p className="tiny" style={{ margin: 0, color: "var(--cau-fg)" }}>
+                  This route starts {u.dist(far / M_PER_MI)} from {spot.name}.
+                </p>
+              )}
+              <label className="radio" style={{ border: 0, padding: 0 }}>
+                <input type="checkbox" checked={form.altOn} onChange={(e) => set({ altOn: e.target.checked })} />
+                <span>
+                  <b>Add alternate route</b>
+                  <br />
+                  <span className="small muted">Same spot and time</span>
+                </span>
               </label>
-              <span />
-            </div>
-          </Section>
+              {form.altOn && (
+                <>
+                  <div className="row">
+                    <label className="field">
+                      Main label
+                      <input value={form.labelA} maxLength={30} onChange={(e) => set({ labelA: e.target.value })} />
+                    </label>
+                    <label className="field">
+                      Alternate label
+                      <input value={form.labelB} maxLength={30} onChange={(e) => set({ labelB: e.target.value })} />
+                    </label>
+                  </div>
+                  <div className="route-row">
+                    <div className="fieldbox">
+                      <label className="field">
+                        Alternate route
+                        <input
+                          type="search"
+                          value={form.qAlt}
+                          placeholder="Search the library, or paste a RideWithGPS link"
+                          autoComplete="off"
+                          onChange={(e) => set({ qAlt: e.target.value })}
+                        />
+                      </label>
+                      <RouteResults
+                        q={form.qAlt}
+                        chosen={form.altId}
+                        spots={spots}
+                        spotId={form.spotId}
+                        onPick={(r) => set({ altId: r.id, qAlt: r.name })}
+                      />
+                    </div>
+                    {altRoute && <RwgpsTile url={altRoute.url} />}
+                  </div>
+                  {altError && (
+                    <p className="tiny" role="alert" style={{ margin: 0, color: "var(--no-fg)" }}>
+                      {altError}
+                    </p>
+                  )}
+                </>
+              )}
+              {form.sport === "ride" && (
+                <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
+                  <legend className="field" style={{ marginBottom: 4 }}>
+                    Coffee stop
+                  </legend>
+                  {route ? (
+                    <>
+                      {pois.map((p) => (
+                        <label key={p.name} className="radio">
+                          <input
+                            type="radio"
+                            name="stop"
+                            checked={form.stop === p.name}
+                            onChange={() => set({ stop: p.name })}
+                          />
+                          <span>
+                            <b>{p.name}</b> <span className="tag">{p.type}</span>
+                            <br />
+                            <span className="small muted">
+                              {u.marker(p.route_d_m / M_PER_MI)} · ≈{" "}
+                              {fmtTime(etaAt(p.route_d_m / M_PER_MI, startMin, form.pace, s))}
+                              {p.off_route_m > 50 ? ` · ${u.short(p.off_route_m)} off route` : ""}
+                            </span>
+                          </span>
+                        </label>
+                      ))}
+                      <label className="radio">
+                        <input type="radio" name="stop" checked={!form.stop} onChange={() => set({ stop: null })} />
+                        <span>
+                          <b>No stop</b>
+                        </span>
+                      </label>
+                    </>
+                  ) : (
+                    <span className="small muted">Pick a route first.</span>
+                  )}
+                </fieldset>
+              )}
+              <div className="row">
+                {runPace ? (
+                  <label className="field">
+                    Pace (min/mi)
+                    {/* A text keyboard: the iPhone number pad has no ":". */}
+                    <input
+                      inputMode="text"
+                      placeholder="9:00"
+                      defaultValue={minPerMile(form.pace)}
+                      key={form.pace}
+                      onBlur={(e) => {
+                        const mph = mphFromMinPerMile(e.target.value);
+                        setPaceMsg(mph ? null : "Type the pace as minutes per mile, e.g. 9:30");
+                        if (mph) set({ pace: Math.min(paceHi, Math.max(paceLo, mph)) });
+                        else e.target.value = minPerMile(form.pace);
+                      }}
+                    />
+                    {paceMsg && (
+                      <span className="tiny" role="alert" style={{ color: "var(--no-fg)" }}>
+                        {paceMsg}
+                      </span>
+                    )}
+                  </label>
+                ) : (
+                  <label className="field">
+                    Pace (mph)
+                    <input
+                      type="number"
+                      min={paceLo}
+                      max={paceHi}
+                      step={0.5}
+                      defaultValue={form.pace}
+                      key={form.pace}
+                      onBlur={(e) =>
+                        set({ pace: Math.min(paceHi, Math.max(paceLo, Number(e.target.value) || s.pace)) })
+                      }
+                    />
+                  </label>
+                )}
+                <span />
+              </div>
+            </Section>
+          )}
 
           <Section label="Notes">
             <textarea
               aria-label="Notes"
-              placeholder="Regroup points, café plan, lights…"
+              placeholder={routed ? "Regroup points, café plan, lights…" : "What to bring, format, anything else…"}
               value={form.notes}
               maxLength={4000}
               onChange={(e) => set({ notes: e.target.value })}
@@ -695,20 +888,28 @@ export function PlanPage() {
           <div className="kicker" style={{ margin: "4px 0 8px" }}>
             Preview · {dayLabel(form.date, true)}
           </div>
-          {!draftRide || !model || model.loading ? (
+          {!draft || !model || model.loading || durMin <= 0 ? (
             <EmptyPanel
               label="Preview"
               text={
-                form.spotId ? "Pick a route to see the preview." : "Pick a start spot and a route to see the preview."
+                !form.spotId
+                  ? routed
+                    ? "Pick a start spot and a route to see the preview."
+                    : "Pick a place to see the preview."
+                  : routed
+                    ? "Pick a route to see the preview."
+                    : "Set an end time after the start."
               }
             />
           ) : (
             <>
-              <RideBody ride={draftRide} model={model} mode="preview" routeIndex={0} />
-              {clashOther && (
+              <ActivityHeader act={draft} m={model} />
+              <ActivityBody act={draft} model={model} mode="preview" routeIndex={0} />
+              {clash && (
                 <p className="tiny" style={{ margin: "12px 0 0", color: "var(--cau-fg)" }}>
-                  A ride is already posted for {dayLabel(form.date)}. {form.editing ? "Updating" : "Publishing"}{" "}
-                  replaces it (the old ride is cancelled and kept in history).
+                  A {sportName} is already posted for {dayLabel(form.date)}.{" "}
+                  {verb === "Update" ? "Updating" : "Publishing"} replaces it (the old one is cancelled and kept in
+                  history).
                 </p>
               )}
               {error && (
@@ -721,18 +922,18 @@ export function PlanPage() {
                   type="button"
                   className="btn btn-primary"
                   disabled={publish.isPending}
-                  onClick={() => publish.mutate(Boolean(clashOther))}
+                  onClick={() => publish.mutate(Boolean(clash))}
                 >
-                  {form.editing ? "Update ride" : clashOther ? "Replace ride" : "Publish"}
+                  {verb === "Publish" ? "Publish" : `${verb} ${sportName}`}
                 </button>
-                {editingRide && (
+                {editingAct && (
                   <button
                     type="button"
                     className="btn btn-outline"
                     disabled={toggleCancel.isPending}
-                    onClick={() => toggleCancel.mutate(editingRide)}
+                    onClick={() => toggleCancel.mutate(editingAct)}
                   >
-                    {editingRide.status === "cancelled" ? "Restore ride" : "Cancel ride"}
+                    {editingAct.status === "cancelled" ? `Restore ${sportName}` : `Cancel ${sportName}`}
                   </button>
                 )}
               </div>

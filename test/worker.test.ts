@@ -60,7 +60,11 @@ describe("Web Push payload", () => {
     };
     const payload = await buildPushPayload(
       {
-        data: JSON.stringify({ title: "Ride updated", body: "meet 8:30 → 9:00", url: "/ride/2026-10-17" }),
+        data: JSON.stringify({
+          title: "Updated: Katonah loop, Sat, Oct 17",
+          body: "meet 8:30 → 9:00",
+          url: "/a/abc123",
+        }),
         options: { ttl: 86400, urgency: "high" },
       },
       sub,

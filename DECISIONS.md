@@ -56,7 +56,7 @@ Every open question from the design review, with what was decided. Details live 
 | Cloudflare deploys | Scoped API token in GitHub repository secrets; deploy via GitHub Actions; `app.bbt.team` attached by hand | 2026-10-10 |
 | Address | `app.bbt.team` (was `ride.bbt.team` while only the captain used it; the old address is detached, no forwarding) | 2026-10-13 |
 
-## v2: any sport and phone apps (designed, not built)
+## v2: any sport and phone apps (step 1 built; the rest designed)
 | Topic | Decision | Date |
 |---|---|---|
 | Name | The app becomes **BBT**; the address is `app.bbt.team`; app and notification icon = full bike logo on Light Blue | 2026-10-13 |
@@ -68,7 +68,7 @@ Every open question from the design review, with what was decided. Details live 
 | Places | Where = a saved place or a pasted Google Maps pin; v1 spots, with notes now optional | 2026-10-13 |
 | Routes | Ride and run take a RideWithGPS route (search or pasted link); Open in RideWithGPS is a tile with RideWithGPS's vertical logo, no extra text | 2026-10-13 |
 | Buttons | Three kinds everywhere: primary (filled, one per screen), secondary (outlined text), tiles (icon over one word). Every activity has one action row: Directions · Calendar · Share · RideWithGPS (when there's a route) | 2026-10-13 |
-| Weather | Thresholds per weather group (Ride, Run, Ski, Outdoor); indoor = no weather check; kit chart stays ride-only; still no "Good" badge | 2026-10-13 |
+| Weather | Thresholds per weather group (Ride, Run, Ski, Other outdoor), all with the same factors; ride adds road wetness, ride and run add low light; cold uses bike feel, run feel or wind chill; indoor = no weather check; kit chart stays ride-only; still no "Good" badge | 2026-10-13 |
 | Spots limit | Not now (backlog: optional cap with waitlist) | 2026-10-13 |
 | Notifications | Adds New activity posted, sent only to people following that sport (per-sport switches in the account menu, all on by default); changes and cancellations still go to everyone with notifications on | 2026-10-13 |
 | Calendar | A private per-person calendar link (everything you're In for, self-updating); no native calendar permission | 2026-10-13 |

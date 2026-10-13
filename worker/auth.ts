@@ -8,7 +8,7 @@ import { nowIso } from "./util.ts";
 
 const DAY = 24 * 60 * 60;
 const NOT_INVITED = "Not invited — ask a team admin";
-const RESERVED_NAMES = /^(ride update|former member)$/i; // labels the app uses for system posts
+const RESERVED_NAMES = /^(update|ride update|former member)$/i; // labels the app uses for system posts
 
 /** Display names are shown to the whole team: 1–80 characters and not a system label. */
 function checkName(name: unknown): string | undefined {
@@ -74,7 +74,7 @@ export function createAuth(env: Env) {
               .trim()
               .replace(/\s+/g, " ")
               .slice(0, 80);
-            if (!name || RESERVED_NAMES.test(name)) name = email.split("@")[0] ?? "Rider";
+            if (!name || RESERVED_NAMES.test(name)) name = email.split("@")[0] ?? "Member";
             return { data: { ...user, name, email, role, image: null, emailVerified: true } };
           },
           after: async (user) => {

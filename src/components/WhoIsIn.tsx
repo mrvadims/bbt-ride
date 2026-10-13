@@ -1,53 +1,53 @@
-// Riders panel: In / Out (route choice only for In on rides with an alternate) and the ride's message thread.
+// Who's in panel: In / Out (route choice only for In with an alternate route) and the activity's message thread.
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import type { Me, Message, RideDetail } from "../../shared/api.ts";
+import type { ActivityDetail, Me, Message } from "../../shared/api.ts";
 import { fmtStamp } from "../../shared/time.ts";
 import { api } from "../lib/api.ts";
 import { Panel } from "./Panel.tsx";
 
-export function Riders({ ride, me, past }: { ride: RideDetail; me: Me; past: boolean }) {
+export function WhoIsIn({ act, me, past }: { act: ActivityDetail; me: Me; past: boolean }) {
   const qc = useQueryClient();
   const [draft, setDraft] = useState("");
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
   const [editing, setEditing] = useState<{ id: string; body: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const done = (data: RideDetail) => {
-    qc.setQueryData(["ride", ride.id], data);
-    qc.invalidateQueries({ queryKey: ["rides"] });
+  const done = (data: ActivityDetail) => {
+    qc.setQueryData(["activity", act.id], data);
+    qc.invalidateQueries({ queryKey: ["activities"] });
     setError(null);
   };
   const call = useMutation({
-    mutationFn: (req: { path: string; method?: string; body?: unknown }) => api<RideDetail>(req.path, req),
+    mutationFn: (req: { path: string; method?: string; body?: unknown }) => api<ActivityDetail>(req.path, req),
     onSuccess: done,
     onError: (e) => setError(e.message),
   });
 
-  const mine = ride.rsvps.find((r) => r.userId === me.id);
-  const alt = ride.routes.length > 1;
-  const open = !past && ride.status === "published";
+  const mine = act.rsvps.find((r) => r.userId === me.id);
+  const alt = act.routes.length > 1;
+  const open = !past && act.status === "published";
   const rsvp = (status: "in" | "out") => {
     const next = mine?.status === status ? null : status; // tapping the selected answer again clears it
     call.mutate({
-      path: `/rides/${ride.id}/rsvp`,
+      path: `/activities/${act.id}/rsvp`,
       method: "PUT",
       body: {
         status: next,
-        routeLabel: next === "in" && alt ? (mine?.routeLabel ?? ride.routes[0]?.label ?? null) : null,
+        routeLabel: next === "in" && alt ? (mine?.routeLabel ?? act.routes[0]?.label ?? null) : null,
       },
     });
   };
-  const ins = ride.rsvps.filter((r) => r.status === "in");
-  const outs = ride.rsvps.filter((r) => r.status === "out");
-  const top = ride.messages.filter((m) => !m.parentId);
+  const ins = act.rsvps.filter((r) => r.status === "in");
+  const outs = act.rsvps.filter((r) => r.status === "out");
+  const top = act.messages.filter((m) => !m.parentId);
 
-  const author = (m: Message) => (m.kind !== "user" ? "Ride update" : (m.authorName ?? "Former member"));
+  const author = (m: Message) => (m.kind !== "user" ? "Update" : (m.authorName ?? "Former member"));
 
   const msg = (m: Message, isReply: boolean) => {
-    const replies = isReply ? [] : ride.messages.filter((r) => r.parentId === m.id);
+    const replies = isReply ? [] : act.messages.filter((r) => r.parentId === m.id);
     const canEdit = m.kind === "user" && !m.deleted && m.authorId === me.id && !past;
-    // Authors delete their own on upcoming rides; editors and admins can always delete (moderation).
+    // Authors delete their own on upcoming activities; editors and admins can always delete (moderation).
     const canDelete = m.kind === "user" && !m.deleted && (me.role !== "view" || (m.authorId === me.id && !past));
     return (
       <div key={m.id} className={`msg${isReply ? " reply" : ""}${m.kind !== "user" ? " sys" : ""}`}>
@@ -128,7 +128,7 @@ export function Riders({ ride, me, past }: { ride: RideDetail; me: Me; past: boo
                     disabled={!replyText.trim() || call.isPending}
                     onClick={() =>
                       call.mutate(
-                        { path: `/rides/${ride.id}/messages`, body: { body: replyText, parentId: m.id } },
+                        { path: `/activities/${act.id}/messages`, body: { body: replyText, parentId: m.id } },
                         {
                           onSuccess: () => {
                             setReplyText("");
@@ -152,15 +152,15 @@ export function Riders({ ride, me, past }: { ride: RideDetail; me: Me; past: boo
     );
   };
 
-  const nMsg = ride.messages.filter((m) => !m.deleted).length;
+  const nMsg = act.messages.filter((m) => !m.deleted).length;
   return (
     <Panel
-      id="riders"
-      label="Riders"
+      id="people"
+      label="Who’s in"
       summary={
         <>
           <b>
-            {ins.length} {past ? (ride.status === "cancelled" ? "were in" : "rode") : "in"}
+            {ins.length} {past ? (act.status === "cancelled" ? "were in" : "joined") : "in"}
           </b>{" "}
           · {outs.length} out · {nMsg} message{nMsg === 1 ? "" : "s"}
           {open && (
@@ -175,14 +175,14 @@ export function Riders({ ride, me, past }: { ride: RideDetail; me: Me; past: boo
               </div>
               {mine?.status === "in" && alt && (
                 <div className="seg" role="group" aria-label="Your route" style={{ marginTop: 6 }}>
-                  {ride.routes.map((r) => (
+                  {act.routes.map((r) => (
                     <button
                       key={r.label}
                       type="button"
                       aria-pressed={mine.routeLabel === r.label}
                       onClick={() =>
                         call.mutate({
-                          path: `/rides/${ride.id}/rsvp`,
+                          path: `/activities/${act.id}/rsvp`,
                           method: "PUT",
                           body: { status: "in", routeLabel: r.label },
                         })
@@ -251,7 +251,7 @@ export function Riders({ ride, me, past }: { ride: RideDetail; me: Me; past: boo
                 disabled={!draft.trim() || call.isPending}
                 onClick={() =>
                   call.mutate(
-                    { path: `/rides/${ride.id}/messages`, body: { body: draft } },
+                    { path: `/activities/${act.id}/messages`, body: { body: draft } },
                     { onSuccess: () => setDraft("") },
                   )
                 }

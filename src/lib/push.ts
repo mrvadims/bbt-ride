@@ -1,4 +1,4 @@
-// Ride notifications on this device: a Web Push subscription registered with the Worker (DESIGN.md → Notifications).
+// Notifications on this device: a Web Push subscription registered with the Worker (DESIGN.md → Notifications).
 import { api } from "./api.ts";
 
 export const pushSupported = () => "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;

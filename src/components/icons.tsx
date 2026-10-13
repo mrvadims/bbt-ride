@@ -1,6 +1,7 @@
 // Sky icons (24px grid, stroked; clear and mostly clear switch to a moon at night), level icons and UI icons.
 import type { ReactNode } from "react";
 import logoSvg from "../../brand/web/bbt-logo.svg?raw";
+import type { Sport } from "../../shared/sports.ts";
 
 export function wxLabel(c: number | null | undefined): string {
   if (c == null) return "–";
@@ -145,6 +146,59 @@ export const EditIcon = () => (
     <path d="M4 20h4L19 9l-4-4L4 16v4zM13.5 6.5l4 4" />
   </svg>
 );
+export const CalendarIcon = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" {...stroke}>
+    <rect x="3" y="5" width="18" height="16" rx="2" />
+    <path d="M3 10h18M8 3v4M16 3v4" />
+  </svg>
+);
+export const DirectionsIcon = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" {...stroke}>
+    <path d="M3 11l18-8-8 18-2-8z" />
+  </svg>
+);
+
+const SPORT_PATHS: Record<Sport, ReactNode> = {
+  ride: (
+    <>
+      <circle cx="5.5" cy="16.5" r="3.5" />
+      <circle cx="18.5" cy="16.5" r="3.5" />
+      <path d="M5.5 16.5 9 9h6l3.5 7.5M9 9l3 7.5h-1M14 6h2l-1 3" />
+    </>
+  ),
+  run: (
+    <>
+      <circle cx="14.5" cy="4.5" r="2" />
+      <path d="M8 21l3-6 3 2v5M6 11l3-3 4 1 2 4 3 1M11 15l1-5" />
+    </>
+  ),
+  swim: (
+    <>
+      <circle cx="16" cy="7" r="2" />
+      <path d="M5 12l5-3 3 3M2 16c2 0 2-1.5 4-1.5s2 1.5 4 1.5 2-1.5 4-1.5 2 1.5 4 1.5 2-1.5 4-1.5M2 20c2 0 2-1.5 4-1.5s2 1.5 4 1.5 2-1.5 4-1.5 2 1.5 4 1.5 2-1.5 4-1.5" />
+    </>
+  ),
+  pickleball: (
+    <>
+      <rect x="3" y="3" width="11" height="13" rx="5.5" transform="rotate(-30 8.5 9.5)" />
+      <path d="M11 15l4 5" />
+      <circle cx="18.5" cy="6.5" r="2.5" />
+    </>
+  ),
+  ski: <path d="M2 19l8-12 4 6 2-3 6 9M3 22l18-4" />,
+  other: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 3" />
+    </>
+  ),
+};
+export const SportIcon = ({ sport, size = 26 }: { sport: Sport; size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" {...stroke} strokeWidth={1.8}>
+    {SPORT_PATHS[sport]}
+  </svg>
+);
+
 export const Chevron = () => (
   <svg className="chev" viewBox="0 0 12 12" aria-hidden="true">
     <path d="M3 4.5 6 7.5 9 4.5" fill="none" stroke="currentColor" strokeWidth="1.8" />

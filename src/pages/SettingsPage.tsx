@@ -1,4 +1,5 @@
-// Settings (Admin): users and invites, ride defaults, road wetness, warnings, kit chart, spots (DESIGN.md → Settings).
+// Settings (Admin): users and invites, sports, ride defaults, road wetness, weather warnings, kit chart, places
+// (DESIGN.md → Settings, v2).
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import {
@@ -11,7 +12,16 @@ import {
   type UserRow,
 } from "../../shared/api.ts";
 import type { KitBand } from "../../shared/kit.ts";
-import { type Settings, settingsProblem } from "../../shared/settings.ts";
+import { type Settings, type SettingsChange, settingsProblem } from "../../shared/settings.ts";
+import {
+  GROUP_LABEL,
+  GROUPS,
+  type Group,
+  SPORT_LABEL,
+  type Sport,
+  TOGGLE_SPORTS,
+  type Warn,
+} from "../../shared/sports.ts";
 import { fmtTime, hhmmToMin } from "../../shared/time.ts";
 import { Panel } from "../components/Panel.tsx";
 import { type SpotFields, SpotForm } from "../components/SpotForm.tsx";
@@ -213,8 +223,8 @@ function Users({ me }: { me: Me }) {
         </button>
       </form>
       <p className="tiny muted" style={{ margin: "8px 0 0" }}>
-        View: see rides, RSVP and post. Edit: also plan, publish, edit and cancel rides, add start spots and delete any
-        message. Admin: also settings, spots and users.
+        View: see activities, RSVP and post. Edit: also plan, publish, edit and cancel activities, add places and delete
+        any message. Admin: also settings, places and users.
         <br />
         An invite link (7 days, one use) lets the person continue with Google or set a password. A reset link (24 h, one
         use) lets them choose a new password and signs them out elsewhere.
@@ -224,19 +234,17 @@ function Users({ me }: { me: Me }) {
 }
 
 function NumberField({
-  k,
+  value,
   label,
   unit,
   step,
-  s,
   onSave,
 }: {
-  k: keyof Settings;
+  value: number;
   label: string;
   unit?: string;
   step: number;
-  s: Settings;
-  onSave: (p: Partial<Settings>) => boolean; // false: refused, so the field goes back to the saved value
+  onSave: (v: number) => boolean; // false: refused, so the field goes back to the saved value
 }) {
   return (
     <label className="field">
@@ -245,12 +253,11 @@ function NumberField({
       <input
         type="number"
         step={step}
-        defaultValue={String(s[k])}
-        key={String(s[k])}
+        defaultValue={String(value)}
+        key={String(value)}
         onBlur={(e) => {
           const v = Number(e.target.value);
-          if (e.target.value !== "" && Number.isFinite(v) && v !== s[k] && !onSave({ [k]: v }))
-            e.target.value = String(s[k]);
+          if (e.target.value !== "" && Number.isFinite(v) && v !== value && !onSave(v)) e.target.value = String(value);
         }}
       />
     </label>
@@ -394,7 +401,7 @@ function Spots() {
   return (
     <Panel
       id="set-spots"
-      label="Spots"
+      label="Places"
       titled
       collapsed
       summary={`${active.length} active${archived.length ? ` · ${archived.length} archived` : ""}`}
@@ -407,21 +414,21 @@ function Spots() {
       <div className="spot-list">{active.map(row)}</div>
       {editing === "new" ? (
         <SpotForm
-          title="New start spot"
-          submitLabel="Add spot"
+          title="New place"
+          submitLabel="Add place"
           onSubmit={(f) => save(null, f)}
           onCancel={() => setEditing(null)}
         />
       ) : (
         <div className="btnrow" style={{ marginTop: 12 }}>
           <button type="button" className="btn btn-outline btn-sm" onClick={() => setEditing("new")}>
-            Add a spot
+            Add a place
           </button>
         </div>
       )}
       {archived.length > 0 && (
         <details className="archived">
-          <summary>Archived ({archived.length}) · kept on past rides</summary>
+          <summary>Archived ({archived.length}) · kept on past activities</summary>
           <div className="spot-list">{archived.map(row)}</div>
         </details>
       )}
@@ -429,16 +436,30 @@ function Spots() {
   );
 }
 
+const COLD_FEEL: Record<Group, string> = {
+  ride: "bike feel",
+  run: "run feel",
+  ski: "wind chill",
+  outdoor: "wind chill",
+};
+const GROUP_HINT: Record<Group, string> = {
+  ride: "Roads: Drying = amber, Wet = red. Low light: meet time within 30 min of sunrise.",
+  run: "Low light: meet time within 30 min of sunrise.",
+  ski: "For ski days.",
+  outdoor: "Open-water swims, outdoor pickleball and other outdoor activities.",
+};
+
 export function SettingsPage({ me }: { me: Me }) {
   const qc = useQueryClient();
   const team = useTeam().data;
   const [error, setError] = useState<string | null>(null);
+  const [group, setGroup] = useState<Group>("ride");
   const done = (data: TeamSettings) => {
     qc.setQueryData(["settings"], data);
     setError(null);
   };
   const save = useMutation({
-    mutationFn: (p: Partial<Settings>) => api<TeamSettings>("/settings", { method: "PUT", body: p }),
+    mutationFn: (p: SettingsChange) => api<TeamSettings>("/settings", { method: "PUT", body: p }),
     onSuccess: done,
     onError: (e) => setError(e.message),
   });
@@ -454,15 +475,31 @@ export function SettingsPage({ me }: { me: Me }) {
   });
   if (!team) return <p className="muted small">Loading…</p>;
   const s = team.settings;
-  const saveSetting = (p: Partial<Settings>) => {
+  /** Checks the change against the current settings, then sends only what changed (`send`, if narrower than `p`). */
+  const saveSetting = (p: Partial<Settings>, send: SettingsChange = p) => {
     const problem = settingsProblem({ ...s, ...p });
     if (problem) setError(problem);
-    else save.mutate(p);
+    else save.mutate(send);
     return !problem;
   };
-  const num = (k: keyof Settings, label: string, step = 1, unit?: string) => (
-    <NumberField k={k} label={label} unit={unit} step={step} s={s} onSave={saveSetting} />
+  type NumKey = { [K in keyof Settings]: Settings[K] extends number ? K : never }[keyof Settings];
+  const num = (k: NumKey, label: string, step = 1, unit?: string) => (
+    <NumberField value={s[k]} label={label} unit={unit} step={step} onSave={(v) => saveSetting({ [k]: v })} />
   );
+  const w = s.warn[group];
+  const wnum = (k: keyof Warn, label: string, step = 1, unit?: string) => (
+    <NumberField
+      value={w[k]}
+      label={label}
+      unit={unit}
+      step={step}
+      onSave={(v) =>
+        saveSetting({ warn: { ...s.warn, [group]: { ...w, [k]: v } } }, { warn: { [group]: { ...w, [k]: v } } })
+      }
+    />
+  );
+  const toggleSport = (x: Sport, on: boolean) =>
+    saveSetting({ sports: TOGGLE_SPORTS.filter((t) => (t === x ? on : s.sports.includes(t))) });
   return (
     <>
       <h1 className="sr">Settings</h1>
@@ -476,6 +513,31 @@ export function SettingsPage({ me }: { me: Me }) {
       )}
       <div className="panels settings-panels">
         <Users me={me} />
+        <Panel
+          id="set-sports"
+          label="Sports"
+          titled
+          collapsed
+          summary={[...s.sports.map((x) => SPORT_LABEL[x]), "Other"].join(" · ")}
+        >
+          <p className="tiny muted" style={{ margin: "0 0 8px" }}>
+            Sports offered in Plan. Other is always there, for anything else.
+          </p>
+          <div className="checklist">
+            {TOGGLE_SPORTS.map((x) => (
+              <label key={x} className="radio">
+                <input
+                  type="checkbox"
+                  checked={s.sports.includes(x)}
+                  onChange={(e) => toggleSport(x, e.target.checked)}
+                />
+                <span>
+                  <b>{SPORT_LABEL[x]}</b>
+                </span>
+              </label>
+            ))}
+          </div>
+        </Panel>
         <Panel
           id="set-defaults"
           label="Ride defaults"
@@ -520,31 +582,38 @@ export function SettingsPage({ me }: { me: Me }) {
         </Panel>
         <Panel
           id="set-warn"
-          label="Warnings"
+          label="Weather warnings"
           titled
           collapsed
-          summary={`cold < ${s.feelCaution}° · heat ≥ ${s.heatCaution}° · wind ≥ ${s.windCaution} · gusts ≥ ${s.gustCaution} · rain ≥ ${s.rainProbCaution}%`}
+          summary={GROUPS.map((g) => `${GROUP_LABEL[g]} cold < ${s.warn[g].feelCaution}°`).join(" · ")}
         >
           <p className="tiny muted" style={{ margin: "0 0 8px" }}>
-            A warning shows when a value crosses the first threshold (amber) and turns red at the second.
+            Each group has its own thresholds. A warning shows when a value crosses the first threshold (amber) and
+            turns red at the second. Indoor activities have no weather check.
           </p>
-          <div className="settings-grid">
-            {num("feelCaution", "Cold: bike feel <", 1, "°F")}
-            {num("feelNoGo", "Red below", 1, "°F")}
-            {num("heatCaution", "Heat: real feel ≥", 1, "°F")}
-            {num("heatNoGo", "Red at", 1, "°F")}
-            {num("windCaution", "Wind ≥", 1, "mph")}
-            {num("windNoGo", "Red at", 1, "mph")}
-            {num("gustCaution", "Gusts ≥", 1, "mph")}
-            {num("gustNoGo", "Red at", 1, "mph")}
-            {num("rainProbCaution", "Rain chance ≥", 5, "%")}
-            {num("rainProbNoGo", "Red at", 5, "%")}
-            {num("rainAmtCaution", "Rain amount ≥", 0.01, "in")}
-            {num("rainAmtNoGo", "Red at", 0.01, "in")}
+          <div className="seg" role="group" aria-label="Weather group" style={{ marginBottom: 10 }}>
+            {GROUPS.map((g) => (
+              <button key={g} type="button" aria-pressed={group === g} onClick={() => setGroup(g)}>
+                {GROUP_LABEL[g]}
+              </button>
+            ))}
+          </div>
+          <div className="settings-grid" key={group}>
+            {wnum("feelCaution", `Cold: ${COLD_FEEL[group]} <`, 1, "°F")}
+            {wnum("feelNoGo", "Red below", 1, "°F")}
+            {wnum("heatCaution", "Heat: real feel ≥", 1, "°F")}
+            {wnum("heatNoGo", "Red at", 1, "°F")}
+            {wnum("windCaution", "Wind ≥", 1, "mph")}
+            {wnum("windNoGo", "Red at", 1, "mph")}
+            {wnum("gustCaution", "Gusts ≥", 1, "mph")}
+            {wnum("gustNoGo", "Red at", 1, "mph")}
+            {wnum("rainProbCaution", "Rain chance ≥", 5, "%")}
+            {wnum("rainProbNoGo", "Red at", 5, "%")}
+            {wnum("rainAmtCaution", "Rain amount ≥", 0.01, "in")}
+            {wnum("rainAmtNoGo", "Red at", 0.01, "in")}
           </div>
           <p className="tiny muted" style={{ margin: "8px 0 0" }}>
-            Roads: Drying = amber, Wet = red. Thunderstorms = red. Low light: meet time within 30 min of sunrise. NWS
-            warnings = red, watches and advisories = amber.
+            {GROUP_HINT[group]} Thunderstorms = red. NWS warnings = red, watches and advisories = amber.
           </p>
         </Panel>
         <Panel
@@ -552,7 +621,7 @@ export function SettingsPage({ me }: { me: Me }) {
           label="Kit chart"
           titled
           collapsed
-          summary={`${team.kit.length} bands on bike feel · rider offset ±5°`}
+          summary={`Rides: ${team.kit.length} bands on bike feel · personal offset ±5°`}
         >
           <KitEditor key={JSON.stringify(team.kit)} kit={team.kit} onSave={(k) => saveKit.mutate(k)} />
         </Panel>
@@ -563,7 +632,8 @@ export function SettingsPage({ me }: { me: Me }) {
           type="button"
           className="btn btn-outline btn-sm"
           onClick={() =>
-            window.confirm("Reset ride defaults, thresholds and the kit chart to first-run values?") && reset.mutate()
+            window.confirm("Reset sports, ride defaults, thresholds and the kit chart to first-run values?") &&
+            reset.mutate()
           }
         >
           Reset to defaults
