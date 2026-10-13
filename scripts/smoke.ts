@@ -325,6 +325,50 @@ check(
   d.rsvps.some((r: Json) => r.name === `Rider ${stamp}` && r.routeLabel === "Short"),
   "rider RSVPs In on the Short route",
 );
+
+// Calendar link (DESIGN.md → v2): private feed of what you're In for, readable without a session, revoked by Reset.
+const feed = async (url: string) => {
+  const res = await fetch(BASE + new URL(url).pathname);
+  return { status: res.status, type: res.headers.get("content-type") ?? "", text: await res.text() };
+};
+check((await rider("/api/me")).json?.calendarUrl === null, "no calendar link until asked for");
+const cal1 = (await rider("/api/me/calendar", { method: "POST" })).json?.calendarUrl as string;
+check(/\/api\/cal\/[^/]+\.ics$/.test(cal1 ?? ""), "calendar link made");
+let f = await feed(cal1);
+check(
+  f.status === 200 && f.type.startsWith("text/calendar") && f.text.includes(`UID:${id}@app.bbt.team`),
+  "calendar feed has the activity the rider is In for",
+);
+check(
+  !(await feed((await admin("/api/me/calendar", { method: "POST" })).json.calendarUrl)).text.includes(`UID:${id}@`),
+  "another person's feed doesn't",
+);
+check(
+  (await feed(cal1.replace(/\.([A-Za-z0-9_-]+)\.ics$/, ".AAAA$1.ics"))).status === 404,
+  "a forged calendar link is refused",
+);
+check(
+  (await rider("/api/me/calendar", { method: "POST" })).json?.calendarUrl === cal1,
+  "asking again gives the same link",
+);
+const cal2 = (await rider("/api/me/calendar/reset", { method: "POST" })).json?.calendarUrl as string;
+check(
+  cal2 !== cal1 && (await feed(cal1)).status === 404 && (await feed(cal2)).status === 200,
+  "Reset stops the old calendar link",
+);
+await rider("/api/me/muted/swim", { method: "PUT", body: { off: true } });
+await rider("/api/me/muted/other", { method: "PUT", body: { off: true } });
+await rider("/api/me/muted/other", { method: "PUT", body: { off: true } });
+check((await rider("/api/me")).json?.mutedSports?.toSorted().join() === "other,swim", "muted sports saved");
+check(
+  (await rider("/api/me/muted/golf", { method: "PUT", body: { off: true } })).status === 400,
+  "only known sports can be muted",
+);
+await rider("/api/me/muted/swim", { method: "PUT", body: { off: false } });
+check(
+  (await rider("/api/me/muted/other", { method: "PUT", body: { off: false } })).json?.mutedSports?.length === 0,
+  "muted sports turned back on",
+);
 d = (await rider(`/api/activities/${id}/messages`, { body: { body: "Anyone driving from White Plains?" } })).json;
 const msgId = d.messages.at(-1).id;
 d = (await admin(`/api/activities/${id}/messages`, { body: { body: "I can take one", parentId: msgId } })).json;
@@ -368,6 +412,8 @@ c = (
 ).json;
 check(c.status === "cancelled", "editing a cancelled ride keeps it cancelled");
 check(c.lastUpdate?.text === upd.json.lastUpdate?.text, "editing a cancelled ride posts no update");
+f = await feed(cal2);
+check(f.text.includes("STATUS:CANCELLED") && f.text.includes("Cancelled: BBT"), "calendar feed shows the cancellation");
 check(
   (await rider(`/api/activities/${id}/rsvp`, { method: "PUT", body: { status: "out", routeLabel: null } })).status ===
     409,
@@ -415,6 +461,9 @@ check(
   "reset link sets a new password",
 );
 check((await rider("/api/me")).status === 401, "reset signs the rider out elsewhere");
+await admin(`/api/users/${riderRow.id}`, { method: "PATCH", body: { disabled: true } });
+await admin(`/api/users/${riderRow.id}`, { method: "PATCH", body: { disabled: false } });
+check((await feed(cal2)).status === 404, "disabling ends the calendar link, even after re-enabling");
 await admin(`/api/users/${riderRow.id}`, { method: "PATCH", body: { disabled: true } });
 check((await rider2("/api/me")).status === 401, "disabling ends the rider's sessions");
 

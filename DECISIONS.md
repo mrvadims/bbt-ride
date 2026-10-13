@@ -8,7 +8,7 @@ Every open question from the design review, with what was decided. Details live 
 | Navy | `#020C2B` dark-mode background; `#03144D` text on light and dark-mode cards; `#1C367B` not used | 2026-10-09 |
 | Header | Light-blue bar, white bike logo, 4px orange stripe directly under it, no hairline (checked on a phone), no text next to the logo | 2026-10-11 |
 | Wording | "Meet time" everywhere riders see a ride's start time (was "roll-out") | 2026-10-12 |
-| Navigation | No tab row. Top bar: logo (home = Ride), Plan and Settings icons for roles that have them, account menu (theme, units, ride notifications, sign out) | 2026-10-11 |
+| Navigation | No tab row. Top bar: logo (home = Ride), Plan and Settings icons for roles that have them, account menu (theme, units, notifications, new-activity sports, calendar link, sign out) | 2026-10-11 |
 
 ## Weather model
 | Topic | Decision | Date |
@@ -72,6 +72,8 @@ Every open question from the design review, with what was decided. Details live 
 | Spots limit | Not now (backlog: optional cap with waitlist) | 2026-10-13 |
 | Notifications | Adds New activity posted, sent only to people following that sport (per-sport switches in the account menu, all on by default); changes and cancellations still go to everyone with notifications on | 2026-10-13 |
 | Calendar | A private per-person calendar link (everything you're In for, self-updating); no native calendar permission | 2026-10-13 |
+| Calendar link security | Signed link (HMAC of person + version with the Worker secret), only the version stored; Reset bumps it; includes the last 30 days and upcoming, cancelled ones marked cancelled | 2026-10-13 |
+| Notification buttons | Still in / I'm out on changes to activities you're In for; I'm out answers from the notification, Still in only closes it | 2026-10-13 |
 | Native approach | Capacitor around the existing web app; the app loads `app.bbt.team`, so web deploys reach it without a new APK | 2026-10-13 |
 | Android | Signed APK from a download page on app.bbt.team, built by GitHub Actions; push via Firebase (free); native Google sign-in; no Play account for now | 2026-10-13 |
 | iPhone | Stays the Home Screen web app until the Apple fee ($99/year) or a nonprofit waiver is settled; then the same Capacitor project, unlisted App Store link | 2026-10-13 |

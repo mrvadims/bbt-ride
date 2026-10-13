@@ -1,18 +1,22 @@
 // Account and team management: /api/me (everyone), users and invites (Admin), invite and reset links (public).
 import { Hono } from "hono";
+import { z } from "zod";
 import {
   type Invite,
   inviteInput,
   linkAccept,
   linkToken,
   type Me,
+  mutedChange,
   type Role,
   type UserRow,
   userEdit,
 } from "../../shared/api.ts";
-import { type AppEnv, requireRole } from "../app.ts";
+import { SPORTS, type Sport } from "../../shared/sports.ts";
+import { type AppEnv, requireRole, type SessionUser } from "../app.ts";
 import { audit, fail, nowIso, randomToken, sha256Hex } from "../util.ts";
 import { validate } from "../validate.ts";
+import { calendarUrl as calendarLinkOf, makeCalendarLink, resetCalendarLink } from "./calendar.ts";
 
 const INVITE_DAYS = 7;
 const RESET_HOURS = 24;
@@ -65,11 +69,50 @@ async function openLink(db: D1Database, token: string) {
     .first<{ token_hash: string; kind: "invite" | "reset"; email: string; user_id: string | null }>();
 }
 
-export const me = new Hono<AppEnv>().get("/", async (c) => {
-  const u = c.get("user");
-  const methods = (await methodsOf(c.env.DB, u.id)).get(u.id) ?? [];
-  return c.json<Me>({ ...u, methods, vapidPublicKey: c.env.VAPID_PUBLIC_KEY });
-});
+async function meOf(env: Env, u: SessionUser): Promise<Me> {
+  const [methods, muted, calendarUrl] = await Promise.all([
+    methodsOf(env.DB, u.id),
+    env.DB.prepare("select sport from notify_off where user_id = ?").bind(u.id).all<{ sport: Sport }>(),
+    calendarLinkOf(env, u.id),
+  ]);
+  return {
+    ...u,
+    methods: methods.get(u.id) ?? [],
+    vapidPublicKey: env.VAPID_PUBLIC_KEY,
+    mutedSports: muted.results.map((r) => r.sport),
+    calendarUrl,
+  };
+}
+
+// The signed-in person: their account, the sports they muted for new posts, and their calendar link.
+export const me = new Hono<AppEnv>()
+  .get("/", async (c) => c.json(await meOf(c.env, c.get("user"))))
+  // One sport at a time, so quick taps on two sports can't overwrite each other.
+  .put(
+    "/muted/:sport",
+    validate("param", z.object({ sport: z.enum(SPORTS) })),
+    validate("json", mutedChange),
+    async (c) => {
+      const id = c.get("user").id;
+      const { sport } = c.req.valid("param");
+      await (c.req.valid("json").off
+        ? c.env.DB.prepare("insert into notify_off (user_id, sport) values (?, ?) on conflict do nothing").bind(
+            id,
+            sport,
+          )
+        : c.env.DB.prepare("delete from notify_off where user_id = ? and sport = ?").bind(id, sport)
+      ).run();
+      return c.json(await meOf(c.env, c.get("user")));
+    },
+  )
+  .post("/calendar", async (c) => {
+    await makeCalendarLink(c.env, c.get("user").id).run();
+    return c.json(await meOf(c.env, c.get("user")));
+  })
+  .post("/calendar/reset", async (c) => {
+    await resetCalendarLink(c.env, c.get("user").id).run();
+    return c.json(await meOf(c.env, c.get("user")));
+  });
 
 export const users = new Hono<AppEnv>()
   .use(requireRole("admin"))
@@ -130,7 +173,10 @@ export const users = new Hono<AppEnv>()
     const auth = c.get("auth");
     const headers = c.req.raw.headers;
     if (e.role) await auth.api.setRole({ body: { userId: id, role: e.role }, headers });
-    if (e.disabled === true) await auth.api.banUser({ body: { userId: id }, headers }); // also ends their sessions
+    if (e.disabled === true) {
+      await auth.api.banUser({ body: { userId: id }, headers }); // also ends their sessions
+      await resetCalendarLink(c.env, id).run(); // and their calendar link, for good
+    }
     if (e.disabled === false) await auth.api.unbanUser({ body: { userId: id }, headers });
     await audit(c.env.DB, me.id, "update", "user", id, e).run();
     return c.body(null, 204);

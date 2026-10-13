@@ -19,6 +19,8 @@ export interface Me {
   role: Role;
   methods: ("google" | "password")[];
   vapidPublicKey: string;
+  mutedSports: Sport[]; // no "new activity" notifications for these
+  calendarUrl: string | null; // the private calendar link, once made
 }
 
 export interface TeamSettings {
@@ -198,6 +200,8 @@ export const userEdit = z.object({
   role: z.enum(ROLES).optional(),
   disabled: z.boolean().optional(),
 });
+export const mutedChange = z.object({ off: z.boolean() }); // PUT /api/me/muted/:sport
+
 // Link tokens travel in request bodies, never in API URLs (which end up in request logs).
 export const linkToken = z.object({ token: z.string().min(8).max(100) });
 export const linkAccept = linkToken.extend({

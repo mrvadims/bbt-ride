@@ -3,6 +3,7 @@
 import { lazy, type ReactNode, Suspense, useState } from "react";
 import rwgpsLogo from "../../brand/web/ridewithgps-vertical-logo.svg";
 import { type ActivityDetail, activityName, type RecordedWeather } from "../../shared/api.ts";
+import { activityEvent } from "../../shared/ics.ts";
 import { KIT_OFFSETS, type KitAdvice, type KitOffset } from "../../shared/kit.ts";
 import { M_PER_MI, mapsLink, type Spot } from "../../shared/ride.ts";
 import { hasRoute, INDOOR_LABELS, SPORT_LABEL, type Sport } from "../../shared/sports.ts";
@@ -12,6 +13,7 @@ import type { ActivityLike, ActivityModel } from "../lib/activityModel.ts";
 import { type CalEvent, downloadIcs, googleLink, outlookLink } from "../lib/calendar.ts";
 import { type Prefs, setPref, usePrefs } from "../lib/prefs.ts";
 import { type Units, units } from "../lib/units.ts";
+import { CalendarLink } from "./CalendarLink.tsx";
 import { ElevationChart } from "./charts.tsx";
 import { HourTable } from "./HourTable.tsx";
 import { CalendarIcon, DirectionsIcon, EditIcon, ShareIcon, SportIcon, WxIcon, wxLabel } from "./icons.tsx";
@@ -228,9 +230,9 @@ function CopySheet({ text, onClose }: { text: string; onClose: () => void }) {
   );
 }
 
-function CalendarSheet({ ev, uid, onClose }: { ev: CalEvent; uid: string; onClose: () => void }) {
+function CalendarSheet({ ev, onClose }: { ev: CalEvent; onClose: () => void }) {
   const ics = () => {
-    downloadIcs(ev, uid);
+    downloadIcs(ev);
     onClose();
   };
   return (
@@ -255,6 +257,13 @@ function CalendarSheet({ ev, uid, onClose }: { ev: CalEvent; uid: string; onClos
         <button type="button" onClick={ics}>
           Other <span>.ics file</span>
         </button>
+      </div>
+      <div className="sub">
+        <div className="sub-h">Or subscribe to your BBT calendar</div>
+        <p className="small muted" style={{ margin: "0 0 8px" }}>
+          Everything you're in for, kept up to date: changes and cancellations update it by themselves.
+        </p>
+        <CalendarLink />
       </div>
       <div className="btnrow" style={{ marginTop: 10 }}>
         <button type="button" className="btn btn-outline" onClick={onClose}>
@@ -294,32 +303,24 @@ function DirectionsSheet({ spot, onClose }: { spot: Spot; onClose: () => void })
   );
 }
 
-/** Calendar event: start → end (or back), at the place's pin, with routes and notes in the description. */
-function calendarEvent(act: ActivityLike, m: ActivityModel): CalEvent {
-  const lines = act.routes.map((r) => {
-    const route = m.routeById(r.routeId);
-    return `${r.label}: ${route?.name ?? `#${r.routeId}`} — ${route?.url ?? ""}`;
-  });
-  const name = activityName(act);
-  return {
+/** The activity as a calendar event (the same one the calendar link carries). */
+const calendarEvent = (act: ActivityDetail, m: ActivityModel): CalEvent =>
+  activityEvent({
+    id: act.id,
+    sport: SPORT_LABEL[act.sport].toLowerCase(),
+    name: activityName(act),
     date: act.date,
     start: m.start,
     end: m.end,
-    title: `BBT ${SPORT_LABEL[act.sport].toLowerCase()}: ${name}`,
-    // Coordinates, so calendar apps open the exact pin in Maps and car navigation can route to it.
-    location: `${m.spot.lat}, ${m.spot.lng}`,
-    geo: { lat: m.spot.lat, lng: m.spot.lng },
-    details: [
-      `${hasRoute(act.sport) ? "Meet" : "At"} ${m.spot.name}: ${m.spot.maps_url}`,
-      m.spot.note ? `Notes: ${m.spot.note}` : "",
-      act.details,
-      ...lines,
-      act.notes ? `\n${act.notes}` : "",
-    ]
-      .filter(Boolean)
-      .join("\n"),
-  };
-}
+    meet: hasRoute(act.sport),
+    spot: m.spot,
+    routes: act.routes.map((r) => {
+      const route = m.routeById(r.routeId);
+      return { label: r.label, name: route?.name ?? `#${r.routeId}`, url: route?.url ?? "" };
+    }),
+    details: act.details,
+    notes: act.notes,
+  });
 
 /** Every way to leave the app, in the same place and order on every activity (DESIGN.md → v2, Action row). */
 export function ActionRow({ act, m }: { act: ActivityDetail; m: ActivityModel }) {
@@ -350,7 +351,7 @@ export function ActionRow({ act, m }: { act: ActivityDetail; m: ActivityModel })
         {m.route && <RwgpsTile url={m.route.url} />}
       </div>
       {sheet === "directions" && <DirectionsSheet spot={m.spot} onClose={() => setSheet(null)} />}
-      {sheet === "calendar" && <CalendarSheet ev={calendarEvent(act, m)} uid={act.id} onClose={() => setSheet(null)} />}
+      {sheet === "calendar" && <CalendarSheet ev={calendarEvent(act, m)} onClose={() => setSheet(null)} />}
       {copy && <CopySheet text={copy} onClose={() => setCopy(null)} />}
     </>
   );

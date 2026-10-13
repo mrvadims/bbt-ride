@@ -4,7 +4,7 @@ import type { Role } from "../shared/api.ts";
 import { type Auth, createAuth } from "./auth.ts";
 import { fail } from "./util.ts";
 
-interface SessionUser {
+export interface SessionUser {
   id: string;
   name: string;
   email: string;

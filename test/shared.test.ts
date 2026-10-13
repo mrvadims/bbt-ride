@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import fallback from "../data/raw/om_purchase.json";
 import seed from "../data/seed.json";
 import { activityInput, activityUpdate } from "../shared/api.ts";
+import { fold, icsCalendar } from "../shared/ics.ts";
 import { DEFAULT_KIT, kitAdvice, kitBand } from "../shared/kit.ts";
 import { parseLatLng, type Route, rideTimes } from "../shared/ride.ts";
 import { DEFAULT_SETTINGS as S, settingsProblem } from "../shared/settings.ts";
@@ -19,7 +20,6 @@ import {
   warnings,
   windChill,
 } from "../shared/weather.ts";
-import { fold } from "../src/lib/calendar.ts";
 
 /** Fails the test when a value is unexpectedly missing. */
 function must<T>(v: T | null | undefined): T {
@@ -210,6 +210,38 @@ describe(".ics line folding", () => {
     for (const l of lines) expect(new TextEncoder().encode(l).length).toBeLessThanOrEqual(75);
     expect(lines[1]?.startsWith(" ")).toBe(true);
     expect(lines.map((l, i) => (i ? l.slice(1) : l)).join("")).toBe(`DESCRIPTION:${"é".repeat(60)}`);
+  });
+});
+
+describe(".ics calendar", () => {
+  const ev = {
+    id: "abc",
+    date: "2026-10-17",
+    start: 510,
+    end: 630,
+    title: "BBT ride: River loop",
+    location: "40.7, -74",
+    geo: { lat: 40.7, lng: -74 },
+    details: "Line one\r\nLine; two, three",
+  };
+  it("writes one event with a stable UID and UTC times", () => {
+    const ics = icsCalendar([ev]);
+    expect(ics).toContain("UID:abc-once@app.bbt.team");
+    expect(ics).toContain("DTSTART:20261017T123000Z"); // 8:30 New York, daylight time
+    expect(ics).toContain("DESCRIPTION:Line one\\nLine\\; two\\, three");
+    expect(ics).toContain("STATUS:CONFIRMED");
+    expect(ics).not.toContain("X-WR-CALNAME");
+    expect(ics.endsWith("END:VCALENDAR\r\n")).toBe(true);
+  });
+  it("marks a cancelled activity and names the feed", () => {
+    const ics = icsCalendar([{ ...ev, cancelled: true, updatedAt: "2026-10-15T10:00:00.000Z" }], true);
+    expect(ics).toContain("STATUS:CANCELLED");
+    expect(ics).toContain("SUMMARY:Cancelled: BBT ride: River loop");
+    expect(ics).toContain("X-WR-CALNAME:BBT");
+    expect(ics).toContain("UID:abc@app.bbt.team");
+    expect(icsCalendar([], true)).toContain("BEGIN:VTIMEZONE");
+    expect(ics).toContain("LAST-MODIFIED:20261015T100000Z");
+    expect(ics).toContain(`SEQUENCE:${Date.parse("2026-10-15T10:00:00.000Z") / 1000}`);
   });
 });
 

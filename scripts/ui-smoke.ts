@@ -135,6 +135,18 @@ await page.keyboard.press("Escape");
 check(await page.getByText(/\d km/).first().isVisible(), "metric display after switching units");
 await page.getByLabel("Account menu").click();
 await page.getByRole("button", { name: "°F · mi" }).click();
+// New-activity notifications per sport: turning one off is saved and shows as off
+const swim = page.getByRole("group", { name: "Tell me about new" }).getByRole("button", { name: "Swim" });
+await swim.click();
+for (let i = 0; i < 50 && (await swim.getAttribute("aria-pressed")) !== "false"; i++) await page.waitForTimeout(100);
+check((await swim.getAttribute("aria-pressed")) === "false", "a sport's new-activity notifications turn off");
+await swim.click();
+await page.getByRole("button", { name: "Get my calendar link" }).click();
+await page.getByRole("button", { name: "Copy link" }).waitFor();
+check(
+  await page.getByRole("link", { name: "Apple Calendar" }).first().isVisible(),
+  "calendar link made from the account menu",
+);
 await page.keyboard.press("Escape");
 
 // Edit: change the meet time → "Updated" note
