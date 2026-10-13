@@ -2,7 +2,7 @@
 import { nyToUTC } from "./time.ts";
 
 export interface CalEvent {
-  id: string; // activity id, so an event added once and the feed's copy are the same event
+  id: string; // activity id: the event's UID, so a re-added or re-polled activity updates instead of duplicating
   date: string;
   start: number; // minutes after midnight, New York
   end: number;
@@ -75,7 +75,33 @@ export function fold(line: string): string {
 
 const esc = (v: string) => v.replace(/[\\,;]/g, (m) => `\\${m}`).replace(/\r?\n|\r/g, "\\n");
 
-/** A calendar with these events; `feed` adds the name and refresh hint calendar apps use for subscriptions. */
+// The team's time zone. Times stay in UTC; this is the calendar's display zone and keeps an empty feed valid RFC 5545
+// (a calendar needs at least one component).
+const NEW_YORK = [
+  "BEGIN:VTIMEZONE",
+  "TZID:America/New_York",
+  "BEGIN:DAYLIGHT",
+  "TZOFFSETFROM:-0500",
+  "TZOFFSETTO:-0400",
+  "TZNAME:EDT",
+  "DTSTART:20070311T020000",
+  "RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=2SU",
+  "END:DAYLIGHT",
+  "BEGIN:STANDARD",
+  "TZOFFSETFROM:-0400",
+  "TZOFFSETTO:-0500",
+  "TZNAME:EST",
+  "DTSTART:20071104T020000",
+  "RRULE:FREQ=YEARLY;BYMONTH=11;BYDAY=1SU",
+  "END:STANDARD",
+  "END:VTIMEZONE",
+];
+
+/**
+ * A calendar with these events; `feed` adds the name and refresh hint calendar apps use for subscriptions. A one-off
+ * event gets its own UID: a subscribed calendar is a separate calendar, and some apps refuse to import a UID they
+ * already hold there.
+ */
 export function icsCalendar(events: CalEvent[], feed = false): string {
   const now = stamp(new Date().toISOString());
   const lines = [
@@ -83,10 +109,18 @@ export function icsCalendar(events: CalEvent[], feed = false): string {
     "VERSION:2.0",
     "PRODID:-//BBT//App//EN",
     "CALSCALE:GREGORIAN",
-    ...(feed ? ["X-WR-CALNAME:BBT", "REFRESH-INTERVAL;VALUE=DURATION:PT1H", "X-PUBLISHED-TTL:PT1H"] : []),
+    ...(feed
+      ? [
+          "X-WR-CALNAME:BBT",
+          "X-WR-TIMEZONE:America/New_York",
+          "REFRESH-INTERVAL;VALUE=DURATION:PT1H",
+          "X-PUBLISHED-TTL:PT1H",
+          ...NEW_YORK,
+        ]
+      : []),
     ...events.flatMap((e) => [
       "BEGIN:VEVENT",
-      `UID:${e.id}@app.bbt.team`,
+      `UID:${e.id}${feed ? "" : "-once"}@app.bbt.team`,
       `DTSTAMP:${now}`,
       ...(e.updatedAt
         ? [`LAST-MODIFIED:${stamp(e.updatedAt)}`, `SEQUENCE:${Math.floor(Date.parse(e.updatedAt) / 1000)}`]

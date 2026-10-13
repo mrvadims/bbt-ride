@@ -5,11 +5,10 @@
 import { Hono } from "hono";
 import { type Activity, activityName } from "../../shared/api.ts";
 import { activityEvent, type CalEvent, icsCalendar } from "../../shared/ics.ts";
-import { rideTimes } from "../../shared/ride.ts";
+import { type Route, rideTimes } from "../../shared/ride.ts";
 import { hasRoute, SPORT_LABEL } from "../../shared/sports.ts";
 import { addDays, hhmmToMin, nyNow } from "../../shared/time.ts";
 import type { AppEnv } from "../app.ts";
-import { getRoute } from "../rwgps.ts";
 import { summaries } from "./activities.ts";
 import { loadSettings } from "./settings.ts";
 
@@ -48,52 +47,71 @@ export async function calendarUrl(env: Env, userId: string): Promise<string | nu
     : null;
 }
 
-/** Makes the link, or a new one (the old one stops working). */
-export async function resetCalendarLink(env: Env, userId: string): Promise<void> {
-  await env.DB.prepare(
-    `insert into calendar_links (user_id, version, created_at) values (?, 1, ?)
-     on conflict (user_id) do update set version = version + 1, created_at = excluded.created_at`,
-  )
-    .bind(userId, new Date().toISOString())
-    .run();
-}
+/** Makes the link if there isn't one yet (asking twice gives the same link). */
+export const makeCalendarLink = (env: Env, userId: string) =>
+  env.DB.prepare(
+    "insert into calendar_links (user_id, version, created_at) values (?, 1, ?) on conflict (user_id) do nothing",
+  ).bind(userId, new Date().toISOString());
+
+/** A new link; the old one stops working. Also used when someone is disabled, so re-enabling doesn't revive it. */
+export const resetCalendarLink = (env: Env, userId: string) =>
+  env.DB.prepare("update calendar_links set version = version + 1, created_at = ? where user_id = ?").bind(
+    new Date().toISOString(),
+    userId,
+  );
 
 async function feed(env: Env, userId: string): Promise<string> {
-  const acts = await summaries(
-    env.DB,
-    "a.date >= ? and exists (select 1 from rsvps v where v.activity_id = a.id and v.user_id = ? and v.status = 'in')",
-    [addDays(nyNow().date, -PAST_DAYS), userId],
-    "a.date, a.start_time",
-    100,
-  );
+  // The newest 100 (upcoming ones matter most), then back in date order.
+  const acts = (
+    await summaries(
+      env.DB,
+      "a.date >= ? and exists (select 1 from rsvps v where v.activity_id = a.id and v.user_id = ? and v.status = 'in')",
+      [addDays(nyNow().date, -PAST_DAYS), userId],
+      "a.date desc, a.start_time desc",
+      100,
+    )
+  ).reverse();
   if (!acts.length) return icsCalendar([], true);
-  const s = await loadSettings(env.DB);
-  const { results: spots } = await env.DB.prepare("select id, name, lat, lng, maps_url, note from spots").all<{
-    id: string;
-    name: string;
-    lat: number;
-    lng: number;
-    maps_url: string;
-    note: string;
-  }>();
+  // Polled by calendar apps, so it never calls RideWithGPS: the end time comes from cached routes only (distance and
+  // stops, extracted by D1), and route links are built from the id.
+  const mains = [...new Set(acts.flatMap((a) => (hasRoute(a.sport) && a.routes[0] ? [a.routes[0].routeId] : [])))];
+  const [s, spots, cached] = await Promise.all([
+    loadSettings(env.DB),
+    env.DB.prepare("select id, name, lat, lng, maps_url, note from spots").all<Spot>(),
+    mains.length
+      ? env.DB.prepare(
+          `select rwgps_route_id as id, json_extract(json, '$.distance_m') as d, json_extract(json, '$.pois') as pois
+           from route_cache where json is not null and rwgps_route_id in (${mains.map(() => "?").join(",")})`,
+        )
+          .bind(...mains)
+          .all<{ id: number; d: number; pois: string }>()
+      : null,
+  ]);
+  const routes = new Map(
+    (cached?.results ?? []).map((r) => [
+      r.id,
+      { distance_m: r.d, pois: JSON.parse(r.pois ?? "[]"), elevation_gain_m: 0, track: [] } as unknown as Route,
+    ]),
+  );
   const events: CalEvent[] = [];
   for (const a of acts) {
-    const spot = spots.find((x) => x.id === a.spotId);
+    const spot = spots.results.find((x) => x.id === a.spotId);
     if (!spot) continue;
-    events.push({ ...(await eventOf(env, a, spot, s)), url: `${env.BETTER_AUTH_URL}/a/${a.id}` });
+    events.push({ ...eventOf(a, spot, s, routes), url: `${env.BETTER_AUTH_URL}/a/${a.id}` });
   }
   return icsCalendar(events, true);
 }
 
-async function eventOf(
-  env: Env,
+type Spot = Parameters<typeof activityEvent>[0]["spot"] & { id: string };
+
+function eventOf(
   a: Activity,
-  spot: Parameters<typeof activityEvent>[0]["spot"],
+  spot: Spot,
   s: Awaited<ReturnType<typeof loadSettings>>,
-): Promise<CalEvent> {
+  routes: Map<number, Route>,
+): CalEvent {
   const start = hhmmToMin(a.startTime);
-  const routes = hasRoute(a.sport) ? await Promise.all(a.routes.map((r) => getRoute(env, r.routeId))) : [];
-  const main = routes[0];
+  const main = hasRoute(a.sport) && a.routes[0] ? routes.get(a.routes[0].routeId) : undefined;
   const end = main
     ? rideTimes(main, a.startTime, a.pace, a.routes[0]?.stop ?? null, s).end
     : a.endTime
@@ -109,10 +127,10 @@ async function eventOf(
       end,
       meet: hasRoute(a.sport),
       spot,
-      routes: a.routes.map((r, i) => ({
+      routes: a.routes.map((r) => ({
         label: r.label,
-        name: routes[i]?.name ?? r.name ?? `#${r.routeId}`,
-        url: routes[i]?.url ?? "",
+        name: r.name ?? `#${r.routeId}`,
+        url: `https://ridewithgps.com/routes/${r.routeId}`,
       })),
       details: a.details,
       notes: a.notes,
@@ -127,17 +145,20 @@ export const calendar = new Hono<AppEnv>().get("/:token{[A-Za-z0-9_-]+\\.\\d+\\.
     .param("token")
     .replace(/\.ics$/, "")
     .split(".");
-  const row = await c.env.DB.prepare(
-    `select l.version from calendar_links l join "user" u on u.id = l.user_id
-     where l.user_id = ? and coalesce(u.banned, 0) = 0`,
-  )
-    .bind(userId)
-    .first<{ version: number }>();
-  // Same answer for an unknown person, an old version and a wrong signature.
-  if (!row || String(row.version) !== v || !same(sig, await sign(c.env.SESSION_SECRET, userId, row.version)))
+  const version = Number(v);
+  // The signature is checked first, so a forged link costs no database read and every refusal looks the same.
+  if (!Number.isSafeInteger(version) || !same(sig, await sign(c.env.SESSION_SECRET, userId, version)))
     return c.text("Not found", 404);
+  const row = await c.env.DB.prepare(
+    `select 1 as ok from calendar_links l join "user" u on u.id = l.user_id
+     where l.user_id = ? and l.version = ? and coalesce(u.banned, 0) = 0`,
+  )
+    .bind(userId, version)
+    .first<{ ok: number }>();
+  if (!row) return c.text("Not found", 404);
   return c.body(await feed(c.env, userId), 200, {
     "Content-Type": "text/calendar; charset=utf-8",
     "Cache-Control": "private, max-age=300",
+    "X-Robots-Tag": "noindex",
   });
 });

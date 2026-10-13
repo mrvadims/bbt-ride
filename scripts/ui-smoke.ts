@@ -141,7 +141,12 @@ await swim.click();
 for (let i = 0; i < 50 && (await swim.getAttribute("aria-pressed")) !== "false"; i++) await page.waitForTimeout(100);
 check((await swim.getAttribute("aria-pressed")) === "false", "a sport's new-activity notifications turn off");
 await swim.click();
-check(await page.getByRole("button", { name: "Copy link" }).isVisible(), "calendar link offered in the account menu");
+await page.getByRole("button", { name: "Get my calendar link" }).click();
+await page.getByRole("button", { name: "Copy link" }).waitFor();
+check(
+  await page.getByRole("link", { name: "Apple Calendar" }).first().isVisible(),
+  "calendar link made from the account menu",
+);
 await page.keyboard.press("Escape");
 
 // Edit: change the meet time → "Updated" note

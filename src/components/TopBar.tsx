@@ -84,21 +84,33 @@ function Notifications({ me }: { me: Me }) {
 }
 
 // Which sports' new activities to hear about (DESIGN.md → v2, Notifications): the team's sports plus Other, all on
-// until turned off. Updates to activities someone is In for always notify.
+// until turned off. Changes and cancellations notify everyone with notifications on, whatever the sport.
 function NotifySports({ me }: { me: Me }) {
   const team = useTeam().data;
   const qc = useQueryClient();
   const [note, setNote] = useState("");
   if (!team) return null;
   const offered: Sport[] = [...team.settings.sports, "other"];
+  // Shown at once and saved one sport at a time, so quick taps on several sports all stick.
+  const set = (sport: Sport, off: boolean) =>
+    qc.setQueryData<Me>(
+      ["me"],
+      (m) =>
+        m && {
+          ...m,
+          mutedSports: off
+            ? [...m.mutedSports.filter((s) => s !== sport), sport]
+            : m.mutedSports.filter((s) => s !== sport),
+        },
+    );
   const toggle = async (sport: Sport) => {
     setNote("");
-    const muted = me.mutedSports.includes(sport)
-      ? me.mutedSports.filter((s) => s !== sport)
-      : [...me.mutedSports, sport];
+    const off = !qc.getQueryData<Me>(["me"])?.mutedSports.includes(sport);
+    set(sport, off);
     try {
-      qc.setQueryData(["me"], await api<Me>("/me/muted", { method: "PUT", body: { sports: muted } }));
+      await api<Me>(`/me/muted/${sport}`, { method: "PUT", body: { off } });
     } catch (e) {
+      set(sport, !off);
       setNote((e as Error).message);
     }
   };

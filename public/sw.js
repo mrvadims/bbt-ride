@@ -32,17 +32,25 @@ self.addEventListener("notificationclick", (event) => {
   const data = event.notification.data || {};
   if (event.action === "in") return; // already In: nothing to change
   if (event.action === "out" && data.activityId) {
+    const title = event.notification.title;
     event.waitUntil(
       fetch(`/api/activities/${encodeURIComponent(data.activityId)}/rsvp`, {
         method: "PUT",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ status: "out", routeLabel: null }),
         credentials: "same-origin",
+        signal: AbortSignal.timeout(5000), // fall back while the tap still allows opening a window
       })
         .then((r) => {
           if (!r.ok) throw new Error(String(r.status));
+          return self.registration.showNotification("You're out", {
+            body: title,
+            icon: "/icons/icon-192.png",
+            badge: "/icons/icon-192.png",
+            data: { url: data.url },
+          });
         })
-        .catch(() => openUrl(data.url)), // signed out or offline: open the activity so they can answer there
+        .catch(() => openUrl(data.url)), // signed out, offline or no longer open: answer on the activity page
     );
     return;
   }

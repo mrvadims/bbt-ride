@@ -200,9 +200,7 @@ export const userEdit = z.object({
   role: z.enum(ROLES).optional(),
   disabled: z.boolean().optional(),
 });
-export const mutedInput = z.object({
-  sports: z.array(z.enum(SPORTS)).refine((s) => new Set(s).size === s.length, "Each sport once"),
-});
+export const mutedChange = z.object({ off: z.boolean() }); // PUT /api/me/muted/:sport
 
 // Link tokens travel in request bodies, never in API URLs (which end up in request logs).
 export const linkToken = z.object({ token: z.string().min(8).max(100) });

@@ -226,7 +226,7 @@ describe(".ics calendar", () => {
   };
   it("writes one event with a stable UID and UTC times", () => {
     const ics = icsCalendar([ev]);
-    expect(ics).toContain("UID:abc@app.bbt.team");
+    expect(ics).toContain("UID:abc-once@app.bbt.team");
     expect(ics).toContain("DTSTART:20261017T123000Z"); // 8:30 New York, daylight time
     expect(ics).toContain("DESCRIPTION:Line one\\nLine\\; two\\, three");
     expect(ics).toContain("STATUS:CONFIRMED");
@@ -238,6 +238,8 @@ describe(".ics calendar", () => {
     expect(ics).toContain("STATUS:CANCELLED");
     expect(ics).toContain("SUMMARY:Cancelled: BBT ride: River loop");
     expect(ics).toContain("X-WR-CALNAME:BBT");
+    expect(ics).toContain("UID:abc@app.bbt.team");
+    expect(icsCalendar([], true)).toContain("BEGIN:VTIMEZONE");
     expect(ics).toContain("LAST-MODIFIED:20261015T100000Z");
     expect(ics).toContain(`SEQUENCE:${Date.parse("2026-10-15T10:00:00.000Z") / 1000}`);
   });
