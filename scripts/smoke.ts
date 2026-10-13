@@ -18,12 +18,12 @@ function check(cond: unknown, what: string) {
   if (!cond) failures++;
 }
 
-/** A client with its own cookie jar. */
+/** A client with its own cookie jar (cookies kept by name, as a browser does). */
 function client() {
-  let cookie = "";
+  const jar = new Map<string, string>();
   return async (path: string, init: { method?: string; body?: unknown; origin?: string | null } = {}) => {
     const headers: Record<string, string> = { "content-type": "application/json", "cf-connecting-ip": ip };
-    if (cookie) headers.cookie = cookie;
+    if (jar.size) headers.cookie = [...jar].map(([k, v]) => `${k}=${v}`).join("; ");
     if (init.origin !== null) headers.origin = init.origin ?? BASE;
     const res = await fetch(BASE + path, {
       method: init.method ?? (init.body ? "POST" : "GET"),
@@ -31,8 +31,13 @@ function client() {
       body: init.body ? JSON.stringify(init.body) : undefined,
       redirect: "manual",
     });
-    const set = res.headers.getSetCookie();
-    if (set.length) cookie = set.map((c) => c.split(";")[0]).join("; ");
+    for (const c of res.headers.getSetCookie()) {
+      const [pair = "", ...attrs] = c.split(";");
+      const i = pair.indexOf("=");
+      const name = pair.slice(0, i).trim();
+      if (/max-age=0\b/i.test(attrs.join(";")) || pair.slice(i + 1) === "") jar.delete(name);
+      else jar.set(name, pair.slice(i + 1));
+    }
     const text = await res.text();
     let json: Json = null;
     try {

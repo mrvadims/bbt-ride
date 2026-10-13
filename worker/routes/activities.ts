@@ -49,7 +49,8 @@ export async function summaries(
   order = "a.date, a.start_time, a.created_at",
   limit?: number,
 ): Promise<Activity[]> {
-  const pick = `from activities a where ${where} order by ${order}${limit ? ` limit ${limit}` : ""}`;
+  // a.id last: the limited list must come out the same in the subqueries below, even when dates and times tie.
+  const pick = `from activities a where ${where} order by ${order}, a.id${limit ? ` limit ${limit}` : ""}`;
   const { results: rows } = await db
     .prepare(
       `select a.id, a.sport, a.title, a.date, a.start_time, a.end_time, a.spot_id, a.outdoor, a.pace_mph, a.details,
@@ -479,13 +480,21 @@ export const activities = new Hono<AppEnv>()
 export const messages = new Hono<AppEnv>()
   .patch("/:id", validate("json", messageEdit), async (c) => {
     const m = await c.env.DB.prepare(
-      "select m.activity_id, m.user_id, m.deleted_at, a.date from messages m join activities a on a.id = m.activity_id where m.id = ?",
+      `select m.activity_id, m.user_id, m.deleted_at, a.date, a.status from messages m
+       join activities a on a.id = m.activity_id where m.id = ?`,
     )
       .bind(c.req.param("id"))
-      .first<{ activity_id: string; user_id: string | null; deleted_at: string | null; date: string }>();
+      .first<{
+        activity_id: string;
+        user_id: string | null;
+        deleted_at: string | null;
+        date: string;
+        status: string;
+      }>();
     if (!m || m.deleted_at) return fail(404, "Message not found");
     if (m.user_id !== c.get("user").id) fail(403, "Only the author can edit a message");
     if (m.date < nyNow().date) fail(409, "Messages on past activities can't be edited");
+    if (m.status !== "published") fail(409, "Messages on cancelled activities can't be edited"); // as for posting
     await c.env.DB.prepare("update messages set body = ?, edited_at = ? where id = ?")
       .bind(c.req.valid("json").body, nowIso(), c.req.param("id"))
       .run();
@@ -494,11 +503,13 @@ export const messages = new Hono<AppEnv>()
   .delete("/:id", async (c) => {
     const user = c.get("user");
     const m = await c.env.DB.prepare(
-      "select m.activity_id, m.user_id, m.kind, a.date from messages m join activities a on a.id = m.activity_id where m.id = ?",
+      `select m.activity_id, m.user_id, m.kind, m.deleted_at, a.date from messages m
+       join activities a on a.id = m.activity_id where m.id = ?`,
     )
       .bind(c.req.param("id"))
-      .first<{ activity_id: string; user_id: string | null; kind: string; date: string }>();
+      .first<{ activity_id: string; user_id: string | null; kind: string; deleted_at: string | null; date: string }>();
     if (m?.kind !== "user") return fail(404, "Message not found");
+    if (m.deleted_at) return c.json(await detail(c.env.DB, m.activity_id)); // already deleted: nothing to do
     // Authors delete their own on upcoming activities; editors and admins can always delete (moderation).
     if (!can(user, "edit") && (m.user_id !== user.id || m.date < nyNow().date))
       fail(403, "You can't delete this message");

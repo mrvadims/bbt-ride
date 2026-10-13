@@ -1,5 +1,5 @@
 // Past activities: newest first, grouped by month, with a sport filter and search; each opens read-only
-// (DESIGN.md → Past rides).
+// (DESIGN.md → v2, What changes for people).
 import { useState } from "react";
 import { activityName } from "../../shared/api.ts";
 import { SPORT_LABEL, type Sport } from "../../shared/sports.ts";

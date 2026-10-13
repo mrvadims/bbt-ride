@@ -1,4 +1,4 @@
-// JSON client for /api/*. Errors carry the server's message; a 401 sends the rider to sign in.
+// JSON client for /api/*. Errors carry the server's message and status (App sends a 401 to sign-in).
 
 import { usernameClient } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";

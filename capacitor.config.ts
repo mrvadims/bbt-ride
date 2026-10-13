@@ -10,9 +10,6 @@ const config: CapacitorConfig = {
     url: "https://app.bbt.team",
     errorPath: "offline.html",
   },
-  android: {
-    allowMixedContent: false,
-  },
   plugins: {
     // Edge to edge: the page (viewport-fit=cover) pads itself with env(safe-area-inset-*). The status bar gets light
     // icons for the blue top bar at start (src/lib/native.ts → startApp); the navigation bar follows the phone's theme.

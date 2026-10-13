@@ -148,11 +148,11 @@ function WhatToWear({ kit, feelMin, u }: { kit: KitAdvice; feelMin: number; u: U
 }
 
 /** The feel people care about on the move: bike feel for rides, run feel for runs (none for other sports). */
-export const feelLabel = (sport: Sport): string | undefined =>
+const feelLabel = (sport: Sport): string | undefined =>
   sport === "ride" ? "bike feel" : sport === "run" ? "run feel" : undefined;
 
 /** "Ride · Outdoor" / "Swim · Pool": the sport, plus the setting for sports that can be indoors. */
-export function sportLine(a: Pick<ActivityLike, "sport" | "outdoor">): string {
+function sportLine(a: Pick<ActivityLike, "sport" | "outdoor">): string {
   const labels = INDOOR_LABELS[a.sport];
   return labels ? `${SPORT_LABEL[a.sport]} · ${a.outdoor ? labels[1] : labels[0]}` : SPORT_LABEL[a.sport];
 }

@@ -46,18 +46,21 @@ public class BbtNativePlugin extends Plugin {
             JSObject r = new JSObject();
             r.put("versionCode", PackageInfoCompat.getLongVersionCode(p));
             r.put("versionName", p.versionName);
-            r.put("pushConfigured", !FirebaseApp.getApps(getContext()).isEmpty());
             call.resolve(r);
         } catch (Exception e) {
             call.reject(e.getMessage());
         }
     }
 
-    /** Whether notifications are allowed: "granted", "denied" or "prompt". */
+    /** Whether notifications are allowed: "granted", "denied", "prompt" or "prompt-with-rationale". */
     @PluginMethod
     public void pushPermission(PluginCall call) {
         JSObject r = new JSObject();
-        r.put("state", notificationsAllowed() ? "granted" : getPermissionState("notifications").toString());
+        String state;
+        if (notificationsAllowed()) state = "granted";
+        else if (Build.VERSION.SDK_INT < 33) state = "denied"; // turned off in Android settings; no prompt to show
+        else state = getPermissionState("notifications").toString();
+        r.put("state", state);
         call.resolve(r);
     }
 

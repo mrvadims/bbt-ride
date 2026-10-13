@@ -209,30 +209,39 @@ export const links = new Hono<AppEnv>()
     const link = await openLink(c.env.DB, token);
     if (!link) return fail(404, EXPIRED);
     const ctx = await c.get("auth").$context;
-    const hash = await ctx.password.hash(password);
     if (link.kind === "invite") {
+      // Cheap checks before the (deliberately slow) password hash.
       if (!name) fail(400, "Add your name");
       if (username) {
         const taken = await c.env.DB.prepare(`select 1 from "user" where username = ?`).bind(username).first();
         if (taken) fail(409, "That username is taken");
       }
+      const hash = await ctx.password.hash(password);
       // The create hook (worker/auth.ts) checks the invite, sets the role and marks the invite used.
       const user = await ctx.internalAdapter.createUser(
         { email: link.email, name: name as string, ...(username && { username, displayUsername: username }) },
         { method: "email-password" },
       );
-      await ctx.internalAdapter.linkAccount({
-        userId: user.id,
-        providerId: "credential",
-        accountId: user.id,
-        password: hash,
-      });
+      try {
+        await ctx.internalAdapter.linkAccount({
+          userId: user.id,
+          providerId: "credential",
+          accountId: user.id,
+          password: hash,
+        });
+      } catch (err) {
+        // No account without a password: undo, and reopen the invite so the link still works.
+        await ctx.internalAdapter.deleteUser(user.id).catch(() => undefined);
+        await c.env.DB.prepare("update links set used_at = null where token_hash = ?").bind(link.token_hash).run();
+        throw err;
+      }
     } else {
       // Claim the reset link atomically, so it can't be used twice at once.
       const claim = await c.env.DB.prepare("update links set used_at = ? where token_hash = ? and used_at is null")
         .bind(nowIso(), link.token_hash)
         .run();
       if (claim.meta.changes !== 1) return fail(404, "This link was already used.");
+      const hash = await ctx.password.hash(password);
       const userId = link.user_id as string;
       if (await ctx.internalAdapter.findCredentialAccount(userId))
         await ctx.internalAdapter.updatePassword(userId, hash);

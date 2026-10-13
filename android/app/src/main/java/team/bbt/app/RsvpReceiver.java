@@ -30,7 +30,7 @@ public class RsvpReceiver extends BroadcastReceiver {
         String title = intent.getStringExtra(EXTRA_TITLE);
         String path = intent.getStringExtra(Notifier.EXTRA_PATH);
         if (activity == null) return;
-        String cookies = CookieManager.getInstance().getCookie(Notifier.APP_URL); // on the main thread, as WebView likes
+        String cookies = sessionCookies(); // on the main thread, as WebView likes
         PendingResult pending = goAsync();
         new Thread(() -> {
             boolean ok = out(activity, cookies);
@@ -40,6 +40,15 @@ public class RsvpReceiver extends BroadcastReceiver {
         }).start();
     }
 
+    /** The WebView's cookies for BBT, or null if the WebView is missing or updating (the request then fails). */
+    private static String sessionCookies() {
+        try {
+            return CookieManager.getInstance().getCookie(Notifier.APP_URL);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     private static boolean out(String activity, String cookies) {
         HttpURLConnection c = null;
         try {
@@ -47,8 +56,8 @@ public class RsvpReceiver extends BroadcastReceiver {
             c = (HttpURLConnection) url.openConnection();
             c.setRequestMethod("PUT");
             c.setInstanceFollowRedirects(false); // never send the session anywhere else
-            c.setConnectTimeout(5000);
-            c.setReadTimeout(5000);
+            c.setConnectTimeout(4000); // both within the ~10 s a receiver may run
+            c.setReadTimeout(4000);
             c.setDoOutput(true);
             c.setRequestProperty("Content-Type", "application/json");
             c.setRequestProperty("Origin", Notifier.APP_URL); // the Worker refuses data changes from other origins

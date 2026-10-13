@@ -33,10 +33,12 @@ export function useActivityModel(act: ActivityLike | null, routeIndex = 0) {
   const weather = useWeather().data;
   // Ride and run have a main route and at most one alternate; both are loaded so names and the switcher are ready.
   const mainQ = useRoute(act?.routes[0]?.routeId);
-  const alt = useRoute(act?.routes[1]?.routeId).data;
+  const altQ = useRoute(act?.routes[1]?.routeId);
   const main = mainQ.data;
+  const alt = altQ.data;
   if (!act || !team || !spots) return null;
-  const idx = routeIndex > 0 && act.routes.length > 1 ? 1 : 0;
+  // The alternate shows only if it loads; otherwise the main route stands in.
+  const idx = routeIndex > 0 && act.routes.length > 1 && !altQ.isError ? 1 : 0;
   const rt: RideRoute | undefined = act.routes[idx];
   const route = (idx === 1 ? alt : main) ?? null;
   const spot: SpotWithState | undefined = spots.find((s) => s.id === act.spotId);

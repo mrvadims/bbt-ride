@@ -104,7 +104,7 @@ await shot(page, "plan");
 await publishBtn.click();
 await page.waitForURL("**/a/*");
 const rideUrl = page.url();
-for (const p of ["Meet", "Route", "Weather", "Notes", "Who’s in"])
+for (const p of ["Meet", "Route", "Weather", "Notes", "Who's in"])
   check(await page.getByRole("button", { name: p, exact: true }).isVisible(), `ride page: ${p} panel`);
 for (const t of ["Directions", "Calendar", "Share"])
   check(await page.getByRole("button", { name: t, exact: true }).isVisible(), `action row: ${t}`);
@@ -121,7 +121,7 @@ check(
 await page.getByRole("button", { name: "In", exact: true }).click();
 await page.getByText("1 in").waitFor();
 check(true, "RSVP In updates the count");
-await page.getByRole("button", { name: "Who’s in", exact: true }).click();
+await page.getByRole("button", { name: "Who's in", exact: true }).click();
 await page.getByPlaceholder("Message the team").fill("See you at 8:30!");
 await page.getByRole("button", { name: "Send" }).click();
 await page.getByText("See you at 8:30!").waitFor();
@@ -230,6 +230,49 @@ await shot(page, "ride-desktop-dark");
 await page.goto(`${BASE}/past`);
 await page.getByLabel("Search past activities").waitFor();
 check(true, "past activities page");
+
+// iPhone browser: the Home Screen install hint, which "Not now" hides
+check(!(await page.getByRole("region", { name: "Add BBT to your Home Screen" }).count()), "no install hint elsewhere");
+const iphone = await browser.newContext({
+  viewport: { width: 390, height: 844 },
+  deviceScaleFactor: 2,
+  userAgent:
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1",
+  extraHTTPHeaders: { "cf-connecting-ip": ip },
+  storageState: await ctx.storageState(),
+});
+await iphone.route(/tile\.openstreetmap\.org|basemaps\.cartocdn\.com/, (r) => r.abort());
+const ipage = await iphone.newPage();
+ipage.on("pageerror", (e) => errors.push(`pageerror (iPhone): ${e.message}`));
+await ipage.goto(BASE);
+const hint = ipage.getByRole("region", { name: "Add BBT to your Home Screen" });
+await hint.waitFor();
+check(await hint.getByText("Add to Home Screen").isVisible(), "iPhone browser shows the install hint");
+await shot(ipage, "iphone-install-hint");
+await hint.getByRole("button", { name: "Not now" }).click();
+await ipage.reload();
+// The hint and the Welcome sheet need the account; wait for it (and the async notification check) before looking.
+const settled = async () => {
+  await ipage.getByRole("button", { name: "Account menu" }).waitFor();
+  await ipage.waitForTimeout(800);
+};
+await settled();
+check(!(await hint.count()), "Not now hides the install hint");
+// iPhone Home Screen app: a Welcome sheet on first open (notifications, calendar), then never again
+await ipage.addInitScript(() => Object.defineProperty(navigator, "standalone", { get: () => true }));
+await ipage.goto(BASE);
+const welcome = ipage.getByRole("dialog", { name: "Welcome to BBT" });
+await welcome.waitFor();
+check(
+  (await welcome.getByRole("button", { name: "Turn on notifications" }).isVisible()) && !(await hint.count()),
+  "Home Screen app welcomes with notifications, without the install hint",
+);
+await shot(ipage, "iphone-welcome");
+await welcome.getByRole("button", { name: "Done" }).click();
+await ipage.reload();
+await settled();
+check(!(await welcome.count()), "the Welcome sheet shows once");
+await iphone.close();
 
 check(errors.length === 0, `no page errors${errors.length ? `: ${errors.join(" | ")}` : ""}`);
 await browser.close();

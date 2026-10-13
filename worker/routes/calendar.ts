@@ -9,6 +9,7 @@ import { type Route, rideTimes } from "../../shared/ride.ts";
 import { hasRoute, SPORT_LABEL } from "../../shared/sports.ts";
 import { addDays, hhmmToMin, nyNow } from "../../shared/time.ts";
 import type { AppEnv } from "../app.ts";
+import { b64url } from "../util.ts";
 import { summaries } from "./activities.ts";
 import { loadSettings } from "./settings.ts";
 
@@ -25,9 +26,7 @@ async function sign(secret: string, userId: string, version: number): Promise<st
   const mac = new Uint8Array(
     await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(`cal:${userId}:${version}`)),
   );
-  return btoa(String.fromCharCode(...mac.slice(0, 18)))
-    .replaceAll("+", "-")
-    .replaceAll("/", "_");
+  return b64url(mac.slice(0, 18));
 }
 
 /** Compares without stopping at the first difference, so timing doesn't reveal how much of a signature was right. */

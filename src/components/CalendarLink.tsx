@@ -42,7 +42,7 @@ export function CalendarLink() {
       post("/me/calendar/reset", "New link made. Subscribe again with it.");
   };
   return (
-    <div className="callink">
+    <div>
       {url ? (
         <div className="btnrow">
           {!isApp() && ( // Android has no Apple Calendar

@@ -5,7 +5,7 @@ import { Capacitor, registerPlugin, SystemBars, SystemBarsStyle, SystemBarType }
 import { api } from "./api.ts";
 
 interface BbtNative {
-  info(): Promise<{ versionCode: number; versionName: string; pushConfigured: boolean }>;
+  info(): Promise<{ versionCode: number; versionName: string }>;
   pushPermission(): Promise<{ state: "granted" | "denied" | "prompt" | "prompt-with-rationale" }>;
   pushRegister(): Promise<{ token: string }>;
   pushUnregister(): Promise<void>;
@@ -18,6 +18,15 @@ export const bbt = registerPlugin<BbtNative>("BbtNative");
 export const isApp = () => Capacitor.isNativePlatform();
 /** An Android phone's browser, where the account menu offers the app. */
 export const isAndroidBrowser = () => !isApp() && /Android/i.test(navigator.userAgent);
+const isIos = () =>
+  /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+/** Opened from the Home Screen (iPhone, or an installed web app elsewhere), not in a browser tab. */
+const isHomeScreenApp = () =>
+  matchMedia("(display-mode: standalone)").matches || (navigator as { standalone?: boolean }).standalone === true;
+/** An iPhone or iPad browser tab: notifications only work once BBT is added to the Home Screen. */
+export const isIosBrowser = () => isIos() && !isHomeScreenApp();
+/** BBT opened from an iPhone's Home Screen. */
+export const isIosHomeScreen = () => isIos() && isHomeScreenApp();
 
 // The Firebase token this device registered with the Worker (the switch is on while it's here).
 const TOKEN_KEY = "bbt-fcm-token";
