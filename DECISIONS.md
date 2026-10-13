@@ -54,12 +54,12 @@ Every open question from the design review, with what was decided. Details live 
 | Public pages | Only sign-in, the invite and reset link pages (valid token required) and a static `/privacy` page (Google requires a public privacy policy to publish the sign-in app); everything else requires sign-in | 2026-10-11 |
 | RideWithGPS | API key and auth token stored as Worker secrets (verified on the `bbt-ride` Worker); the API secret isn't needed | 2026-10-12 |
 | Cloudflare deploys | Scoped API token in GitHub repository secrets; deploy via GitHub Actions; `app.bbt.team` attached by hand | 2026-10-10 |
-| Address | Moved from `ride.bbt.team` to `app.bbt.team`; the old address stays attached and the app forwards it (same path). Everyone signs in and turns notifications on again once; iPhone users re-add the Home Screen app | 2026-10-13 |
+| Address | `app.bbt.team` (was `ride.bbt.team` while only the captain used it; the old address is detached, no forwarding) | 2026-10-13 |
 
 ## v2: any sport and phone apps (designed, not built)
 | Topic | Decision | Date |
 |---|---|---|
-| Name | The app becomes **BBT**; the address is `app.bbt.team` (old `ride.bbt.team` links forward); app and notification icon = full bike logo on Light Blue | 2026-10-13 |
+| Name | The app becomes **BBT**; the address is `app.bbt.team`; app and notification icon = full bike logo on Light Blue | 2026-10-13 |
 | Sports | Ride, Run, Swim, Pickleball, Ski, Other; Admins turn sports on or off; no custom sports beyond Other | 2026-10-13 |
 | One team | Sports are a field on each activity, not separate groups; Edit and Admin plan any sport | 2026-10-13 |
 | Home | One upcoming list, soonest first, with sport filters (shown only when more than one sport is coming up) and a Past activities link; replaces the day tabs | 2026-10-13 |

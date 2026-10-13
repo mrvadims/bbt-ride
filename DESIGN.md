@@ -1,7 +1,7 @@
 # BBT Ride — Design
 
 Status: **v1 deployed** at app.bbt.team (see README for running it) — design prototype at `prototype/index.html`; decisions in `DECISIONS.md`. **v2 (any sport, phone apps) designed, not built** — see [v2](#v2-any-sport-and-phone-apps-designed-2026-10-13-not-built). Last updated 2026-10-13.
-URL: **app.bbt.team** (moved from ride.bbt.team on 2026-10-13; the old address stays attached to the Worker and the app forwards it to the same path on the new one)
+URL: **app.bbt.team**
 
 ## Purpose
 Help the BBT captain plan rides and the team show up prepared:
@@ -279,7 +279,7 @@ Never in the repo, the built assets, or any response to the browser. All third-p
 Everything above is v1 as deployed. v2 turns BBT Ride into **BBT**: the same team plans rides, runs, swims, pickleball, ski days and anything else, and the app gets an Android version with native notifications. The iPhone keeps the Home Screen web app until a native iPhone app is paid for (Apple's $99/year, or a nonprofit fee waiver). Design canvas: the private "BBT Multi-Sport Prototype" artifact (seven phone screens). Decisions: `DECISIONS.md` → v2.
 
 ### What changes for people
-- **Name:** the app is called **BBT** (app name, page title, icons). The address is `app.bbt.team` (was `ride.bbt.team`, which forwards to it). The app and notification icon becomes the full bike logo on Light Blue (today's icon is the "bbt" wordmark).
+- **Name:** the app is called **BBT** (app name, page title, icons). The address is `app.bbt.team`. The app and notification icon becomes the full bike logo on Light Blue (today's icon is the "bbt" wordmark).
 - **Sports:** Ride, Run, Swim, Pickleball, Ski and Other. Admins turn sports on or off for the team (Settings → Sports); Plan offers only the ones that are on, plus Other (with its own title). No custom sports beyond Other.
 - **Home:** one list of upcoming activities, soonest first. Each row: sport icon, day · time, title, place, how many are in, and warning chips only when something needs attention (no "Good" state, as in v1). Sport filter buttons (All, then each sport that has something coming up) appear only when more than one sport is coming up. **Past activities** at the bottom opens today's Past list, now with a sport filter. No day tabs.
 - **Activity page:** the v1 ride page, generalised. Header card: sport · indoor/outdoor, title, day · time · details, and the Edit icon for editors. Under it, the **action row** (below). Then panels as in v1, shown only when they apply: **Meet** (place and its notes), **Route** (ride and run only), **Weather** (outdoor only), **Notes**, **Who's in** (In / Out in the collapsed header, people, thread; renamed from Riders). The "Updated …" note works as today.

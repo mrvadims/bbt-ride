@@ -4,7 +4,7 @@
   "main": "worker/index.ts",
   "compatibility_date": "2026-10-01",
   "compatibility_flags": ["nodejs_compat"],
-  // app.bbt.team, plus ride.bbt.team which the app forwards to it (both attached by hand in the dashboard); no workers.dev or preview URLs.
+  // Only app.bbt.team (attached by hand in the dashboard); no workers.dev or preview URLs.
   "workers_dev": false,
   "preview_urls": false,
   "assets": {
