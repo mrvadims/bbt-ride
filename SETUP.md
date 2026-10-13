@@ -8,7 +8,7 @@ Nothing here is ever committed. Values go into Cloudflare Worker secrets, GitHub
 | 2. RideWithGPS credentials | Done: Worker secrets verified 2026-10-11 |
 | 3. Google sign-in | Done 2026-10-11: app published, client created, `GOOGLE_CLIENT_SECRET` stored (verified), first Admin chosen |
 | 4. Web Push keys | Done 2026-10-12: `VAPID_PRIVATE_KEY` stored as a Worker secret (verified), public key in `wrangler.jsonc` |
-| 5. D1 database, KV namespace and Queue | D1 and KV done 2026-10-12. **To do before the next deploy: create the `bbt-ride-push` Queue and add Queues to the deploy token (§5)** |
+| 5. D1 database, KV namespace and Queue | D1 and KV done 2026-10-12; Queue created and deploy token updated 2026-10-12 |
 | 6. First deploy | Deployed and `ride.bbt.team` attached 2026-10-12. Next: sign in as the first Admin, check live data |
 
 ## 1. Cloudflare API token (for deploys)
