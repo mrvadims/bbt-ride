@@ -1,6 +1,6 @@
 // Top bar (the only navigation): logo home, Plan and Settings icons for roles that have them, and the account menu.
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import { type Me, ROLE_LABEL } from "../../shared/api.ts";
 import { SPORT_LABEL, type Sport } from "../../shared/sports.ts";
 import { api, authClient } from "../lib/api.ts";
@@ -137,6 +137,63 @@ function NotifySports({ me }: { me: Me }) {
   );
 }
 
+// The member's display name, shown to the team; Google sign-ups start with their Google name.
+function Name({ me }: { me: Me }) {
+  const qc = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  if (!editing)
+    return (
+      <div className="who-name">
+        <b>{me.name}</b>
+        <button type="button" className="linkbtn tiny" onClick={() => setEditing(true)}>
+          Edit name
+        </button>
+      </div>
+    );
+  const save = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const name = String(new FormData(e.currentTarget).get("name") ?? "").trim();
+    setNote("");
+    if (name === me.name) return setEditing(false);
+    setBusy(true);
+    const { error } = await authClient.updateUser({ name });
+    setBusy(false);
+    if (error) return setNote(error.message ?? "Couldn't save your name.");
+    setEditing(false);
+    await qc.invalidateQueries(); // the name also shows in Who's in and the threads
+  };
+  return (
+    <form className="row2" onSubmit={save}>
+      <label className="field">
+        Your name (shown to the team)
+        <input
+          name="name"
+          defaultValue={me.name}
+          autoComplete="name"
+          required
+          maxLength={80}
+          ref={(el) => el?.focus()}
+        />
+      </label>
+      <div className="row-btns">
+        <button type="submit" className="btn btn-primary btn-sm" disabled={busy}>
+          Save
+        </button>
+        <button type="button" className="btn btn-outline btn-sm" onClick={() => setEditing(false)}>
+          Cancel
+        </button>
+      </div>
+      {note && (
+        <span className="tiny" style={{ color: "var(--no-fg)" }}>
+          {note}
+        </span>
+      )}
+    </form>
+  );
+}
+
 export function TopBar({ me }: { me: Me | null }) {
   const prefs = usePrefs();
   const { parts } = useLocation();
@@ -225,7 +282,7 @@ export function TopBar({ me }: { me: Me | null }) {
       {me && open && (
         <div className="acctmenu" id="acctmenu" ref={menu}>
           <div className="who">
-            <b>{me.name}</b>
+            <Name me={me} />
             <span className="tiny muted">
               {ROLE_LABEL[me.role]} · signed in with {method}
             </span>
