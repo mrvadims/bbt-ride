@@ -1,6 +1,6 @@
 # BBT Ride — Design
 
-Status: **v1 deployed** at app.bbt.team (see README for running it) — design prototype at `prototype/index.html`; decisions in `DECISIONS.md`. **v2 step 1 (any sport on the web) built**; the calendar link, per-sport notifications and phone apps are designed, not built — see [v2](#v2-any-sport-and-phone-apps-designed-2026-10-13). Last updated 2026-10-13.
+Status: **v1 deployed** at app.bbt.team (see README for running it) — design prototype at `prototype/index.html`; decisions in `DECISIONS.md`. **v2 steps 1 and 2 (any sport on the web; calendar link and per-sport notifications) built**; the phone apps are designed, not built — see [v2](#v2-any-sport-and-phone-apps-designed-2026-10-13). Last updated 2026-10-13.
 URL: **app.bbt.team**
 
 ## Purpose
@@ -142,7 +142,7 @@ Both use `fill="currentColor"` so they can switch between navy, white, and orang
 | Logo navy | `#03144D` | Primary text on light; dark-mode cards |
 | BBT Transition Blue | `#041DB2` | Charts (rain bars, elevation profile) in light mode; dark mode uses `#7FB2FF` |
 
-- **Top bar** (the only navigation; there is no tab row): white bike logo on the left, which is the way home to Ride; on the right, **Plan** (calendar-plus icon) and **Settings** (gear) for roles that have them (icons only on phones, icon + label on wider screens), then an **account button** with the user's initial. View riders see just the logo and the account button. The account menu shows name, role and sign-in method; **Theme** (Auto / Light / Dark); **Units** (°F · mi / °C · km); **Ride notifications** (on/off for this device); and **Sign out**. Logo `bbt-logo.svg`, ~32px tall, on Light Blue, with a 4px orange stripe directly underneath (no separator). Same bar in light and dark mode; checked on a phone 2026-10-11, no hairline needed. No text next to the logo.
+- **Top bar** (the only navigation; there is no tab row): white bike logo on the left, which is the way home to Ride; on the right, **Plan** (calendar-plus icon) and **Settings** (gear) for roles that have them (icons only on phones, icon + label on wider screens), then an **account button** with the user's initial. View riders see just the logo and the account button. The account menu shows name, role and sign-in method; **Theme** (Auto / Light / Dark); **Units** (°F · mi / °C · km); **Notifications** (on/off for this device); **Tell me about new** (one toggle per sport, for new-activity notifications); **Calendar link** (Apple Calendar · Google Calendar · Copy link · Reset link); and **Sign out**. Logo `bbt-logo.svg`, ~32px tall, on Light Blue, with a 4px orange stripe directly underneath (no separator). Same bar in light and dark mode; checked on a phone 2026-10-11, no hairline needed. No text next to the logo.
 
 - Warnings use amber and red tinted pills and boxes (icon + label), never brand orange. There is no green "Go" state; a clean forecast shows nothing.
 - Light and dark mode both supported; dark mode is navy-based, not gray.
@@ -318,14 +318,14 @@ Every group has the same thresholds (cold, heat, wind, gusts, rain chance and am
 
 ### Calendar link
 Each person can subscribe their own calendar (Apple, Google, Outlook) to a private feed of everything they're **In** for: upcoming activities plus the last 30 days, with changes and cancellations (shown as cancelled) updating the events by themselves. It needs no app and no calendar permission, so it works on every phone and computer.
-- **Where:** the account menu (**Calendar: Subscribe · Copy link · Reset link**), the Calendar tile on an activity, and the Android app's first launch. The one-off **Add this activity** (.ics, Google, Outlook links) stays.
-- **How:** `GET /cal/<token>.ics`, where the token is a random secret per person; only its SHA-256 is stored. Reset makes a new token and the old link stops working. This is the one data URL that works without a session, so the feed carries only that person's own activities and no messages.
+- **Where:** the account menu (**Apple Calendar · Google Calendar · Copy link · Reset link**), the Calendar tile on an activity ("Or subscribe to your BBT calendar"), and, in step 3, the Android app's first launch. The link is made the first time someone asks for it. The one-off **Add this activity** (.ics, Google, Outlook links) stays.
+- **How:** `GET /api/cal/<user>.<version>.<signature>.ics`, where the signature is HMAC-SHA256 of the user and version with the Worker's `SESSION_SECRET` (`worker/routes/calendar.ts`). Only the version is stored (`calendar_links`); Reset bumps it and the old link returns 404, as does a forged or disabled person's link. This is the one data URL that works without a session, so the feed carries only that person's own activities (up to 100) and no messages or names of who else is in. Events keep the activity's id as UID, so an activity added once with the Calendar tile and the feed's copy are the same event; `SEQUENCE` / `LAST-MODIFIED` come from the activity's last update.
 - **Refresh:** each calendar app polls on its own schedule; Apple Calendar typically within hours, Google Calendar can take up to a day. Notifications stay the fast path for last-minute changes.
 
 ### Notifications
 - **What:** v1's updated / cancelled / restored, plus **New activity posted**.
-- **Who:** changes, cancellations and restores go to everyone with notifications on, as in v1. A new activity goes only to people who follow that sport: the account menu gets **Notify me about** with one switch per sport (all on by default, stored per person, not per device).
-- **Buttons:** a change to an activity someone is In for carries **Still in** / **I'm out**. They work in the Android app and in Chrome on Android; on iPhone the notification opens the activity instead.
+- **Who:** changes, cancellations and restores go to everyone with notifications on, as in v1. A new activity goes to everyone but its author who hasn't turned that sport off: the account menu has **Tell me about new** with one toggle per offered sport plus Other (all on by default; the exceptions are stored per person in `notify_off`, not per device).
+- **Buttons:** a change to an activity someone is In for carries **Still in** / **I'm out**. They work in the Android app and in Chrome on Android and desktop; on iPhone the notification opens the activity instead. **I'm out** answers from the service worker (`PUT /api/activities/<id>/rsvp`); if that fails (signed out, offline) it opens the activity. **Still in** just closes the notification.
 - **Delivery:** the v1 Queue, unchanged in shape. Each device is either a Web Push subscription (browsers, iPhone Home Screen app) or a Firebase Cloud Messaging token (Android app). FCM is free; the Worker signs a Google OAuth token from a service-account key (Worker secret `FCM_SERVICE_ACCOUNT`) and caches it in KV for 55 minutes, so each queue run still does one cheap signature at most.
 
 ### Android app
@@ -350,18 +350,21 @@ ride_routes → activity_routes; ride_id → activity_id in activity_routes, rsv
 spots: note optional (pools and courts may need none)
 settings: + 'sports' (the enabled list); the twelve threshold keys become one 'warn' key: { ride, run, ski, outdoor }
 ```
-Step 2 (calendar link, per-sport notifications) and step 3 (Android):
+Step 2 (`0008_notify_calendar.sql`, built):
+```
+notify_off(user_id, sport, PRIMARY KEY(user_id, sport))          -- sports a person muted for new posts
+calendar_links(user_id PRIMARY KEY, version, created_at)        -- the link is signed, nothing secret is stored
+```
+Step 3 (Android):
 ```
 push_subscriptions: + kind CHECK(kind IN ('web','fcm')) DEFAULT 'web'; keys_json NULL for fcm
-notify_off(user_id, sport, PRIMARY KEY(user_id, sport))          -- sports a person muted for new posts
-calendar_tokens(user_id PRIMARY KEY, token_hash UNIQUE, created_at)
 ```
 Existing rides become `sport = 'ride'`, outdoor, with empty titles. Ride thresholds an Admin changed carry over into `warn.ride`; drafts are cleared. The server checks each sport's fields (`activityInput` in `shared/api.ts`: a route and a pace for ride and run, an end time after the start for the rest; fields that don't apply are stored empty) and refuses a new activity for a sport that's turned off. The API moves to `/api/activities`, pages to `/a/<id>` (upcoming and past alike; a past one is read-only with Reuse this plan). Old `/ride/<date>` and `/past/<id>` links aren't kept: nobody but the captain used them. Home lists a cancelled activity unless the same sport has a published one that day (after Replace). The header card's first line is the sport, plus Pool / Open water or Indoor / Outdoor for sports that can be either.
 
 ### Build order
 Each step is its own PR, deployed before the next:
 1. **Any sport on the web** (built): migration, Plan, home list, activity page with the action row, Settings → Sports and the weather groups, places with optional notes, the rename to BBT, the RideWithGPS tile.
-2. **Calendar link and per-sport notifications**, including New activity posted.
+2. **Calendar link and per-sport notifications** (built), including New activity posted and Still in / I'm out.
 3. **Android app:** Capacitor shell, FCM delivery, native Google sign-in, signed APK and its download page.
 4. **iPhone app:** when the Apple fee is settled.
 

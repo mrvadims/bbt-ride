@@ -2,10 +2,13 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { type Me, ROLE_LABEL } from "../../shared/api.ts";
-import { authClient } from "../lib/api.ts";
+import { SPORT_LABEL, type Sport } from "../../shared/sports.ts";
+import { api, authClient } from "../lib/api.ts";
+import { useTeam } from "../lib/data.ts";
 import { type Prefs, setPref, usePrefs } from "../lib/prefs.ts";
 import { currentSubscription, disablePush, enablePush, pushSupported } from "../lib/push.ts";
 import { Link, navigate, useLocation } from "../lib/router.tsx";
+import { CalendarLink } from "./CalendarLink.tsx";
 import { GearIcon, Logo, PlanIcon } from "./icons.tsx";
 
 function Seg<T extends string>({
@@ -77,6 +80,44 @@ function Notifications({ me }: { me: Me }) {
         </span>
       )}
     </>
+  );
+}
+
+// Which sports' new activities to hear about (DESIGN.md → v2, Notifications): the team's sports plus Other, all on
+// until turned off. Updates to activities someone is In for always notify.
+function NotifySports({ me }: { me: Me }) {
+  const team = useTeam().data;
+  const qc = useQueryClient();
+  const [note, setNote] = useState("");
+  if (!team) return null;
+  const offered: Sport[] = [...team.settings.sports, "other"];
+  const toggle = async (sport: Sport) => {
+    setNote("");
+    const muted = me.mutedSports.includes(sport)
+      ? me.mutedSports.filter((s) => s !== sport)
+      : [...me.mutedSports, sport];
+    try {
+      qc.setQueryData(["me"], await api<Me>("/me/muted", { method: "PUT", body: { sports: muted } }));
+    } catch (e) {
+      setNote((e as Error).message);
+    }
+  };
+  return (
+    <div className="row2">
+      <span className="tiny muted">Tell me about new</span>
+      <div className="filters" role="group" aria-label="Tell me about new">
+        {offered.map((s) => (
+          <button key={s} type="button" aria-pressed={!me.mutedSports.includes(s)} onClick={() => toggle(s)}>
+            {SPORT_LABEL[s]}
+          </button>
+        ))}
+      </div>
+      {note && (
+        <span className="tiny" style={{ color: "var(--no-fg)" }}>
+          {note}
+        </span>
+      )}
+    </div>
   );
 }
 
@@ -192,6 +233,11 @@ export function TopBar({ me }: { me: Me | null }) {
             onChange={(v) => setPref("units", v)}
           />
           <Notifications me={me} />
+          <NotifySports me={me} />
+          <div className="row2">
+            <span className="tiny muted">Calendar link · activities you're In for</span>
+            <CalendarLink />
+          </div>
           <button type="button" className="btn btn-outline btn-sm" onClick={signOut}>
             Sign out
           </button>

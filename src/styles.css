@@ -1058,6 +1058,8 @@ a.spotrow {
   display: grid;
   gap: 12px;
   z-index: 1600;
+  max-height: calc(100dvh - 76px);
+  overflow-y: auto;
 }
 .acctmenu .who b {
   display: block;

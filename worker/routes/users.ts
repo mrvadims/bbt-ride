@@ -6,13 +6,16 @@ import {
   linkAccept,
   linkToken,
   type Me,
+  mutedInput,
   type Role,
   type UserRow,
   userEdit,
 } from "../../shared/api.ts";
-import { type AppEnv, requireRole } from "../app.ts";
+import type { Sport } from "../../shared/sports.ts";
+import { type AppEnv, requireRole, type SessionUser } from "../app.ts";
 import { audit, fail, nowIso, randomToken, sha256Hex } from "../util.ts";
 import { validate } from "../validate.ts";
+import { calendarUrl as calendarLinkOf, resetCalendarLink } from "./calendar.ts";
 
 const INVITE_DAYS = 7;
 const RESET_HOURS = 24;
@@ -65,11 +68,38 @@ async function openLink(db: D1Database, token: string) {
     .first<{ token_hash: string; kind: "invite" | "reset"; email: string; user_id: string | null }>();
 }
 
-export const me = new Hono<AppEnv>().get("/", async (c) => {
-  const u = c.get("user");
-  const methods = (await methodsOf(c.env.DB, u.id)).get(u.id) ?? [];
-  return c.json<Me>({ ...u, methods, vapidPublicKey: c.env.VAPID_PUBLIC_KEY });
-});
+async function meOf(env: Env, u: SessionUser): Promise<Me> {
+  const [methods, muted, calendarUrl] = await Promise.all([
+    methodsOf(env.DB, u.id),
+    env.DB.prepare("select sport from notify_off where user_id = ?").bind(u.id).all<{ sport: Sport }>(),
+    calendarLinkOf(env, u.id),
+  ]);
+  return {
+    ...u,
+    methods: methods.get(u.id) ?? [],
+    vapidPublicKey: env.VAPID_PUBLIC_KEY,
+    mutedSports: muted.results.map((r) => r.sport),
+    calendarUrl,
+  };
+}
+
+// The signed-in person: their account, the sports they muted for new posts, and their calendar link.
+export const me = new Hono<AppEnv>()
+  .get("/", async (c) => c.json(await meOf(c.env, c.get("user"))))
+  .put("/muted", validate("json", mutedInput), async (c) => {
+    const id = c.get("user").id;
+    await c.env.DB.batch([
+      c.env.DB.prepare("delete from notify_off where user_id = ?").bind(id),
+      ...c.req
+        .valid("json")
+        .sports.map((s) => c.env.DB.prepare("insert into notify_off (user_id, sport) values (?, ?)").bind(id, s)),
+    ]);
+    return c.json(await meOf(c.env, c.get("user")));
+  })
+  .post("/calendar", async (c) => {
+    await resetCalendarLink(c.env, c.get("user").id);
+    return c.json(await meOf(c.env, c.get("user")));
+  });
 
 export const users = new Hono<AppEnv>()
   .use(requireRole("admin"))

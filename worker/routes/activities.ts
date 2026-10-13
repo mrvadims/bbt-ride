@@ -42,7 +42,7 @@ interface ActivityRow {
 
 /** Summaries of the activities matching `where` (a condition on table alias a), with routes, counts and the latest
  * update. */
-async function summaries(
+export async function summaries(
   db: D1Database,
   where: string,
   binds: unknown[],
@@ -264,6 +264,15 @@ const PAST = "Past activities can't be changed";
 const clashText = (sport: Sport) => `A ${SPORT_LABEL[sport].toLowerCase()} is already posted for that day`;
 const subject = (a: Activity, what: string) => `${what}: ${activityName(a)}, ${dayLabel(a.date)}`;
 
+/** "New ride: Katonah loop" · "Sat, Oct 17 · 8:30 AM · SUNY Purchase", to people following that sport. */
+async function announce(env: Env, a: Activity, author: string) {
+  const spot = await env.DB.prepare("select name from spots where id = ?").bind(a.spotId).first<{ name: string }>();
+  const when = `${dayLabel(a.date)} · ${fmtTime(hhmmToMin(a.startTime))}${spot ? ` · ${spot.name}` : ""}`;
+  await notifyActivity(env, a.id, `New ${SPORT_LABEL[a.sport].toLowerCase()}: ${activityName(a)}`, when, {
+    newPost: { sport: a.sport, author },
+  });
+}
+
 async function notifyReplaced(env: Env, id: string) {
   const [old] = await summaries(env.DB, "a.id = ?", [id]);
   if (old) await notifyActivity(env, id, subject(old, "Cancelled"), "Replaced by a new plan.");
@@ -315,7 +324,9 @@ export const activities = new Hono<AppEnv>()
       audit(c.env.DB, user.id, "publish", "activity", id, input),
     ]);
     if (clash) c.executionCtx.waitUntil(notifyReplaced(c.env, clash.id));
-    return c.json(await detail(c.env.DB, id), 201);
+    const created = await detail(c.env.DB, id);
+    c.executionCtx.waitUntil(announce(c.env, created, user.id));
+    return c.json(created, 201);
   })
 
   .put("/:id", requireRole("edit"), validate("json", activityUpdate), async (c) => {
@@ -367,7 +378,9 @@ export const activities = new Hono<AppEnv>()
     if (clash) c.executionCtx.waitUntil(notifyReplaced(c.env, clash.id));
     if (what.length) {
       const updated = await detail(c.env.DB, id);
-      c.executionCtx.waitUntil(notifyActivity(c.env, id, subject(updated, "Updated"), what.join(" · ")));
+      c.executionCtx.waitUntil(
+        notifyActivity(c.env, id, subject(updated, "Updated"), what.join(" · "), { answer: true }),
+      );
       return c.json(updated);
     }
     return c.json(await detail(c.env.DB, id));

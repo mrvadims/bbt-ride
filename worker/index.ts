@@ -8,6 +8,7 @@ import { type AppEnv, requireSession, sameOrigin, withAuth } from "./app.ts";
 import { scheduled } from "./cron.ts";
 import { deliver, type PushJob, push } from "./push.ts";
 import { activities, messages } from "./routes/activities.ts";
+import { calendar } from "./routes/calendar.ts";
 import { drafts } from "./routes/drafts.ts";
 import { routes } from "./routes/routes.ts";
 import { settings } from "./routes/settings.ts";
@@ -45,6 +46,7 @@ app.use(sameOrigin);
 // Public
 app.get("/health", (c) => c.json({ ok: true }));
 app.route("/links", links);
+app.route("/cal", calendar); // calendar apps fetch the private feed without a session
 
 // Signed in
 app.use(requireSession);
