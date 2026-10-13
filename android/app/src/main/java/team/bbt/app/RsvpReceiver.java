@@ -30,12 +30,7 @@ public class RsvpReceiver extends BroadcastReceiver {
         String title = intent.getStringExtra(EXTRA_TITLE);
         String path = intent.getStringExtra(Notifier.EXTRA_PATH);
         if (activity == null) return;
-        String cookies;
-        try {
-            cookies = CookieManager.getInstance().getCookie(Notifier.APP_URL); // on the main thread, as WebView likes
-        } catch (Exception e) {
-            cookies = null; // WebView missing or updating: the request fails and offers to open the activity
-        }
+        String cookies = sessionCookies(); // on the main thread, as WebView likes
         PendingResult pending = goAsync();
         new Thread(() -> {
             boolean ok = out(activity, cookies);
@@ -43,6 +38,15 @@ public class RsvpReceiver extends BroadcastReceiver {
             else Notifier.simple(ctx, id, "Couldn't answer", "Tap to open " + title, path);
             pending.finish();
         }).start();
+    }
+
+    /** The WebView's cookies for BBT, or null if the WebView is missing or updating (the request then fails). */
+    private static String sessionCookies() {
+        try {
+            return CookieManager.getInstance().getCookie(Notifier.APP_URL);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private static boolean out(String activity, String cookies) {
