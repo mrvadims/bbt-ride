@@ -1,6 +1,6 @@
 name: CI
-# Lint, typecheck, unit tests and a build. Runs on pushes to branches (a pull request shows those results) and as the
-# first job of deploy.yml.
+# Lint, typecheck, unit tests and a build, plus an Android debug build on branches. Runs on pushes to branches (a pull
+# request shows those results) and as the first job of deploy.yml.
 on:
   push:
     branches-ignore: [main]
@@ -27,3 +27,23 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npx vite build
+
+  # The Android shell compiles (a debug build, no secrets). Skipped inside deploy.yml, which builds the signed app.
+  android:
+    if: github.ref != 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+      - run: npm ci
+      - run: npx cap sync android
+      - run: ./gradlew --no-daemon assembleDebug
+        working-directory: android

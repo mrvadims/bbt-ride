@@ -9,7 +9,8 @@
       "!public",
       "!worker/worker-configuration.d.ts",
       "!dist",
-      "!.wrangler"
+      "!.wrangler",
+      "!android"
     ]
   },
   "formatter": {

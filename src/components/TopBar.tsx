@@ -5,6 +5,7 @@ import { type Me, ROLE_LABEL } from "../../shared/api.ts";
 import { SPORT_LABEL, type Sport } from "../../shared/sports.ts";
 import { api, authClient } from "../lib/api.ts";
 import { useTeam } from "../lib/data.ts";
+import { appPushOn, disableAppPush, enableAppPush, isAndroidBrowser, isApp } from "../lib/native.ts";
 import { type Prefs, setPref, usePrefs } from "../lib/prefs.ts";
 import { currentSubscription, disablePush, enablePush, pushSupported } from "../lib/push.ts";
 import { Link, navigate, useLocation } from "../lib/router.tsx";
@@ -39,10 +40,12 @@ function Seg<T extends string>({
 function Notifications({ me }: { me: Me }) {
   const [on, setOn] = useState<boolean | null>(null);
   const [note, setNote] = useState("");
+  const app = isApp(); // the Android app: Firebase instead of Web Push
   useEffect(() => {
-    currentSubscription().then((s) => setOn(Boolean(s)));
-  }, []);
-  if (!pushSupported() || !me.vapidPublicKey)
+    if (app) appPushOn().then(setOn, () => setOn(false));
+    else currentSubscription().then((s) => setOn(Boolean(s)));
+  }, [app]);
+  if (!app && (!pushSupported() || !me.vapidPublicKey))
     return (
       <div className="row2">
         <span className="tiny muted">Notifications</span>
@@ -56,7 +59,8 @@ function Notifications({ me }: { me: Me }) {
   const change = async (want: boolean) => {
     setNote("");
     try {
-      if (want) await enablePush(me.vapidPublicKey);
+      if (app) await (want ? enableAppPush() : disableAppPush());
+      else if (want) await enablePush(me.vapidPublicKey);
       else await disablePush();
       setOn(want);
     } catch (e) {
@@ -161,7 +165,8 @@ export function TopBar({ me }: { me: Me | null }) {
   }, [open]);
 
   const signOut = async () => {
-    await disablePush().catch(() => undefined); // the next person on this device shouldn't get this person's notifications
+    // the next person on this device shouldn't get this person's notifications
+    await (isApp() ? disableAppPush() : disablePush()).catch(() => undefined);
     await authClient.signOut();
     qc.clear();
     navigate("/signin");
@@ -250,6 +255,11 @@ export function TopBar({ me }: { me: Me | null }) {
             <span className="tiny muted">Calendar link · activities you're In for</span>
             <CalendarLink />
           </div>
+          {isAndroidBrowser() && (
+            <a className="btn btn-outline btn-sm" href="/download/">
+              Get the Android app
+            </a>
+          )}
           <button type="button" className="btn btn-outline btn-sm" onClick={signOut}>
             Sign out
           </button>

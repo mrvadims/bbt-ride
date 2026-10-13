@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- BBT Light Blue and orange (brand/bbt colors.pdf) -->
+    <color name="colorPrimary">#0077D1</color>
+    <color name="colorPrimaryDark">#0077D1</color>
+    <color name="colorAccent">#FF3115</color>
+</resources>

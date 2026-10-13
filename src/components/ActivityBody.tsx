@@ -11,6 +11,7 @@ import { dayLabel, fmtDur, fmtTime } from "../../shared/time.ts";
 import { bikeFeel, compass } from "../../shared/weather.ts";
 import type { ActivityLike, ActivityModel } from "../lib/activityModel.ts";
 import { type CalEvent, downloadIcs, googleLink, outlookLink } from "../lib/calendar.ts";
+import { bbt, isApp } from "../lib/native.ts";
 import { type Prefs, setPref, usePrefs } from "../lib/prefs.ts";
 import { type Units, units } from "../lib/units.ts";
 import { CalendarLink } from "./CalendarLink.tsx";
@@ -245,18 +246,22 @@ function CalendarSheet({ ev, onClose }: { ev: CalEvent; onClose: () => void }) {
         <a href={googleLink(ev)} target="_blank" rel="noopener noreferrer" onClick={onClose}>
           Google Calendar
         </a>
-        <button type="button" onClick={ics}>
-          Apple Calendar <span>.ics file</span>
-        </button>
+        {!isApp() && ( // the app's WebView can't download files
+          <button type="button" onClick={ics}>
+            Apple Calendar <span>.ics file</span>
+          </button>
+        )}
         <a href={outlookLink(ev, "outlook.live.com")} target="_blank" rel="noopener noreferrer" onClick={onClose}>
           Outlook.com
         </a>
         <a href={outlookLink(ev, "outlook.office.com")} target="_blank" rel="noopener noreferrer" onClick={onClose}>
           Outlook (work or school)
         </a>
-        <button type="button" onClick={ics}>
-          Other <span>.ics file</span>
-        </button>
+        {!isApp() && (
+          <button type="button" onClick={ics}>
+            Other <span>.ics file</span>
+          </button>
+        )}
       </div>
       <div className="sub">
         <div className="sub-h">Or subscribe to your BBT calendar</div>
@@ -330,7 +335,9 @@ export function ActionRow({ act, m }: { act: ActivityDetail; m: ActivityModel })
   const share = () => {
     const text = shareText(act, m, u);
     const url = `${location.origin}/a/${act.id}`;
-    if (navigator.share) navigator.share({ title: `BBT · ${activityName(act)}`, text, url }).catch(() => undefined);
+    if (isApp()) bbt.share({ title: `BBT · ${activityName(act)}`, text, url }).catch(() => undefined);
+    else if (navigator.share)
+      navigator.share({ title: `BBT · ${activityName(act)}`, text, url }).catch(() => undefined);
     else setCopy(`${text}\n${url}`);
   };
   return (

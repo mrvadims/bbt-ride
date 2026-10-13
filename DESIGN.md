@@ -1,6 +1,6 @@
 # BBT Ride — Design
 
-Status: **v1 deployed** at app.bbt.team (see README for running it) — design prototype at `prototype/index.html`; decisions in `DECISIONS.md`. **v2 steps 1 and 2 (any sport on the web; calendar link and per-sport notifications) built**; the phone apps are designed, not built — see [v2](#v2-any-sport-and-phone-apps-designed-2026-10-13). Last updated 2026-10-13.
+Status: **v1 deployed** at app.bbt.team (see README for running it) — design prototype at `prototype/index.html`; decisions in `DECISIONS.md`. **v2 steps 1–3 (any sport on the web; calendar link and per-sport notifications; the Android app) built**; the iPhone app waits on the Apple fee — see [v2](#v2-any-sport-and-phone-apps-designed-2026-10-13). Last updated 2026-10-13.
 URL: **app.bbt.team**
 
 ## Purpose
@@ -146,7 +146,7 @@ Both use `fill="currentColor"` so they can switch between navy, white, and orang
 
 - Warnings use amber and red tinted pills and boxes (icon + label), never brand orange. There is no green "Go" state; a clean forecast shows nothing.
 - Light and dark mode both supported; dark mode is navy-based, not gray.
-- PWA icons (180/192/512) are rendered from the wordmark by `npm run icons` (scripts/icons.ts) into `public/icons/`.
+- App icons are rendered by `npm run icons` (scripts/icons.ts): the full bike logo on Light Blue for the PWA (180/192/512, also the Web Push notification icon) and the Android launcher icons and splash screens. The favicon stays the wordmark, which reads at 16px.
 
 ## Algorithms
 All inputs are Open-Meteo hourly values in °F, mph, inches, local time (America/New_York). `precipitation` at hour *h* is the total for the hour ending at *h*. Values between hours are linearly interpolated (wind direction, weather code and rain chance use the nearest hour). Implementation: `shared/weather.ts` (`roadAt`, `bikeFeel`, `evaluate`), `shared/kit.ts` (`kitAdvice`), `shared/ride.ts` (`rideTimes`).
@@ -329,11 +329,13 @@ Each person can subscribe their own calendar (Apple, Google, Outlook) to a priva
 - **Delivery:** the v1 Queue, unchanged in shape. Each device is either a Web Push subscription (browsers, iPhone Home Screen app) or a Firebase Cloud Messaging token (Android app). FCM is free; the Worker signs a Google OAuth token from a service-account key (Worker secret `FCM_SERVICE_ACCOUNT`) and caches it in KV for 55 minutes, so each queue run still does one cheap signature at most.
 
 ### Android app
-- **Built with Capacitor** around the same web app, in `android/` in this repo. The app opens `https://app.bbt.team` in its WebView (Capacitor's `server.url`), so every web deploy reaches Android users at once and the APK only changes when the native shell does. Capacitor's own plugins provide push (FCM), share and opening Maps. Offline, it shows a "No connection" screen with Retry.
-- **Sign-in:** Google blocks its sign-in page inside app WebViews, so the app uses a native Google sign-in plugin and hands the ID token to Better Auth (`signIn.social` with `idToken`). Username/email + password works as on the web.
-- **First launch:** asks for notifications and offers the calendar link (prototype screen "Android app: first launch"). No location.
-- **Distribution:** a signed APK, built by GitHub Actions (no Mac needed), downloadable from a public page on app.bbt.team (the APK contains no team data; sign-in stays invite-only). People allow "install unknown apps" once. No Google Play account; Play ($25 once) stays an option. The app checks a version endpoint and shows "Update available" when a newer shell is out.
-- **Secrets:** the APK signing key and the Firebase config live in GitHub repository secrets; `FCM_SERVICE_ACCOUNT` is a Worker secret.
+- **Built with Capacitor 8** around the same web app, in `android/` in this repo (`capacitor.config.ts`, app id `team.bbt.app`). The app opens `https://app.bbt.team` in its WebView (Capacitor's `server.url`), so every web deploy reaches Android users at once and the APK only changes when the native shell does. Offline, it shows `native/www/offline.html` ("No connection", Retry). Edge to edge: the page pads itself with `env(safe-area-inset-*)` and the top bar's blue continues under the status bar.
+- **One small plugin instead of several:** `BbtNativePlugin.java` gives the web app (`src/lib/native.ts`) the app version, the Firebase token and notification permission, Google sign-in, the share sheet and opening links outside (the APK download). Links to other sites (Maps, Waze, Google Calendar, RideWithGPS) leave the WebView by themselves and open the matching app. The WebView can't download files, so the app hides the .ics choices and Apple Calendar; Google Calendar and the calendar link remain.
+- **Notifications:** the Worker sends data-only Firebase messages and the app draws every notification itself (`BbtMessagingService`, `Notifier`): the bike logo, tap to open the activity, and Still in / I'm out. **I'm out** is answered by `RsvpReceiver` with the WebView's session cookie and an `Origin` header, then shows "You're out" (or "Couldn't answer · tap to open"). The web app registers the device's current token each time it starts (`POST /api/push/app`).
+- **Sign-in:** Google blocks its sign-in page inside app WebViews, so the app uses Android's Credential Manager (Sign in with Google) to get an ID token for the web OAuth client and hands it to Better Auth (`signIn.social` with `idToken`), which checks it and applies the same invite rule. Google allows it through an Android OAuth client with the app's package and signing SHA-1 (SETUP.md → 7). Username/email + password works as on the web.
+- **First launch:** a Welcome sheet with Turn on notifications and the calendar link (prototype screen "Android app: first launch"); shown once per install. No location.
+- **Distribution:** a signed APK, built in the Deploy workflow (`scripts/build-apk.sh`, no Mac needed) and served with the site at `/download/bbt.apk`, with the public page `/download/` (the APK contains no team data; sign-in stays invite-only). People allow "install unknown apps" once. No Google Play account; Play ($25 once) stays an option. The deploy writes `/download/android.json` (`versionCode`, `versionName` from `android/app/build.gradle`); the app compares it with its own and shows "Update available", which opens the download page in the browser. A failed Android build doesn't block the web deploy. Android phones' browsers get **Get the Android app** in the account menu. CI also compiles a debug build on every branch.
+- **Secrets:** the APK signing key and the Firebase config (`google-services.json`) live in GitHub repository secrets; `FCM_SERVICE_ACCOUNT` is a Worker secret (SETUP.md → 7).
 
 ### iPhone
 - Unchanged for now: the Home Screen web app with Web Push (iOS 16.4+), plus the calendar link. Native notification buttons and an App Store install are what's missing.
@@ -355,9 +357,9 @@ Step 2 (`0008_notify_calendar.sql`, built):
 notify_off(user_id, sport, PRIMARY KEY(user_id, sport))          -- sports a person muted for new posts
 calendar_links(user_id PRIMARY KEY, version, created_at)        -- the link is signed, nothing secret is stored
 ```
-Step 3 (Android):
+Step 3 (`0009_app_push.sql`, built):
 ```
-push_subscriptions: + kind CHECK(kind IN ('web','fcm')) DEFAULT 'web'; keys_json NULL for fcm
+push_subscriptions: + kind CHECK(kind IN ('web','fcm')) DEFAULT 'web'; for fcm, endpoint = the Firebase token, keys_json '{}'
 ```
 Existing rides become `sport = 'ride'`, outdoor, with empty titles. Ride thresholds an Admin changed carry over into `warn.ride`; drafts are cleared. The server checks each sport's fields (`activityInput` in `shared/api.ts`: a route and a pace for ride and run, an end time after the start for the rest; fields that don't apply are stored empty) and refuses a new activity for a sport that's turned off. The API moves to `/api/activities`, pages to `/a/<id>` (upcoming and past alike; a past one is read-only with Reuse this plan). Old `/ride/<date>` and `/past/<id>` links aren't kept: nobody but the captain used them. Home lists a cancelled activity unless the same sport has a published one that day (after Replace). The header card's first line is the sport, plus Pool / Open water or Indoor / Outdoor for sports that can be either.
 
@@ -365,7 +367,7 @@ Existing rides become `sport = 'ride'`, outdoor, with empty titles. Ride thresho
 Each step is its own PR, deployed before the next:
 1. **Any sport on the web** (built): migration, Plan, home list, activity page with the action row, Settings → Sports and the weather groups, places with optional notes, the rename to BBT, the RideWithGPS tile.
 2. **Calendar link and per-sport notifications** (built), including New activity posted and Still in / I'm out.
-3. **Android app:** Capacitor shell, FCM delivery, native Google sign-in, signed APK and its download page.
+3. **Android app** (built): Capacitor shell, FCM delivery, native Google sign-in, signed APK and its download page.
 4. **iPhone app:** when the Apple fee is settled.
 
 ## Backlog (post-v1)

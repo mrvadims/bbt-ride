@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import raw from "../data/raw/route_57406828.json";
 import seed from "../data/seed.json";
 import { pushSubscription } from "../shared/api.ts";
+import { type FcmAuth, fcmAuth, sendFcm, serviceJwt } from "../worker/fcm.ts";
 import { hashPassword, verifyPassword } from "../worker/password.ts";
 import { perSpot } from "../worker/routes/weather.ts";
 import { simplify } from "../worker/rwgps.ts";
@@ -144,5 +145,83 @@ describe("push subscriptions", () => {
       "nope",
     ])
       expect(ok(e)).toBe(false);
+  });
+});
+
+describe("Firebase messaging (Android app)", () => {
+  const keys = crypto.subtle.generateKey(
+    { name: "RSASSA-PKCS1-v1_5", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" },
+    true,
+    ["sign", "verify"],
+  ) as Promise<CryptoKeyPair>;
+  const account = async () => {
+    const der = new Uint8Array(await crypto.subtle.exportKey("pkcs8", (await keys).privateKey));
+    const pem = `-----BEGIN PRIVATE KEY-----\n${Buffer.from(der).toString("base64")}\n-----END PRIVATE KEY-----\n`;
+    return { project_id: "bbt-test", client_email: "push@bbt-test.iam.gserviceaccount.com", private_key: pem };
+  };
+  const fakeEnv = (sa: object) => {
+    const kv = new Map<string, string>();
+    return {
+      kv,
+      env: {
+        FCM_SERVICE_ACCOUNT: JSON.stringify(sa),
+        CACHE: {
+          get: async (k: string) => kv.get(k) ?? null,
+          put: async (k: string, v: string) => void kv.set(k, v),
+          delete: async (k: string) => void kv.delete(k),
+        },
+      } as unknown as Env,
+    };
+  };
+
+  it("signs a JWT Google accepts for the messaging scope", async () => {
+    const jwt = await serviceJwt(await account(), 1_800_000_000);
+    const [h, c, s] = jwt.split(".") as [string, string, string];
+    expect(JSON.parse(Buffer.from(h, "base64url").toString())).toEqual({ alg: "RS256", typ: "JWT" });
+    expect(JSON.parse(Buffer.from(c, "base64url").toString())).toMatchObject({
+      iss: "push@bbt-test.iam.gserviceaccount.com",
+      scope: "https://www.googleapis.com/auth/firebase.messaging",
+      aud: "https://oauth2.googleapis.com/token",
+      exp: 1_800_003_600,
+    });
+    const ok = await crypto.subtle.verify(
+      "RSASSA-PKCS1-v1_5",
+      (await keys).publicKey,
+      Buffer.from(s, "base64url"),
+      new TextEncoder().encode(`${h}.${c}`),
+    );
+    expect(ok).toBe(true);
+  });
+
+  it("signs in once, then reuses the token; forgets uninstalled apps", async () => {
+    const { env, kv } = fakeEnv(await account());
+    const calls: string[] = [];
+    const real = globalThis.fetch;
+    globalThis.fetch = (async (url: string, init?: RequestInit) => {
+      calls.push(String(url));
+      if (String(url).startsWith("https://oauth2"))
+        return Response.json({ access_token: "tok", expires_in: 3599, token_type: "Bearer" });
+      const body = JSON.parse(String(init?.body));
+      expect(body.message.data.json).toBe('{"title":"x"}');
+      return body.message.token === "gone-token"
+        ? new Response('{"error":{"status":"NOT_FOUND","details":[{"errorCode":"UNREGISTERED"}]}}', { status: 404 })
+        : Response.json({ name: "projects/bbt-test/messages/1" });
+    }) as typeof fetch;
+    try {
+      const a = await fcmAuth(env);
+      expect(a).toEqual({ project: "bbt-test", token: "tok" });
+      expect(kv.get("fcm-access-token")).toBe("tok");
+      expect(await fcmAuth(env)).toEqual(a); // from KV, no second sign-in
+      expect(calls.filter((u) => u.startsWith("https://oauth2")).length).toBe(1);
+      expect(await sendFcm(env, a as FcmAuth, "live-token", '{"title":"x"}')).toBe("sent");
+      expect(await sendFcm(env, a as FcmAuth, "gone-token", '{"title":"x"}')).toBe("gone");
+      expect(calls.at(-1)).toBe("https://fcm.googleapis.com/v1/projects/bbt-test/messages:send");
+    } finally {
+      globalThis.fetch = real;
+    }
+  });
+
+  it("is off without a service account", async () => {
+    expect(await fcmAuth({ FCM_SERVICE_ACCOUNT: "" } as unknown as Env)).toBeNull();
   });
 });

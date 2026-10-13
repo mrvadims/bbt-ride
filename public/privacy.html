@@ -37,7 +37,7 @@ a{color:var(--link)}
 <li><b>Your account:</b> name, email address, optional username, your team role, and how you sign in. If you use Google sign-in, we keep your name, email address and Google account ID; we discard your profile photo and Google's access tokens, and we never see your Google password or anything else in your Google account. If you set a password, we store only a salted hash of it, never the password itself.</li>
 <li><b>What you do in the app:</b> your RSVPs (In or Out, and which route), messages and replies you post, and, if you plan activities, the activities and places you create.</li>
 <li><b>Sign-in sessions:</b> essential cookies only (one keeps you signed in; Google sign-in briefly sets another to complete the sign-in), plus the device's IP address and browser type for each session, so sessions can be reviewed and ended.</li>
-<li><b>Notifications:</b> if you turn on notifications, the push address your browser gives us for that device, and which sports you turned off for new-activity notifications.</li>
+<li><b>Notifications:</b> if you turn on notifications, the push address your browser gives us for that device (in the Android app, the app's Firebase notification token), and which sports you turned off for new-activity notifications.</li>
 <li><b>Calendar link:</b> if you make one, a version number for it. Anyone with the link can see the activities you're In for (time, place, routes and details, not who else is coming), so treat it like a password; Reset link in the account menu stops the old one working.</li>
 <li><b>Change history:</b> a log of who changed activities, settings and users, and when.</li>
 </ul>
@@ -54,7 +54,7 @@ a{color:var(--link)}
 <p>Signed-in team members can see your name, your RSVPs and your messages on each activity. Team admins can also see your email address, role and sign-in methods. Your email is never shown to other members.</p>
 
 <h2>Where it's kept</h2>
-<p>The app runs on Cloudflare, which stores the data and serves the site. Google handles Google sign-in. Push notifications are delivered through your browser's own push service (for example Google, Apple or Mozilla). Weather comes from Open-Meteo and the US National Weather Service, and routes from RideWithGPS; our server fetches these, so they receive nothing about you. Route maps load map images straight from OpenStreetMap and CARTO, which see your IP address like any website you visit.</p>
+<p>The app runs on Cloudflare, which stores the data and serves the site. Google handles Google sign-in. Push notifications are delivered through your browser's own push service (for example Google, Apple or Mozilla), or, in the Android app, through Google's Firebase Cloud Messaging; they carry the notification's text (an activity's name, time and place). Weather comes from Open-Meteo and the US National Weather Service, and routes from RideWithGPS; our server fetches these, so they receive nothing about you. Route maps load map images straight from OpenStreetMap and CARTO, which see your IP address like any website you visit.</p>
 
 <h2>How long we keep it</h2>
 <p>We keep your account while you're on the team. Activity history, RSVPs and messages stay with each activity so the team can look back at past ones. Sessions expire after 30 days without use.</p>

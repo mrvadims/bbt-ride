@@ -6,6 +6,7 @@ import { useState } from "react";
 import type { Me } from "../../shared/api.ts";
 import { api } from "../lib/api.ts";
 import { useMe } from "../lib/data.ts";
+import { isApp } from "../lib/native.ts";
 
 export function CalendarLink() {
   const me = useMe().data;
@@ -44,9 +45,11 @@ export function CalendarLink() {
     <div className="callink">
       {url ? (
         <div className="btnrow">
-          <a className="btn btn-outline btn-sm" href={webcal}>
-            Apple Calendar
-          </a>
+          {!isApp() && ( // Android has no Apple Calendar
+            <a className="btn btn-outline btn-sm" href={webcal}>
+              Apple Calendar
+            </a>
+          )}
           <a
             className="btn btn-outline btn-sm"
             href={`https://calendar.google.com/calendar/r?cid=${encodeURIComponent(webcal)}`}

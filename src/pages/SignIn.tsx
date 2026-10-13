@@ -1,7 +1,9 @@
 // Sign in with Google (main) or username/email + password (DESIGN.md → Users and roles).
 import { useQueryClient } from "@tanstack/react-query";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { authClient } from "../lib/api.ts";
+import { queryClient } from "../lib/data.ts";
+import { bbt, isApp } from "../lib/native.ts";
 import { navigate, useLocation } from "../lib/router.tsx";
 
 export const GoogleMark = () => (
@@ -39,13 +41,37 @@ const nextPath = (query: URLSearchParams) => {
   return next.startsWith("/") && !next.startsWith("//") ? next : "/";
 };
 
-export const continueWithGoogle = (next = "/") =>
-  authClient.signIn.social({ provider: "google", callbackURL: next, errorCallbackURL: "/signin" });
+export async function continueWithGoogle(next = "/") {
+  if (!isApp()) {
+    await authClient.signIn.social({ provider: "google", callbackURL: next, errorCallbackURL: "/signin" });
+    return;
+  }
+  // The Android app: Google's own account picker, then Better Auth checks the ID token (Google doesn't allow its
+  // sign-in page inside an app's WebView).
+  let idToken: string;
+  try {
+    idToken = (await bbt.googleSignIn()).idToken;
+  } catch (e) {
+    if ((e as { code?: string }).code !== "CANCELLED") navigate("/signin?error=google", true);
+    return;
+  }
+  const res = await authClient.signIn.social({ provider: "google", idToken: { token: idToken }, callbackURL: next });
+  if (res.error) {
+    navigate(`/signin?error=${encodeURIComponent(res.error.message ?? "google")}`, true);
+    return;
+  }
+  await queryClient.invalidateQueries();
+  navigate(next, true);
+}
 
 export function SignIn() {
   const { query } = useLocation();
   const qc = useQueryClient();
   const [error, setError] = useState(errorText(query.get("error")));
+  const errorCode = query.get("error");
+  useEffect(() => {
+    if (errorCode) setError(errorText(errorCode)); // the app's Google sign-in reports back without leaving the page
+  }, [errorCode]);
   const [busy, setBusy] = useState(false);
 
   const submit = async (e: FormEvent<HTMLFormElement>) => {

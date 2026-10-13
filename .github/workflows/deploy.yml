@@ -1,5 +1,5 @@
 name: Deploy
-# On every merge to main: the CI checks, then D1 migrations, then the Worker (DESIGN.md → Architecture).
+# On every merge to main: the CI checks, then the Android app, D1 migrations and the Worker (DESIGN.md → Architecture).
 on:
   push:
     branches: [main]
@@ -26,6 +26,22 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx vite build # wrangler deploy uses the build's output
+      # The Android app for the download page (scripts/build-apk.sh). A failure here doesn't hold back the web deploy; the
+      # run still shows red, and the download page says the app isn't available until the next good build.
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+      - name: Build the Android app
+        continue-on-error: true
+        run: scripts/build-apk.sh
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
       # Only the Wrangler steps get the Cloudflare credentials.
       - run: npx wrangler d1 migrations apply DB --remote
         env:

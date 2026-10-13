@@ -132,6 +132,16 @@ h2 {
   z-index: 1500;
   border-bottom: 4px solid var(--stripe);
 }
+/* Behind the phone's status bar when the page is drawn edge to edge (Android app): the same blue as the bar. */
+.topbar::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  height: env(safe-area-inset-top, 0px);
+  background: var(--bar);
+}
 .topbar-inner {
   position: relative;
   max-width: 1200px;

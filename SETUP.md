@@ -10,6 +10,7 @@ Nothing here is ever committed. Values go into Cloudflare Worker secrets, GitHub
 | 4. Web Push keys | Done 2026-10-12: `VAPID_PRIVATE_KEY` stored as a Worker secret (verified), public key in `wrangler.jsonc` |
 | 5. D1 database, KV namespace and Queue | D1 and KV done 2026-10-12; Queue created and deploy token updated 2026-10-12 |
 | 6. First deploy | Deployed 2026-10-12; address `app.bbt.team` since 2026-10-13 |
+| 7. Android app | To do: Firebase, signing key, Android sign-in client (below) |
 
 ## 1. Cloudflare API token (for deploys)
 
@@ -130,3 +131,38 @@ Backups: D1 Time Travel is on by default (restore to any minute in the last 7 da
 3. Open https://app.bbt.team and **Continue with Google** as the first Admin (`BOOTSTRAP_ADMIN_EMAIL`). Then invite the team from Settings → Users.
 4. The route library fills over about 2.5 days (2 routes per run; the scheduled job runs every 3 hours); route search lists a route once it's fetched, and a pasted RideWithGPS link always works. Check that searching for a club route works; if your own private routes don't appear, the RideWithGPS list endpoint needs adjusting (DESIGN.md → Data sources).
 
+
+## 7. Android app
+
+The deploy builds the Android app and puts it on https://app.bbt.team/download/ once these secrets exist (DESIGN.md → v2, Android app). Until then the deploy skips the app and the download page says it isn't available yet. Everything here is free. Do A–C in the same Google Cloud project as the web sign-in client (`bbt-ride`).
+
+### A. Firebase (notifications)
+
+1. console.firebase.google.com → **Create a project** → choose the existing Google Cloud project **bbt-ride** (not a new one) → Google Analytics **off** → Create. The free Spark plan is enough.
+2. Project overview → **Add app** → Android: package name `team.bbt.app`, nickname `BBT` → **Register app** → **Download google-services.json** → skip the remaining SDK steps (already done in the code).
+3. GitHub → repository **Settings → Secrets and variables → Actions → New repository secret**: name `GOOGLE_SERVICES_JSON`, value the whole content of `google-services.json`.
+4. Firebase → ⚙ **Project settings → Service accounts → Generate new private key**. From your terminal, in the repo folder:
+   ```
+   npx wrangler secret put FCM_SERVICE_ACCOUNT --name bbt-ride < ~/Downloads/<the downloaded file>.json
+   ```
+   Then delete the downloaded file. (Project settings → **Cloud Messaging** should show "Firebase Cloud Messaging API (V1): Enabled", the default.)
+
+### B. Signing key (keep it forever)
+
+Every version of the app must be signed with the same key, or phones refuse the update and people have to uninstall first. From your terminal (needs Java; on a Mac without it: `brew install openjdk`):
+```
+keytool -genkeypair -v -keystore bbt-release.jks -alias bbt -keyalg RSA -keysize 2048 -validity 10000 -storetype PKCS12
+keytool -list -v -keystore bbt-release.jks -alias bbt | grep SHA1     # the SHA-1 for step C
+base64 -i bbt-release.jks | pbcopy                                     # copies the key for the secret below
+```
+Choose a strong password when asked (it's both the store and the key password). Add four GitHub repository secrets: `ANDROID_KEYSTORE_BASE64` (paste), `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` = `bbt`, `ANDROID_KEY_PASSWORD` (the same password). Keep `bbt-release.jks` and the password in your password manager, never in the repo.
+
+### C. Android sign-in client (Google sign-in in the app)
+
+console.cloud.google.com → project **bbt-ride** → **Google Auth Platform → Clients → Create client → Android**: name `bbt-ride android`, package name `team.bbt.app`, SHA-1 from step B → **Create**. There's nothing to copy: the app asks Google for a token for the web client (its ID is in `capacitor.config.ts`), and Google allows it because the app's package and signature match this client.
+
+### D. Build and try it
+
+1. Merge any change to `main` (or re-run the last Deploy). The "Build the Android app" step should print `Built BBT for Android 1.0 (1)`.
+2. On an Android phone open https://app.bbt.team/download/, install, sign in with Google, turn on notifications, and have someone post an activity or edit one you're In for (Still in / I'm out).
+3. A new native version (only when `android/` changes): bump `versionCode` and `versionName` in `android/app/build.gradle`; installed apps then show "Update available".
