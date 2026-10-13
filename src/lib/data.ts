@@ -1,6 +1,6 @@
 // Server data via TanStack Query: cached per endpoint, refetched when stale.
 import { keepPreviousData, QueryClient, useQuery } from "@tanstack/react-query";
-import type { Me, RideDetail, RideSummary, RouteSummary, TeamSettings, WeatherData } from "../../shared/api.ts";
+import type { Activity, ActivityDetail, Me, RouteSummary, TeamSettings, WeatherData } from "../../shared/api.ts";
 import type { Route, Spot } from "../../shared/ride.ts";
 import { type Series, toSeries } from "../../shared/weather.ts";
 import { ApiError, api } from "./api.ts";
@@ -24,15 +24,16 @@ export const useTeam = () => useQuery({ queryKey: ["settings"], queryFn: () => a
 export const refreshSpots = (qc: QueryClient) =>
   Promise.all([qc.invalidateQueries({ queryKey: ["spots"] }), qc.invalidateQueries({ queryKey: ["weather"] })]);
 export const useSpots = () => useQuery({ queryKey: ["spots"], queryFn: () => api<SpotWithState[]>("/spots") });
-export const useRides = () => useQuery({ queryKey: ["rides"], queryFn: () => api<RideSummary[]>("/rides") });
+export const useActivities = () =>
+  useQuery({ queryKey: ["activities"], queryFn: () => api<Activity[]>("/activities") });
 export const usePast = () =>
-  useQuery({ queryKey: ["rides", "past"], queryFn: () => api<RideSummary[]>("/rides/past") });
+  useQuery({ queryKey: ["activities", "past"], queryFn: () => api<Activity[]>("/activities/past") });
 
-/** One ride with RSVPs and messages; refreshed every 30 s while the page is open (DESIGN.md → Riders). */
-export const useRide = (id: string | null | undefined) =>
+/** One activity with RSVPs and messages; refreshed every 30 s while the page is open (DESIGN.md → Riders). */
+export const useActivity = (id: string | null | undefined) =>
   useQuery({
-    queryKey: ["ride", id],
-    queryFn: () => api<RideDetail>(`/rides/${id}`),
+    queryKey: ["activity", id],
+    queryFn: () => api<ActivityDetail>(`/activities/${id}`),
     enabled: Boolean(id),
     refetchInterval: 30_000,
   });

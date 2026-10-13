@@ -1,6 +1,6 @@
 # BBT Ride — Design
 
-Status: **v1 deployed** at app.bbt.team (see README for running it) — design prototype at `prototype/index.html`; decisions in `DECISIONS.md`. **v2 (any sport, phone apps) designed, not built** — see [v2](#v2-any-sport-and-phone-apps-designed-2026-10-13-not-built). Last updated 2026-10-13.
+Status: **v1 deployed** at app.bbt.team (see README for running it) — design prototype at `prototype/index.html`; decisions in `DECISIONS.md`. **v2 step 1 (any sport on the web) built**; the calendar link, per-sport notifications and phone apps are designed, not built — see [v2](#v2-any-sport-and-phone-apps-designed-2026-10-13). Last updated 2026-10-13.
 URL: **app.bbt.team**
 
 ## Purpose
@@ -275,8 +275,8 @@ Never in the repo, the built assets, or any response to the browser. All third-p
 - Deploys: GitHub Actions on merge to `main` (`.github/workflows/deploy.yml`): the CI checks (`ci.yml`: lint, typecheck, tests, build), then build, `wrangler d1 migrations apply --remote` and `wrangler deploy`; only the two Wrangler steps get the repository's Cloudflare secrets. Actions are pinned to commit SHAs; Node 22 (`.nvmrc`). A column rename breaks the old Worker for the minute between migration and deploy; the app shows a Reload screen if an open page meets the new API. `app.bbt.team` is attached once by hand in the Cloudflare dashboard. Pushes to other branches run the same checks without deploying (`ci.yml`); a pull request shows those results.
 - Tests: unit tests for the shared algorithms (the worked examples in this document), the settings checks, .ics line folding, password hashing, route simplification, the Web Push payload and the per-spot weather cache; `scripts/smoke.ts` (API checks) and `scripts/ui-smoke.ts` (browser checks) run against the local dev server.
 
-## v2: any sport and phone apps (designed 2026-10-13, not built)
-Everything above is v1 as deployed. v2 turns BBT Ride into **BBT**: the same team plans rides, runs, swims, pickleball, ski days and anything else, and the app gets an Android version with native notifications. The iPhone keeps the Home Screen web app until a native iPhone app is paid for (Apple's $99/year, or a nonprofit fee waiver). Design canvas: the private "BBT Multi-Sport Prototype" artifact (seven phone screens). Decisions: `DECISIONS.md` → v2.
+## v2: any sport and phone apps (designed 2026-10-13)
+Everything above is v1. Step 1 below (any sport on the web) is built; where it differs, this section wins (e.g. `rides` is now `activities`). v2 turns BBT Ride into **BBT**: the same team plans rides, runs, swims, pickleball, ski days and anything else, and the app gets an Android version with native notifications. The iPhone keeps the Home Screen web app until a native iPhone app is paid for (Apple's $99/year, or a nonprofit fee waiver). Design canvas: the private "BBT Multi-Sport Prototype" artifact (seven phone screens). Decisions: `DECISIONS.md` → v2.
 
 ### What changes for people
 - **Name:** the app is called **BBT** (app name, page title, icons). The address is `app.bbt.team`. The app and notification icon becomes the full bike logo on Light Blue (today's icon is the "bbt" wordmark).
@@ -307,14 +307,14 @@ One form for every sport; choosing the sport first shapes the rest:
 ### Weather per sport
 The v1 algorithms stay; what changes is which feel and which warnings apply. Thresholds are per **weather group**, each with its own Settings panel (amber and red, as in v1):
 
-| Group | Sports | Feel | Warnings |
+| Group | Sports | Cold uses | Also |
 |---|---|---|---|
-| Ride | ride | bike feel (v1) | all v1 warnings, incl. road wetness and low light |
-| Run | run | run feel: the bike-feel formula with airflow √(run pace² + wind²), run pace in mph | cold (run feel), heat, wind, gusts, rain, thunder, low light, NWS alert |
-| Ski | ski | real feel | cold, wind, gusts, thunder, NWS alert |
-| Outdoor | open-water swim, outdoor pickleball, outdoor other | real feel | cold, heat, wind, gusts, rain, thunder, NWS alert |
+| Ride | ride | bike feel (v1) | road wetness, low light |
+| Run | run | run feel: the bike-feel formula with airflow √(run pace² + wind²), run pace in mph | low light |
+| Ski | ski | wind chill from the wind alone (the same formula with no pace) | — |
+| Other outdoor | open-water swim, outdoor pickleball, outdoor other | wind chill from the wind alone | — |
 
-Ride keeps today's thresholds. The others start with first-guess defaults (Run: cold below 30 / 15 °F, heat 82 / 90 °F, wind 18 / 25 mph, rain 50 / 80 %), to be tuned like v1's. The weather window is start → end (or Back about). The kit chart stays ride-only. Recorded weather on past activities works for every outdoor activity.
+Every group has the same thresholds (cold, heat, wind, gusts, rain chance and amount) plus thunder and NWS alerts; `rulesFor` in `shared/sports.ts` picks the feel, the extras and the thresholds. Ride keeps v1's thresholds. The others start with first-guess defaults (Run: cold below 30 / 15 °F, heat 82 / 90 °F, wind 18 / 25 mph, rain 50 / 80 %; Ski: cold below 5 / −10 °F; Other outdoor: cold below 45 / 35 °F), to be tuned like v1's. Settings → Weather warnings edits one group at a time. The weather window is start → end (or Back about). The kit chart stays ride-only. Recorded weather on past activities works for every outdoor activity.
 
 ### Calendar link
 Each person can subscribe their own calendar (Apple, Google, Outlook) to a private feed of everything they're **In** for: upcoming activities plus the last 30 days, with changes and cancellations (shown as cancelled) updating the events by themselves. It needs no app and no calendar permission, so it works on every phone and computer.
@@ -343,20 +343,20 @@ Each person can subscribe their own calendar (Apple, Google, Outlook) to a priva
 ```
 rides → activities: + sport CHECK(sport IN ('ride','run','swim','pickleball','ski','other')) DEFAULT 'ride',
                     + title NULL, + outdoor DEFAULT 1, + details NULL, + end_time NULL,
-                    meet_time → start_time, pace_mph NULL (ride and run only)
+                    meet_time → start_time; pace_mph stays NOT NULL, 0 for sports without a pace
                     -- UNIQUE(date, sport) WHERE status = 'published'
 ride_routes → activity_routes; ride_id → activity_id in activity_routes, rsvps, messages
 spots: note becomes optional (pools and courts may need none)
 push_subscriptions: + kind CHECK(kind IN ('web','fcm')) DEFAULT 'web'; keys_json NULL for fcm
 notify_off(user_id, sport, PRIMARY KEY(user_id, sport))          -- sports a person muted for new posts
 calendar_tokens(user_id PRIMARY KEY, token_hash UNIQUE, created_at)
-settings: + 'sports' (the enabled list), + warning thresholds per group ('warnings.run', 'warnings.ski', 'warnings.outdoor')
+settings: + 'sports' (the enabled list); the twelve threshold keys become one 'warn' key: { ride, run, ski, outdoor }
 ```
-Existing rides become `sport = 'ride'`, outdoor, with their current titles empty. Pages move to `/a/<id>`; old `/ride/<date>` links redirect to that day's ride.
+Existing rides become `sport = 'ride'`, outdoor, with their current titles empty (migration `0007_activities.sql`; old threshold settings and drafts are cleared). The API moves to `/api/activities`, pages to `/a/<id>` (upcoming and past alike; a past one is read-only with Reuse this plan). Old `/ride/<date>` and `/past/<id>` links aren't kept: nobody but the captain used them. Home lists a cancelled activity unless the same sport has a published one that day (after Replace).
 
 ### Build order
 Each step is its own PR, deployed before the next:
-1. **Any sport on the web:** migration, Plan, home list, activity page, Settings → Sports and the weather groups, the rename to BBT, the RideWithGPS tile.
+1. **Any sport on the web** (built): migration, Plan, home list, activity page with the action row, Settings → Sports and the weather groups, places with optional notes, the rename to BBT, the RideWithGPS tile.
 2. **Calendar link and per-sport notifications**, including New activity posted.
 3. **Android app:** Capacitor shell, FCM delivery, native Google sign-in, signed APK and its download page.
 4. **iPhone app:** when the Apple fee is settled.

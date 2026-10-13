@@ -77,7 +77,7 @@ export function SignIn() {
       <section className="panel signin">
         <div className="signin-b">
           <div className="sub-h" style={{ justifyContent: "center", fontSize: 18 }}>
-            Sign in to BBT Ride
+            Sign in to BBT
           </div>
           {error && (
             <p className="small" role="alert" style={{ color: "var(--no-fg)", textAlign: "center", margin: 0 }}>

@@ -40,7 +40,7 @@ export function LinkPage({ kind, token }: { kind: "invite" | "reset"; token: str
       <section className="panel signin">
         <div className="signin-b">
           <h1 className="sub-h" style={{ justifyContent: "center", fontSize: 18 }}>
-            {kind === "invite" ? "Join BBT Ride" : "Choose a new password"}
+            {kind === "invite" ? "Join BBT" : "Choose a new password"}
           </h1>
           {link.isPending && <p className="muted small">Checking your link…</p>}
           {link.isError && (

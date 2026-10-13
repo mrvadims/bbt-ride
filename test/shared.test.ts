@@ -4,6 +4,7 @@ import seed from "../data/seed.json";
 import { DEFAULT_KIT, kitAdvice, kitBand } from "../shared/kit.ts";
 import { parseLatLng, type Route, rideTimes } from "../shared/ride.ts";
 import { DEFAULT_SETTINGS as S, settingsProblem } from "../shared/settings.ts";
+import { minPerMile, mphFromMinPerMile, rulesFor } from "../shared/sports.ts";
 import { fmtDur, fmtTime, isDate, nyToUTC, weekendDates } from "../shared/time.ts";
 import {
   bikeFeel,
@@ -51,6 +52,7 @@ function series(n: number, over: Partial<Record<Column, (number | null)[]>> = {}
   return { ...toSeries({ hourly } as OpenMeteoResponse), ...over };
 }
 
+const RIDE = rulesFor("ride", 17, S.warn);
 describe("bike feel (DESIGN.md examples)", () => {
   it("uses airflow √(pace² + wind²)", () => {
     expect(Math.sqrt(17 ** 2 + 10 ** 2)).toBeCloseTo(19.72, 2);
@@ -111,11 +113,11 @@ describe("kit chart", () => {
   it("adds a shedding hint only when it warms up", () => {
     const rising = Array.from({ length: 24 }, (_, i) => 20 + i * 4);
     const base = series(24, { T: rising, app: rising });
-    const ev = evaluate(base, "2026-10-10", 8 * 60, 180, 17, S);
+    const ev = evaluate(base, "2026-10-10", 8 * 60, 180, RIDE, S);
     expect(ev?.st.warms).toBe(true);
     expect(kitAdvice(must(ev).st, DEFAULT_KIT, "avg", S).shed?.to.name).toBeDefined();
     const cooling = series(24, { T: Array.from({ length: 24 }, (_, i) => 80 - i * 2) });
-    const ev2 = evaluate(cooling, "2026-10-10", 8 * 60, 180, 17, S);
+    const ev2 = evaluate(cooling, "2026-10-10", 8 * 60, 180, RIDE, S);
     expect(kitAdvice(must(ev2).st, DEFAULT_KIT, "avg", S).shed).toBeNull();
   });
 });
@@ -123,15 +125,15 @@ describe("kit chart", () => {
 describe("warnings", () => {
   it("shows nothing for a clean forecast and thunder replaces rain", () => {
     const clean = series(24);
-    const ev = must(evaluate(clean, "2026-10-10", 9 * 60, 180, 17, S));
+    const ev = must(evaluate(clean, "2026-10-10", 9 * 60, 180, RIDE, S));
     expect(warnings(ev, clean, "2026-10-10", 9 * 60)).toEqual([]);
     const storm = series(24, { code: Array(24).fill(95), pp: Array(24).fill(40) });
-    const w = warnings(must(evaluate(storm, "2026-10-10", 9 * 60, 180, 17, S)), storm, "2026-10-10", 9 * 60);
+    const w = warnings(must(evaluate(storm, "2026-10-10", 9 * 60, 180, RIDE, S)), storm, "2026-10-10", 9 * 60);
     expect(w.map((x) => x.kind)).toEqual(["thunder"]);
   });
   it("evaluates the saved Open-Meteo sample", () => {
     const se = toSeries(fallback as unknown as OpenMeteoResponse);
-    const ev = evaluate(se, "2026-10-10", 8 * 60 + 30, 191, 17, S);
+    const ev = evaluate(se, "2026-10-10", 8 * 60 + 30, 191, RIDE, S);
     expect(ev).not.toBeNull();
     expect(ev?.factors).toHaveLength(5);
     expect(se.sunrise.get("2026-10-10")).toBeGreaterThan(6 * 60);
@@ -189,8 +191,12 @@ describe("dates from URLs", () => {
 describe("settings checks", () => {
   it("accepts the defaults", () => expect(settingsProblem(S)).toBeNull());
   it("needs red beyond amber", () => {
-    expect(settingsProblem({ ...S, feelNoGo: S.feelCaution })).toMatch(/Cold/);
-    expect(settingsProblem({ ...S, heatNoGo: S.heatCaution })).toMatch(/Heat/);
+    const run = S.warn.run;
+    expect(settingsProblem({ ...S, warn: { ...S.warn, run: { ...run, feelNoGo: run.feelCaution } } })).toMatch(
+      /Run weather, cold/,
+    );
+    const ski = S.warn.ski;
+    expect(settingsProblem({ ...S, warn: { ...S.warn, ski: { ...ski, heatNoGo: ski.heatCaution } } })).toMatch(/heat/);
     expect(settingsProblem({ ...S, dryingMm: S.wetMm })).not.toBeNull();
   });
 });
@@ -203,5 +209,25 @@ describe(".ics line folding", () => {
     for (const l of lines) expect(new TextEncoder().encode(l).length).toBeLessThanOrEqual(75);
     expect(lines[1]?.startsWith(" ")).toBe(true);
     expect(lines.map((l, i) => (i ? l.slice(1) : l)).join("")).toBe(`DESCRIPTION:${"é".repeat(60)}`);
+  });
+});
+
+describe("sports", () => {
+  it("applies each sport's rules", () => {
+    expect(rulesFor("ride", 17, S.warn)).toMatchObject({ pace: 17, road: true, lowLight: true, warn: S.warn.ride });
+    expect(rulesFor("run", 6.5, S.warn)).toMatchObject({ pace: 6.5, road: false, lowLight: true, warn: S.warn.run });
+    expect(rulesFor("swim", 17, S.warn)).toMatchObject({ pace: 0, road: false, lowLight: false, warn: S.warn.outdoor });
+  });
+  it("converts run pace", () => {
+    expect(minPerMile(3600 / 540)).toBe("9:00");
+    expect(mphFromMinPerMile("8:00")).toBe(7.5);
+    expect(mphFromMinPerMile("8")).toBeNull();
+  });
+  it("leaves out road warnings except for rides", () => {
+    const wet = series(24, { p: Array(24).fill(0.05) });
+    const ride = must(evaluate(wet, "2026-10-10", 9 * 60, 120, RIDE, S));
+    const run = must(evaluate(wet, "2026-10-10", 9 * 60, 120, rulesFor("run", 6.5, S.warn), S));
+    expect(ride.factors.find((f) => f.k === "Road")?.level).toBe(2);
+    expect(run.factors.find((f) => f.k === "Road")?.level).toBe(0);
   });
 });

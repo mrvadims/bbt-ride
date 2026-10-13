@@ -1,5 +1,5 @@
 // GET /api/weather: Open-Meteo forecast (KV, 30 min) and NWS alerts (KV, 10 min), cached per spot, for every active spot
-// and archived spots that rides still use.
+// and archived spots that activities still use.
 import { Hono } from "hono";
 import type { WeatherData } from "../../shared/api.ts";
 import { addDays, nyNow, TZ } from "../../shared/time.ts";
@@ -7,7 +7,7 @@ import { type Alert, HOURLY_VARS, type OpenMeteoResponse } from "../../shared/we
 import type { AppEnv } from "../app.ts";
 import { fail } from "../util.ts";
 
-const NWS_HEADERS = { "User-Agent": "BBT Ride (info@bbt.team)", Accept: "application/geo+json" };
+const NWS_HEADERS = { "User-Agent": "BBT (info@bbt.team)", Accept: "application/geo+json" };
 
 interface SpotPoint {
   id: string;
@@ -114,13 +114,13 @@ async function fetchAlerts(s: SpotPoint): Promise<Alert[] | undefined> {
 }
 
 /**
- * Forecast for every active spot, plus archived spots that recent or upcoming rides still use (by spot id), refreshed
+ * Forecast for every active spot, plus archived spots that recent or upcoming activities still use (by spot id), refreshed
  * every 30 minutes. Used by /api/weather and the scheduled job (recorded weather).
  */
 export async function spotForecasts(env: Env) {
   const { results: spots } = await env.DB.prepare(
     `select id, lat, lng from spots
-     where archived = 0 or id in (select spot_id from rides where status = 'published' and date >= ?)
+     where archived = 0 or id in (select spot_id from activities where status = 'published' and date >= ?)
      order by name`,
   )
     .bind(addDays(nyNow().date, -2))

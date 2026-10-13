@@ -1,7 +1,7 @@
 {
-  "name": "BBT Ride",
-  "short_name": "BBT Ride",
-  "description": "Ride planning and weather for the BBT cycling team",
+  "name": "BBT",
+  "short_name": "BBT",
+  "description": "Planning and weather for the BBT team: rides, runs, swims and more",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#F3F6FA",

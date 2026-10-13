@@ -1,5 +1,6 @@
 // Browser walk-through against the LOCAL dev server (npm run dev, local D1 migrated, npm run dev:seed).
-// Run: node scripts/ui-smoke.ts [screenshot-dir]  — joins by invite, plans and publishes a ride, RSVPs, posts, checks settings.
+// Run: node scripts/ui-smoke.ts [screenshot-dir]  — joins by invite, plans a ride and a pickleball session, RSVPs, posts,
+// checks settings.
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdirSync } from "node:fs";
@@ -76,20 +77,21 @@ await page.getByLabel("Username or email").fill(`cap${stamp}`);
 await page.getByLabel("Password").fill("pedal pedal pedal");
 await page.getByRole("button", { name: "Sign in", exact: true }).click();
 await page.waitForURL(`${BASE}/`);
-await page.getByTitle("Plan a ride").waitFor();
+await page.getByTitle("Plan an activity").waitFor();
 check(await page.getByTitle("Settings").isVisible(), "joined by invite as Admin; Plan and Settings in the top bar");
 await shot(page, "ride-empty");
 
-// Plan and publish
-await page.getByTitle("Plan a ride").click();
+// Plan and publish a ride
+await page.getByTitle("Plan an activity").click();
 await page.waitForURL("**/plan");
+await page.getByRole("radio", { name: "Ride", exact: true }).click();
 await page.getByRole("button", { name: /^Date \(any day\)/ }).click();
 check((await page.locator(".cal-wd").first().textContent()) === "Mo", "date picker weeks start on Monday");
 await page.keyboard.press("Escape");
 await page.getByRole("button", { name: sundayLabel }).click();
 await page.getByRole("radio", { name: /SUNY Purchase/ }).click();
 check(await page.getByText(/feels/).first().isVisible(), "spot list shows the weather window");
-await page.getByPlaceholder("e.g. Katonah").fill("Katonah");
+await page.getByLabel("RideWithGPS route").fill("Katonah");
 await page
   .getByRole("option", { name: /Katonah/ })
   .first()
@@ -100,9 +102,13 @@ check(await page.getByText("Tazza Cafe").first().isVisible(), "coffee stop sugge
 await page.getByLabel("Notes").fill("Regroup at the top of every climb.");
 await shot(page, "plan");
 await publishBtn.click();
-await page.waitForURL(`**/ride/${sunday}`);
-for (const p of ["Meet", "Route", "Weather", "Notes", "Riders"])
+await page.waitForURL("**/a/*");
+const rideUrl = page.url();
+for (const p of ["Meet", "Route", "Weather", "Notes", "Who’s in"])
   check(await page.getByRole("button", { name: p, exact: true }).isVisible(), `ride page: ${p} panel`);
+for (const t of ["Directions", "Calendar", "Share"])
+  check(await page.getByRole("button", { name: t, exact: true }).isVisible(), `action row: ${t}`);
+check(await page.getByRole("link", { name: "Open in RideWithGPS" }).isVisible(), "action row: RideWithGPS tile");
 check(
   await page
     .getByText(/feels .*wind/)
@@ -115,7 +121,7 @@ check(
 await page.getByRole("button", { name: "In", exact: true }).click();
 await page.getByText("1 in").waitFor();
 check(true, "RSVP In updates the count");
-await page.getByRole("button", { name: "Riders", exact: true }).click();
+await page.getByRole("button", { name: "Who’s in", exact: true }).click();
 await page.getByPlaceholder("Message the team").fill("See you at 8:30!");
 await page.getByRole("button", { name: "Send" }).click();
 await page.getByText("See you at 8:30!").waitFor();
@@ -132,12 +138,12 @@ await page.getByRole("button", { name: "°F · mi" }).click();
 await page.keyboard.press("Escape");
 
 // Edit: change the meet time → "Updated" note
-await page.getByLabel("Edit this ride").click();
+await page.getByLabel("Edit", { exact: true }).click();
 await page.waitForURL("**/plan?edit=*");
 await page.getByText(`Editing the ${sundayLabel} ride`).waitFor();
 await page.getByLabel("Meet time").fill("09:00");
 await page.getByRole("button", { name: "Update ride" }).click();
-await page.waitForURL(`**/ride/${sunday}`);
+await page.waitForURL(rideUrl);
 check(
   await page
     .getByText(/meet 8:30 AM → 9:00 AM/)
@@ -145,6 +151,32 @@ check(
     .isVisible(),
   "update shows what changed",
 );
+
+// Plan an indoor pickleball session the same day: no route, no weather
+await page.getByTitle("Plan an activity").click();
+await page.waitForURL("**/plan");
+await page.getByRole("radio", { name: "Pickleball", exact: true }).click();
+await page.getByRole("button", { name: "Indoor", exact: true }).click();
+await page.getByLabel("Title (optional)").fill(`Doubles ${stamp}`);
+await page.getByLabel("Details (optional)").fill("2 courts");
+await page.getByRole("button", { name: sundayLabel }).click();
+await page.getByRole("radio", { name: /SUNY Purchase/ }).click();
+await page.getByRole("button", { name: /^(Publish|Replace pickleball)$/ }).click();
+await page.waitForURL("**/a/*");
+check(
+  await page.getByRole("heading", { name: `Doubles ${stamp}` }).isVisible(),
+  "pickleball page: title in the header",
+);
+check(
+  !(await page.getByRole("button", { name: "Weather", exact: true }).count()),
+  "indoor activity has no Weather panel",
+);
+await page.getByLabel("BBT home").click();
+await page.getByRole("link", { name: new RegExp(`Doubles ${stamp}`) }).waitFor();
+check(await page.getByRole("button", { name: "Pickleball", exact: true }).isVisible(), "home shows sport filters");
+await page.getByRole("button", { name: "Pickleball", exact: true }).click();
+check(!(await page.getByRole("link", { name: /Katonah/ }).count()), "the filter hides other sports");
+await shot(page, "home");
 
 // Settings
 await page.getByTitle("Settings").click();
@@ -154,13 +186,13 @@ await page.getByRole("button", { name: "Invite" }).click();
 await page.locator(".notice input").waitFor();
 check((await page.locator(".notice input").inputValue()).includes("/invite/"), "invite link shown to the Admin");
 
-// Spots: add, then edit the parking notes
-await page.getByRole("button", { name: "Spots", exact: true }).click();
-await page.getByRole("button", { name: "Add a spot" }).click();
+// Places: add, then edit the notes
+await page.getByRole("button", { name: "Places", exact: true }).click();
+await page.getByRole("button", { name: "Add a place" }).click();
 await page.getByLabel("Name").fill(`Lot ${stamp}`);
 await page.getByLabel("Google Maps link").fill("41.0454, -73.6973");
-await page.getByLabel("Parking notes").fill("North lot.");
-await page.getByRole("button", { name: "Add spot" }).click();
+await page.getByLabel("Notes (optional)").fill("North lot.");
+await page.getByRole("button", { name: "Add place" }).click();
 const newRow = page.locator(".spot-row", { hasText: `Lot ${stamp}` });
 await newRow.waitFor();
 check(
@@ -168,7 +200,7 @@ check(
   "new spot listed with an Open in Maps link",
 );
 await newRow.getByRole("button", { name: "Edit" }).click();
-await page.getByLabel("Parking notes").fill("South lot.");
+await page.getByLabel("Notes (optional)").fill("South lot.");
 await page.getByRole("button", { name: "Save changes" }).click();
 await newRow.getByText("South lot.").waitFor();
 check(true, "spot edited in place");
@@ -180,12 +212,12 @@ await shot(page, "settings");
 // Desktop, dark
 await page.setViewportSize({ width: 1280, height: 900 });
 await page.emulateMedia({ colorScheme: "dark" });
-await page.goto(`${BASE}/ride/${sunday}`);
+await page.goto(rideUrl);
 await page.getByRole("button", { name: "Weather", exact: true }).waitFor();
 await shot(page, "ride-desktop-dark");
 await page.goto(`${BASE}/past`);
-await page.getByLabel("Search past rides").waitFor();
-check(true, "past rides page");
+await page.getByLabel("Search past activities").waitFor();
+check(true, "past activities page");
 
 check(errors.length === 0, `no page errors${errors.length ? `: ${errors.join(" | ")}` : ""}`);
 await browser.close();

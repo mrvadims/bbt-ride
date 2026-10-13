@@ -1,10 +1,12 @@
 import { z } from "zod";
+import { DEFAULT_WARN, GROUP_LABEL, GROUPS, type Group, SPORTS, warnSchema } from "./sports.ts";
 
 export const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/; // "08:30"
 
 // Team settings (Admin-editable, stored in D1 `settings`, one row per key). Imperial units.
 export const settingsSchema = z.object({
-  pace: z.number().min(10).max(25), // mph
+  sports: z.array(z.enum(SPORTS)).max(SPORTS.length), // sports offered in Plan (Other always is)
+  pace: z.number().min(10).max(25), // ride pace, mph
   meetTime: z.string().regex(HHMM),
   durationH: z.number().min(0.5).max(8), // weather window before a route is picked
   stopMin: z.number().int().min(0).max(60), // coffee stop length
@@ -12,38 +14,32 @@ export const settingsSchema = z.object({
   lookback: z.number().int().min(1).max(48), // road wetness look-back, hours
   wetMm: z.number().min(0).max(2),
   dryingMm: z.number().min(0).max(2),
-  feelCaution: z.number(), // cold: bike feel below (°F)
-  feelNoGo: z.number(),
-  heatCaution: z.number(), // heat: real feel at or above (°F)
-  heatNoGo: z.number(),
-  windCaution: z.number().min(0), // mph
-  windNoGo: z.number().min(0),
-  gustCaution: z.number().min(0),
-  gustNoGo: z.number().min(0),
-  rainProbCaution: z.number().min(0).max(100), // %
-  rainProbNoGo: z.number().min(0).max(100),
-  rainAmtCaution: z.number().min(0), // inches in the ride window
-  rainAmtNoGo: z.number().min(0),
+  warn: z.object({ ride: warnSchema, run: warnSchema, ski: warnSchema, outdoor: warnSchema }), // per weather group
 });
 
 export type Settings = z.infer<typeof settingsSchema>;
 
 /** What's inconsistent across settings (red must be beyond amber; drying below wet), or null. */
 export function settingsProblem(s: Settings): string | null {
-  if (s.feelNoGo >= s.feelCaution) return "Cold: the red threshold must be below the amber one.";
-  if (s.heatNoGo <= s.heatCaution) return "Heat: the red threshold must be above the amber one.";
-  for (const [name, a, r] of [
-    ["Wind", s.windCaution, s.windNoGo],
-    ["Gusts", s.gustCaution, s.gustNoGo],
-    ["Rain chance", s.rainProbCaution, s.rainProbNoGo],
-    ["Rain amount", s.rainAmtCaution, s.rainAmtNoGo],
-  ] as const)
-    if (r <= a) return `${name}: the red threshold must be above the amber one.`;
+  for (const g of GROUPS as readonly Group[]) {
+    const w = s.warn[g];
+    const at = `${GROUP_LABEL[g]} weather`;
+    if (w.feelNoGo >= w.feelCaution) return `${at}, cold: the red threshold must be below the amber one.`;
+    if (w.heatNoGo <= w.heatCaution) return `${at}, heat: the red threshold must be above the amber one.`;
+    for (const [name, a, r] of [
+      ["wind", w.windCaution, w.windNoGo],
+      ["gusts", w.gustCaution, w.gustNoGo],
+      ["rain chance", w.rainProbCaution, w.rainProbNoGo],
+      ["rain amount", w.rainAmtCaution, w.rainAmtNoGo],
+    ] as const)
+      if (r <= a) return `${at}, ${name}: the red threshold must be above the amber one.`;
+  }
   if (s.dryingMm >= s.wetMm) return "Road wetness: Drying must start below Wet.";
   return null;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
+  sports: ["ride", "run", "swim", "pickleball", "ski"],
   pace: 17,
   meetTime: "08:30",
   durationH: 3,
@@ -52,18 +48,7 @@ export const DEFAULT_SETTINGS: Settings = {
   lookback: 12,
   wetMm: 0.5,
   dryingMm: 0.1,
-  feelCaution: 40,
-  feelNoGo: 32,
-  heatCaution: 92,
-  heatNoGo: 100,
-  windCaution: 15,
-  windNoGo: 22,
-  gustCaution: 25,
-  gustNoGo: 35,
-  rainProbCaution: 30,
-  rainProbNoGo: 60,
-  rainAmtCaution: 0.01,
-  rainAmtNoGo: 0.05,
+  warn: DEFAULT_WARN,
 };
 
 // Fixed by design (DESIGN.md → Settings), not settings.

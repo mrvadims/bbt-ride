@@ -1,7 +1,8 @@
 // End-to-end API check against the LOCAL dev server (npm run dev, with local D1 migrated).
-// Run: node scripts/smoke.ts  — it creates test users and rides in the local database only.
+// Run: node scripts/smoke.ts  — it creates test users and activities in the local database only.
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
+import { addDays } from "../shared/time.ts";
 
 const BASE = "http://localhost:8787";
 const stamp = Date.now().toString(36);
@@ -143,10 +144,24 @@ check(
 );
 
 // Settings
+const defaults = (await admin("/api/settings")).json.settings;
+check(
+  defaults?.warn?.run?.feelCaution != null && defaults.sports.includes("pickleball"),
+  "settings have sports and weather groups",
+);
 check((await admin("/api/settings", { method: "PUT", body: { pace: 99 } })).status === 400, "invalid setting refused");
 check(
-  (await admin("/api/settings", { method: "PUT", body: { feelNoGo: 45 } })).status === 400,
+  (
+    await admin("/api/settings", {
+      method: "PUT",
+      body: { warn: { ...defaults.warn, run: { ...defaults.warn.run, feelNoGo: 45 } } },
+    })
+  ).status === 400,
   "a red threshold milder than amber is refused",
+);
+check(
+  (await admin("/api/settings", { method: "PUT", body: { sports: ["ride", "kayak"] } })).status === 400,
+  "an unknown sport is refused",
 );
 check(
   (await admin("/api/settings/kit", { method: "PUT", body: [{ minFeel: 50, name: "One", items: ["Jersey"] }] }))
@@ -190,10 +205,9 @@ check(
     409,
   "duplicate spot name refused",
 );
-check(
-  (await admin("/api/spots", { body: { name: `No notes ${stamp}`, link: "41.1, -73.7", note: " " } })).status === 400,
-  "parking notes are required",
-);
+const noNotes = await admin("/api/spots", { body: { name: `No notes ${stamp}`, link: "41.1, -73.7", note: " " } });
+await admin(`/api/spots/${noNotes.json?.id}`, { method: "PATCH", body: { archived: true } }); // keep the pick list short
+check(noNotes.status === 201 && noNotes.json.note === "", "notes are optional (pools and courts may need none)");
 check(
   (await admin("/api/spots", { body: { name: `No pin ${stamp}`, link: "https://example.com", note: "Lot" } }))
     .status === 400,
@@ -221,11 +235,12 @@ check(
   `admin archives the test spot (${archived.status} ${archived.json?.archived === true ? "" : JSON.stringify(archived.json).slice(0, 200)})`,
 );
 
-// Rides: a future date no earlier run used
+// Activities: a ride on a future date no earlier run used
 const day = new Date(Date.now() + (400 + (Math.floor(Date.now() / 1000) % 90000)) * 864e5).toISOString().slice(0, 10); // unique per second
 const plan = {
+  sport: "ride",
   date: day,
-  meetTime: "08:30",
+  startTime: "08:30",
   spotId: "suny-purchase",
   pace: 17,
   notes: "Lights on",
@@ -234,30 +249,77 @@ const plan = {
     { label: "Short", routeId: 57426135, stop: null },
   ],
 };
-check((await rider("/api/rides", { body: plan })).status === 403, "rider can't publish");
+check((await rider("/api/activities", { body: plan })).status === 403, "rider can't publish");
 check(
-  (await admin("/api/rides", { body: { ...plan, date: "2027-02-31" } })).status === 400,
+  (await admin("/api/activities", { body: { ...plan, date: "2027-02-31" } })).status === 400,
   "an impossible date is refused",
 );
-const pub = await admin("/api/rides", { body: plan });
+const pub = await admin("/api/activities", { body: plan });
 check(
   pub.status === 201 && pub.json.status === "published",
   `admin publishes a ride (${pub.status} ${pub.status === 201 ? "" : JSON.stringify(pub.json)})`,
 );
 const id = pub.json.id;
-check((await admin("/api/rides", { body: plan })).status === 409, "second ride on the same date needs replace");
+check((await admin("/api/activities", { body: plan })).status === 409, "second ride on the same date needs replace");
+const pickle = {
+  sport: "pickleball",
+  title: `Doubles ${stamp}`,
+  date: day,
+  startTime: "18:30",
+  endTime: "20:30",
+  spotId: "suny-purchase",
+  outdoor: false,
+  details: "2 courts",
+  notes: "",
+};
+const pk = await admin("/api/activities", { body: pickle });
+check(
+  pk.status === 201 && pk.json.sport === "pickleball" && pk.json.outdoor === false && pk.json.pace === 0,
+  `another sport can share the day (${pk.status} ${pk.status === 201 ? "" : JSON.stringify(pk.json)})`,
+);
+check(
+  (await admin("/api/activities", { body: { ...pickle, endTime: "18:00", date: addDays(day, 1) } })).status === 400,
+  "an end time before the start is refused",
+);
+check(
+  (await admin("/api/activities", { body: { ...pickle, routes: plan.routes, date: addDays(day, 1) } })).status === 400,
+  "only rides and runs take routes",
+);
+check(
+  (await admin("/api/activities", { body: { ...plan, routes: [], date: addDays(day, 1) } })).status === 400,
+  "a ride needs a route",
+);
+const runPlan = {
+  ...plan,
+  sport: "run",
+  pace: 6.5,
+  routes: [{ label: "Main", routeId: 57426135, stop: "Tazza Cafe" }],
+};
+const run = await admin("/api/activities", { body: runPlan });
+check(run.status === 201 && run.json.sport === "run" && run.json.outdoor === true, "a run is published");
+check(
+  (
+    await admin(`/api/activities/${pk.json.id}`, {
+      method: "PUT",
+      body: { ...pickle, sport: "swim", baseUpdatedAt: pk.json.updatedAt },
+    })
+  ).status === 400,
+  "the sport can't change on an update",
+);
 
-let d = (await rider(`/api/rides/${id}/rsvp`, { method: "PUT", body: { status: "in", routeLabel: "Short" } })).json;
+let d = (await rider(`/api/activities/${id}/rsvp`, { method: "PUT", body: { status: "in", routeLabel: "Short" } }))
+  .json;
 check(
   d.rsvps.some((r: Json) => r.name === `Rider ${stamp}` && r.routeLabel === "Short"),
   "rider RSVPs In on the Short route",
 );
-d = (await rider(`/api/rides/${id}/messages`, { body: { body: "Anyone driving from White Plains?" } })).json;
+d = (await rider(`/api/activities/${id}/messages`, { body: { body: "Anyone driving from White Plains?" } })).json;
 const msgId = d.messages.at(-1).id;
-d = (await admin(`/api/rides/${id}/messages`, { body: { body: "I can take one", parentId: msgId } })).json;
+d = (await admin(`/api/activities/${id}/messages`, { body: { body: "I can take one", parentId: msgId } })).json;
 check(d.messages.length === 2 && d.messages[1].parentId === msgId, "admin replies to the rider's message");
 check(
-  (await rider(`/api/rides/${id}/messages`, { body: { body: "nested", parentId: d.messages[1].id } })).status === 400,
+  (await rider(`/api/activities/${id}/messages`, { body: { body: "nested", parentId: d.messages[1].id } })).status ===
+    400,
   "replies are one level deep",
 );
 check(
@@ -266,53 +328,58 @@ check(
 );
 
 const base = pub.json.updatedAt;
-const upd = await admin(`/api/rides/${id}`, {
+const upd = await admin(`/api/activities/${id}`, {
   method: "PUT",
-  body: { ...plan, meetTime: "09:00", baseUpdatedAt: base },
+  body: { ...plan, startTime: "09:00", baseUpdatedAt: base },
 });
 check(upd.json?.lastUpdate?.text?.includes("meet 8:30 AM → 9:00 AM"), "update posts what changed");
 check(upd.json.rsvps.length === 1, "RSVPs kept after an update");
 check(
-  (await admin(`/api/rides/${id}`, { method: "PUT", body: { ...plan, notes: "stale", baseUpdatedAt: base } }))
+  (await admin(`/api/activities/${id}`, { method: "PUT", body: { ...plan, notes: "stale", baseUpdatedAt: base } }))
     .status === 409,
   "an update based on an older version is refused",
 );
 check(
-  (await admin(`/api/rides/${id}`, { method: "PUT", body: { ...plan, notes: "no base" } })).status === 400,
+  (await admin(`/api/activities/${id}`, { method: "PUT", body: { ...plan, notes: "no base" } })).status === 400,
   "an update must say which version it edits",
 );
-let c = (await admin(`/api/rides/${id}/cancel`, { method: "POST" })).json;
+let c = (await admin(`/api/activities/${id}/cancel`, { method: "POST" })).json;
 check(
   c.status === "cancelled" && c.messages.some((m: Json) => m.kind === "cancel"),
   "cancel keeps the ride and posts a message",
 );
 c = (
-  await admin(`/api/rides/${id}`, {
+  await admin(`/api/activities/${id}`, {
     method: "PUT",
-    body: { ...plan, meetTime: "09:00", notes: "still cancelled?", baseUpdatedAt: c.updatedAt },
+    body: { ...plan, startTime: "09:00", notes: "still cancelled?", baseUpdatedAt: c.updatedAt },
   })
 ).json;
 check(c.status === "cancelled", "editing a cancelled ride keeps it cancelled");
 check(c.lastUpdate?.text === upd.json.lastUpdate?.text, "editing a cancelled ride posts no update");
 check(
-  (await rider(`/api/rides/${id}/rsvp`, { method: "PUT", body: { status: "out", routeLabel: null } })).status === 409,
+  (await rider(`/api/activities/${id}/rsvp`, { method: "PUT", body: { status: "out", routeLabel: null } })).status ===
+    409,
   "no RSVP on a cancelled ride",
 );
 check(
-  (await rider(`/api/rides/${id}/messages`, { body: { body: "Still on?", parentId: null } })).status === 409,
+  (await rider(`/api/activities/${id}/messages`, { body: { body: "Still on?", parentId: null } })).status === 409,
   "no posting on a cancelled ride",
 );
-c = (await admin(`/api/rides/${id}/restore`, { method: "POST" })).json;
+c = (await admin(`/api/activities/${id}/restore`, { method: "POST" })).json;
 check(c.status === "published", "restore");
-const rep = await admin("/api/rides", { body: { ...plan, notes: "new plan", replace: true } });
+const rep = await admin("/api/activities", { body: { ...plan, notes: "new plan", replace: true } });
 check(rep.status === 201, "replace publishes the new ride");
 check(
-  (await admin(`/api/rides/${id}`)).json.status === "cancelled",
+  (await admin(`/api/activities/${id}`)).json.status === "cancelled",
   "…and cancels the old one, which keeps its history",
 );
 check(
-  (await rider("/api/rides")).json.some((r: Json) => r.id === rep.json.id),
+  (await rider("/api/activities")).json.some((r: Json) => r.id === rep.json.id),
   "upcoming list includes the new ride",
+);
+check(
+  (await admin(`/api/activities/${pk.json.id}`)).json.status === "published",
+  "replacing the ride leaves the pickleball session alone",
 );
 
 // Users

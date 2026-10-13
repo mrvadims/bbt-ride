@@ -1,6 +1,7 @@
 // Weather algorithms (DESIGN.md → Algorithms). Inputs are Open-Meteo hourly values in °F, mph and inches,
 // America/New_York local time. precipitation at hour h is the total for the hour ending at h.
 import { LOW_LIGHT_MIN, type Settings } from "./settings.ts";
+import type { Rules } from "./sports.ts";
 import { hhmmToMin, pad } from "./time.ts";
 
 const MM_PER_IN = 25.4;
@@ -177,13 +178,14 @@ export interface Evaluation {
   f1: number;
 }
 
-/** Ride window at a forecast point: stats over 15-minute samples plus a level per factor. */
+/** Activity window at a forecast point: stats over 15-minute samples plus a level per factor. The rules say which feel
+ * and thresholds apply (rulesFor in shared/sports.ts); `s` supplies the road-wetness settings. */
 export function evaluate(
   se: Series,
   date: string,
   startMin: number,
   durMin: number,
-  pace: number,
+  rules: Rules,
   s: Settings,
 ): Evaluation | null {
   const f0 = fIdx(se, date, startMin);
@@ -202,7 +204,7 @@ export function evaluate(
       wg: at(se.wg, f) ?? ws,
       pp: near(se.pp, f) ?? 0,
       code: near(se.code, f) ?? 0,
-      feel: bikeFeel(T, ws, app, pace),
+      feel: bikeFeel(T, ws, app, rules.pace),
     });
   }
   let rain = 0;
@@ -230,21 +232,22 @@ export function evaluate(
     thunder: v.some((x) => x.code >= 95),
     warms: last.feel > first.feel,
   };
+  const w = rules.warn;
   const factors: Evaluation["factors"] = [
-    { k: "Road", level: road.level },
-    { k: "Cold", level: lvl3(st.feelMin, s.feelCaution, s.feelNoGo, false) },
-    { k: "Heat", level: lvl3(st.appMax, s.heatCaution, s.heatNoGo) },
+    { k: "Road", level: rules.road ? road.level : 0 },
+    { k: "Cold", level: lvl3(st.feelMin, w.feelCaution, w.feelNoGo, false) },
+    { k: "Heat", level: lvl3(st.appMax, w.heatCaution, w.heatNoGo) },
     {
       k: "Wind",
-      level: Math.max(lvl3(st.wsMax, s.windCaution, s.windNoGo), lvl3(st.wgMax, s.gustCaution, s.gustNoGo)) as Level,
+      level: Math.max(lvl3(st.wsMax, w.windCaution, w.windNoGo), lvl3(st.wgMax, w.gustCaution, w.gustNoGo)) as Level,
     },
     {
       k: "Rain",
       level: st.thunder
         ? 2
         : (Math.max(
-            lvl3(st.ppMax, s.rainProbCaution, s.rainProbNoGo),
-            lvl3(rain, s.rainAmtCaution, s.rainAmtNoGo),
+            lvl3(st.ppMax, w.rainProbCaution, w.rainProbNoGo),
+            lvl3(rain, w.rainAmtCaution, w.rainAmtNoGo),
           ) as Level),
     },
   ];
@@ -273,12 +276,20 @@ export type Warning = { level: 1 | 2 } & (
 const COMPASS = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
 export const compass = (deg: number): string => COMPASS[Math.round((((deg % 360) + 360) % 360) / 22.5) % 16] ?? "N";
 
-/** Only conditions that need attention, most severe first. Shared by the ride page and Plan's spot list. */
-export function warnings(ev: Evaluation, se: Series, date: string, startMin: number, alerts: Alert[] = []): Warning[] {
+/** Only conditions that need attention, most severe first. Shared by the activity page and Plan's spot list. */
+export function warnings(
+  ev: Evaluation,
+  se: Series,
+  date: string,
+  startMin: number,
+  alerts: Alert[] = [],
+  lowLight = true,
+): Warning[] {
   const st = ev.st;
   const out: Warning[] = alerts.map((a) => ({ level: a.level, kind: "alert", event: a.event, headline: a.headline }));
   const sunrise = se.sunrise.get(date);
-  if (sunrise != null && startMin < sunrise + LOW_LIGHT_MIN) out.push({ level: 1, kind: "lowLight", sunrise });
+  if (lowLight && sunrise != null && startMin < sunrise + LOW_LIGHT_MIN)
+    out.push({ level: 1, kind: "lowLight", sunrise });
   for (const { k, level } of ev.factors) {
     if (!level) continue;
     if (k === "Road")
