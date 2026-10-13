@@ -141,11 +141,11 @@ The deploy builds the Android app and puts it on https://app.bbt.team/download/ 
 1. console.firebase.google.com → **Create a project** → choose the existing Google Cloud project **bbt-ride** (not a new one) → Google Analytics **off** → Create. The free Spark plan is enough.
 2. Project overview → **Add app** → Android: package name `team.bbt.app`, nickname `BBT` → **Register app** → **Download google-services.json** → skip the remaining SDK steps (already done in the code).
 3. GitHub → repository **Settings → Secrets and variables → Actions → New repository secret**: name `GOOGLE_SERVICES_JSON`, value the whole content of `google-services.json`.
-4. Firebase → ⚙ **Project settings → Service accounts → Generate new private key**. From your terminal, in the repo folder:
+4. A service account that can only send notifications (not Firebase's all-powerful "Admin SDK" key): console.cloud.google.com → project **bbt-ride** → **IAM & Admin → Service accounts → Create service account**: name `bbt-push` → **Create and continue** → role **Firebase Cloud Messaging API Admin** → **Done**. Open `bbt-push` → **Keys → Add key → Create new key → JSON**. From your terminal, in the repo folder:
    ```
    npx wrangler secret put FCM_SERVICE_ACCOUNT --name bbt-ride < ~/Downloads/<the downloaded file>.json
    ```
-   Then delete the downloaded file. (Project settings → **Cloud Messaging** should show "Firebase Cloud Messaging API (V1): Enabled", the default.)
+   Then delete the downloaded file. (Firebase → Project settings → **Cloud Messaging** should show "Firebase Cloud Messaging API (V1): Enabled", the default.)
 
 ### B. Signing key (keep it forever)
 
@@ -159,10 +159,10 @@ Choose a strong password when asked (it's both the store and the key password). 
 
 ### C. Android sign-in client (Google sign-in in the app)
 
-console.cloud.google.com → project **bbt-ride** → **Google Auth Platform → Clients → Create client → Android**: name `bbt-ride android`, package name `team.bbt.app`, SHA-1 from step B → **Create**. There's nothing to copy: the app asks Google for a token for the web client (its ID is in `capacitor.config.ts`), and Google allows it because the app's package and signature match this client.
+console.cloud.google.com → project **bbt-ride** → **Google Auth Platform → Clients → Create client → Android**: name `bbt-ride android`, package name `team.bbt.app`, SHA-1 from step B → **Create**. There's nothing to copy: the app asks Google for a token for the web client (its ID is in `capacitor.config.ts`), and Google allows it because the app's package and signature match this client. A debug build you make yourself is signed with your own debug key: for Google sign-in there, add a second Android client with that SHA-1 (`keytool -list -v -keystore ~/.android/debug.keystore -alias androiddebugkey -storepass android`).
 
 ### D. Build and try it
 
-1. Merge any change to `main` (or re-run the last Deploy). The "Build the Android app" step should print `Built BBT for Android 1.0 (1)`.
+1. Merge any change to `main` (or re-run the last Deploy). The Deploy run's **android** job should print `Built BBT for Android 1.0 (1)`.
 2. On an Android phone open https://app.bbt.team/download/, install, sign in with Google, turn on notifications, and have someone post an activity or edit one you're In for (Still in / I'm out).
 3. A new native version (only when `android/` changes): bump `versionCode` and `versionName` in `android/app/build.gradle`; installed apps then show "Update available".

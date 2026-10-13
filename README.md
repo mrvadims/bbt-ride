@@ -45,7 +45,7 @@ npm run smoke       # 93 API checks against the local dev server (creates test d
 npm run ui-smoke    # 31 browser checks against the local dev server (after npm run dev:seed)
 ```
 
-CI runs lint, typecheck, tests, a build and an Android debug build on every push; merging to `main` also deploys, including the signed Android app once its secrets exist (`.github/workflows/deploy.yml`, SETUP.md → 7).
+CI runs lint, typecheck, tests, a build and an Android build on every push; merging to `main` also deploys, including the signed Android app once its secrets exist (`.github/workflows/deploy.yml`, SETUP.md → 7).
 
 ### The Android app
 

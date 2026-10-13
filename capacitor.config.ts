@@ -14,9 +14,9 @@ const config: CapacitorConfig = {
     allowMixedContent: false,
   },
   plugins: {
-    // Edge to edge: the page (viewport-fit=cover) pads itself with env(safe-area-inset-*); light status bar icons on
-    // the blue top bar.
-    SystemBars: { insetsHandling: "css", style: "DARK" },
+    // Edge to edge: the page (viewport-fit=cover) pads itself with env(safe-area-inset-*). The status bar gets light
+    // icons for the blue top bar at start (src/lib/native.ts → startApp); the navigation bar follows the phone's theme.
+    SystemBars: { insetsHandling: "css", style: "DEFAULT" },
     // Native Google sign-in asks Google for an ID token for the web app's OAuth client, which the Worker verifies.
     BbtNative: {
       googleClientId: "788843663115-civobe823j0r2vnkpgsjg7o8vqvik76c.apps.googleusercontent.com",

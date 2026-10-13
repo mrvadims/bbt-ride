@@ -69,8 +69,9 @@ export async function sendFcm(env: Env, auth: FcmAuth, token: string, data: stri
     return "sent";
   }
   const text = await res.text();
-  // The app was uninstalled or its token replaced.
-  if (res.status === 404 || /UNREGISTERED|not a valid FCM registration token/i.test(text)) return "gone";
+  // The app was uninstalled, its token replaced, or the token belongs to another Firebase project. Only these codes:
+  // a bare 404 can also mean a wrong project id, which mustn't wipe every token.
+  if (/"(UNREGISTERED|SENDER_ID_MISMATCH)"/.test(text)) return "gone";
   if (res.status === 401) await env.CACHE.delete(TOKEN_KEY); // the next run signs a new token
   throw new Error(`FCM send failed: ${res.status} ${text.slice(0, 200)}`);
 }

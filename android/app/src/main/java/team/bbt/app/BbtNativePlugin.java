@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.content.pm.PackageInfo;
 import android.net.Uri;
 import android.os.Build;
+import androidx.core.app.NotificationManagerCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.pm.PackageInfoCompat;
 import androidx.credentials.Credential;
@@ -103,6 +104,7 @@ public class BbtNativePlugin extends Plugin {
     }
 
     private boolean notificationsAllowed() {
+        if (!NotificationManagerCompat.from(getContext()).areNotificationsEnabled()) return false; // off in settings
         if (Build.VERSION.SDK_INT < 33) return true; // no runtime permission before Android 13
         return getPermissionState("notifications") == PermissionState.GRANTED;
     }
@@ -127,16 +129,20 @@ public class BbtNativePlugin extends Plugin {
                 @Override
                 public void onResult(GetCredentialResponse response) {
                     Credential c = response.getCredential();
-                    if (
-                        c instanceof CustomCredential &&
-                        GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL.equals(c.getType())
-                    ) {
-                        JSObject r = new JSObject();
-                        r.put("idToken", GoogleIdTokenCredential.createFrom(c.getData()).getIdToken());
-                        call.resolve(r);
-                    } else {
-                        call.reject("Google sign-in didn't return an account.");
+                    try {
+                        if (
+                            c instanceof CustomCredential &&
+                            GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL.equals(c.getType())
+                        ) {
+                            JSObject r = new JSObject();
+                            r.put("idToken", GoogleIdTokenCredential.createFrom(c.getData()).getIdToken());
+                            call.resolve(r);
+                            return;
+                        }
+                    } catch (Exception e) {
+                        // an unreadable credential: same answer as no account
                     }
+                    call.reject("Google sign-in didn't return an account.");
                 }
 
                 @Override
@@ -157,8 +163,12 @@ public class BbtNativePlugin extends Plugin {
             .setType("text/plain")
             .putExtra(Intent.EXTRA_SUBJECT, call.getString("title", "BBT"))
             .putExtra(Intent.EXTRA_TEXT, url.isEmpty() ? text : text + "\n" + url);
-        getActivity().startActivity(Intent.createChooser(send, null));
-        call.resolve();
+        try {
+            getActivity().startActivity(Intent.createChooser(send, null));
+            call.resolve();
+        } catch (Exception e) {
+            call.reject("Couldn't open the share sheet.");
+        }
     }
 
     /** Opens an https link in the browser, e.g. the APK download (the WebView can't download files). */
@@ -169,7 +179,11 @@ public class BbtNativePlugin extends Plugin {
             call.reject("Only https links");
             return;
         }
-        getActivity().startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
-        call.resolve();
+        try {
+            getActivity().startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+            call.resolve();
+        } catch (Exception e) {
+            call.reject("No app on this phone opens that link.");
+        }
     }
 }

@@ -4,6 +4,7 @@ import seed from "../data/seed.json";
 import { pushSubscription } from "../shared/api.ts";
 import { type FcmAuth, fcmAuth, sendFcm, serviceJwt } from "../worker/fcm.ts";
 import { hashPassword, verifyPassword } from "../worker/password.ts";
+import { deliver, type PushJob } from "../worker/push.ts";
 import { perSpot } from "../worker/routes/weather.ts";
 import { simplify } from "../worker/rwgps.ts";
 
@@ -205,7 +206,11 @@ describe("Firebase messaging (Android app)", () => {
       expect(body.message.data.json).toBe('{"title":"x"}');
       return body.message.token === "gone-token"
         ? new Response('{"error":{"status":"NOT_FOUND","details":[{"errorCode":"UNREGISTERED"}]}}', { status: 404 })
-        : Response.json({ name: "projects/bbt-test/messages/1" });
+        : body.message.token === "wrong-project"
+          ? new Response('{"error":{"code":404,"status":"NOT_FOUND","message":"Requested entity was not found."}}', {
+              status: 404,
+            })
+          : Response.json({ name: "projects/bbt-test/messages/1" });
     }) as typeof fetch;
     try {
       const a = await fcmAuth(env);
@@ -215,10 +220,49 @@ describe("Firebase messaging (Android app)", () => {
       expect(calls.filter((u) => u.startsWith("https://oauth2")).length).toBe(1);
       expect(await sendFcm(env, a as FcmAuth, "live-token", '{"title":"x"}')).toBe("sent");
       expect(await sendFcm(env, a as FcmAuth, "gone-token", '{"title":"x"}')).toBe("gone");
+      // A 404 without UNREGISTERED (e.g. a wrong project id) is an error, not a reason to forget the device.
+      await expect(sendFcm(env, a as FcmAuth, "wrong-project", '{"title":"x"}')).rejects.toThrow(/404/);
       expect(calls.at(-1)).toBe("https://fcm.googleapis.com/v1/projects/bbt-test/messages:send");
     } finally {
       globalThis.fetch = real;
     }
+  });
+
+  it("delivers app devices through Firebase and forgets uninstalled ones", async () => {
+    const { env } = fakeEnv(await account());
+    const deleted: unknown[] = [];
+    Object.assign(env, {
+      CACHE: { get: async () => "tok", put: async () => undefined, delete: async () => undefined },
+      DB: { prepare: () => ({ bind: (...a: unknown[]) => ({ run: async () => void deleted.push(...a) }) }) },
+    });
+    const sent: string[] = [];
+    const real = globalThis.fetch;
+    globalThis.fetch = (async (url: string, init?: RequestInit) => {
+      const token = JSON.parse(String(init?.body)).message.token;
+      sent.push(`${url}#${token}`);
+      return token === "old-app"
+        ? new Response('{"error":{"details":[{"errorCode":"UNREGISTERED"}]}}', { status: 404 })
+        : Response.json({ name: "m/1" });
+    }) as typeof fetch;
+    let acked = 0;
+    const job: PushJob = {
+      data: '{"title":"New ride"}',
+      subs: [
+        { endpoint: "live-app", keys_json: "{}", kind: "fcm" },
+        { endpoint: "old-app", keys_json: "{}", kind: "fcm" },
+      ],
+    };
+    try {
+      await deliver({ messages: [{ body: job, ack: () => void acked++ }] } as unknown as MessageBatch<PushJob>, env);
+    } finally {
+      globalThis.fetch = real;
+    }
+    expect(sent).toEqual([
+      "https://fcm.googleapis.com/v1/projects/bbt-test/messages:send#live-app",
+      "https://fcm.googleapis.com/v1/projects/bbt-test/messages:send#old-app",
+    ]);
+    expect(deleted).toEqual(["old-app"]);
+    expect(acked).toBe(1);
   });
 
   it("is off without a service account", async () => {

@@ -5,9 +5,11 @@ import { createRoot } from "react-dom/client";
 import { App } from "./App.tsx";
 import { ErrorBoundary } from "./components/ErrorBoundary.tsx";
 import { queryClient } from "./lib/data.ts";
+import { startApp } from "./lib/native.ts";
 import { applyTheme } from "./lib/prefs.ts";
 
 applyTheme();
+startApp();
 const root = document.getElementById("root");
 if (!root) throw new Error("#root missing");
 createRoot(root).render(

@@ -1,7 +1,7 @@
 // The Android app (DESIGN.md → v2, Android app): the same web app inside a Capacitor WebView, with the phone's own
 // notifications, Google sign-in, share sheet and links out through the BbtNative plugin (android/…/BbtNativePlugin.java).
 // In a browser none of this runs: isApp() is false.
-import { Capacitor, registerPlugin } from "@capacitor/core";
+import { Capacitor, registerPlugin, SystemBars, SystemBarsStyle, SystemBarType } from "@capacitor/core";
 import { api } from "./api.ts";
 
 interface BbtNative {
@@ -54,14 +54,19 @@ export async function disableAppPush(): Promise<void> {
   if (token) await api("/push", { method: "DELETE", body: { endpoint: token } });
 }
 
-/** Each start: Firebase may have rotated the token, so register the current one again (no prompt; already allowed). */
+/** Each start: register the current token again (Firebase may have rotated it, or the Worker dropped it). No prompt:
+ * notifications are already allowed. */
 export async function refreshAppPush(): Promise<void> {
   if (!(await appPushOn().catch(() => false))) return;
   const { token } = await bbt.pushRegister();
-  if (token !== stored()) {
-    await api("/push/app", { body: { token } });
-    store(token);
-  }
+  await api("/push/app", { body: { token } });
+  store(token);
+}
+
+/** At start: light status bar icons on the blue top bar; the navigation bar follows the phone's theme. */
+export function startApp(): void {
+  if (!isApp()) return;
+  SystemBars.setStyle({ style: SystemBarsStyle.Dark, bar: SystemBarType.StatusBar }).catch(() => undefined);
 }
 
 /** The newest Android app on the download page, when this one is older. */

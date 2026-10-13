@@ -109,13 +109,20 @@ export async function deliver(batch: MessageBatch<PushJob>, env: Env): Promise<v
 }
 
 // The account menu's "Notifications" switch: one subscription per device, owned by whoever last turned it on there.
+// Registering again refreshes created_at; a person keeps their newest MAX_DEVICES devices.
+const MAX_DEVICES = 10;
 const save = (env: Env, endpoint: string, userId: string, keys: string, kind: "web" | "fcm") =>
-  env.DB.prepare(
-    `insert into push_subscriptions (endpoint, user_id, keys_json, kind, created_at) values (?, ?, ?, ?, ?)
-     on conflict (endpoint) do update set user_id = excluded.user_id, keys_json = excluded.keys_json, kind = excluded.kind`,
-  )
-    .bind(endpoint, userId, keys, kind, nowIso())
-    .run();
+  env.DB.batch([
+    env.DB.prepare(
+      `insert into push_subscriptions (endpoint, user_id, keys_json, kind, created_at) values (?, ?, ?, ?, ?)
+       on conflict (endpoint) do update set user_id = excluded.user_id, keys_json = excluded.keys_json,
+         kind = excluded.kind, created_at = excluded.created_at`,
+    ).bind(endpoint, userId, keys, kind, nowIso()),
+    env.DB.prepare(
+      `delete from push_subscriptions where user_id = ?1 and endpoint not in
+         (select endpoint from push_subscriptions where user_id = ?1 order by created_at desc limit ${MAX_DEVICES})`,
+    ).bind(userId),
+  ]);
 export const push = new Hono<AppEnv>()
   .post("/", validate("json", pushSubscription), async (c) => {
     const { endpoint, keys } = c.req.valid("json");

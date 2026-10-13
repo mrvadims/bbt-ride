@@ -30,27 +30,28 @@ public class RsvpReceiver extends BroadcastReceiver {
         String title = intent.getStringExtra(EXTRA_TITLE);
         String path = intent.getStringExtra(Notifier.EXTRA_PATH);
         if (activity == null) return;
+        String cookies = CookieManager.getInstance().getCookie(Notifier.APP_URL); // on the main thread, as WebView likes
         PendingResult pending = goAsync();
         new Thread(() -> {
-            boolean ok = out(activity);
+            boolean ok = out(activity, cookies);
             if (ok) Notifier.simple(ctx, id, "You're out", title, path);
             else Notifier.simple(ctx, id, "Couldn't answer", "Tap to open " + title, path);
             pending.finish();
         }).start();
     }
 
-    private static boolean out(String activity) {
+    private static boolean out(String activity, String cookies) {
         HttpURLConnection c = null;
         try {
             URL url = new URL(Notifier.APP_URL + "/api/activities/" + URLEncoder.encode(activity, "UTF-8") + "/rsvp");
             c = (HttpURLConnection) url.openConnection();
             c.setRequestMethod("PUT");
+            c.setInstanceFollowRedirects(false); // never send the session anywhere else
             c.setConnectTimeout(5000);
             c.setReadTimeout(5000);
             c.setDoOutput(true);
             c.setRequestProperty("Content-Type", "application/json");
             c.setRequestProperty("Origin", Notifier.APP_URL); // the Worker refuses data changes from other origins
-            String cookies = CookieManager.getInstance().getCookie(Notifier.APP_URL);
             if (cookies != null) c.setRequestProperty("Cookie", cookies);
             try (OutputStream os = c.getOutputStream()) {
                 os.write("{\"status\":\"out\",\"routeLabel\":null}".getBytes(StandardCharsets.UTF_8));

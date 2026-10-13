@@ -41,6 +41,8 @@ const nextPath = (query: URLSearchParams) => {
   return next.startsWith("/") && !next.startsWith("//") ? next : "/";
 };
 
+let signingIn = false; // the app's account picker is already open
+
 export async function continueWithGoogle(next = "/") {
   if (!isApp()) {
     await authClient.signIn.social({ provider: "google", callbackURL: next, errorCallbackURL: "/signin" });
@@ -48,20 +50,31 @@ export async function continueWithGoogle(next = "/") {
   }
   // The Android app: Google's own account picker, then Better Auth checks the ID token (Google doesn't allow its
   // sign-in page inside an app's WebView).
-  let idToken: string;
+  if (signingIn) return;
+  signingIn = true;
+  const failed = (code: string) =>
+    navigate(
+      `/signin?error=${encodeURIComponent(code)}${next === "/" ? "" : `&next=${encodeURIComponent(next)}`}`,
+      true,
+    );
   try {
-    idToken = (await bbt.googleSignIn()).idToken;
-  } catch (e) {
-    if ((e as { code?: string }).code !== "CANCELLED") navigate("/signin?error=google", true);
-    return;
+    let idToken: string;
+    try {
+      idToken = (await bbt.googleSignIn()).idToken;
+    } catch (e) {
+      if ((e as { code?: string }).code !== "CANCELLED") failed("google");
+      return;
+    }
+    const res = await authClient.signIn.social({ provider: "google", idToken: { token: idToken }, callbackURL: next });
+    if (res.error) {
+      failed(res.error.message ?? "google");
+      return;
+    }
+    await queryClient.invalidateQueries();
+    navigate(next, true);
+  } finally {
+    signingIn = false;
   }
-  const res = await authClient.signIn.social({ provider: "google", idToken: { token: idToken }, callbackURL: next });
-  if (res.error) {
-    navigate(`/signin?error=${encodeURIComponent(res.error.message ?? "google")}`, true);
-    return;
-  }
-  await queryClient.invalidateQueries();
-  navigate(next, true);
 }
 
 export function SignIn() {
