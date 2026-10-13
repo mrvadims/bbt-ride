@@ -231,6 +231,44 @@ await page.goto(`${BASE}/past`);
 await page.getByLabel("Search past activities").waitFor();
 check(true, "past activities page");
 
+// iPhone browser: the Home Screen install hint, which "Not now" hides
+check(!(await page.getByRole("region", { name: "Add BBT to your Home Screen" }).count()), "no install hint elsewhere");
+const iphone = await browser.newContext({
+  viewport: { width: 390, height: 844 },
+  deviceScaleFactor: 2,
+  userAgent:
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1",
+  extraHTTPHeaders: { "cf-connecting-ip": ip },
+  storageState: await ctx.storageState(),
+});
+await iphone.route(/tile\.openstreetmap\.org|basemaps\.cartocdn\.com/, (r) => r.abort());
+const ipage = await iphone.newPage();
+ipage.on("pageerror", (e) => errors.push(`pageerror (iPhone): ${e.message}`));
+await ipage.goto(BASE);
+const hint = ipage.getByRole("region", { name: "Add BBT to your Home Screen" });
+await hint.waitFor();
+check(await hint.getByText("Add to Home Screen").isVisible(), "iPhone browser shows the install hint");
+await shot(ipage, "iphone-install-hint");
+await hint.getByRole("button", { name: "Not now" }).click();
+await ipage.reload();
+await ipage.getByRole("link", { name: "BBT home" }).waitFor();
+check(!(await hint.count()), "Not now hides the install hint");
+// iPhone Home Screen app: a Welcome sheet on first open (notifications, calendar), then never again
+await ipage.addInitScript(() => Object.defineProperty(navigator, "standalone", { get: () => true }));
+await ipage.goto(BASE);
+const welcome = ipage.getByRole("dialog", { name: "Welcome to BBT" });
+await welcome.waitFor();
+check(
+  (await welcome.getByRole("button", { name: "Turn on notifications" }).isVisible()) && !(await hint.count()),
+  "Home Screen app welcomes with notifications, without the install hint",
+);
+await shot(ipage, "iphone-welcome");
+await welcome.getByRole("button", { name: "Done" }).click();
+await ipage.reload();
+await ipage.getByRole("link", { name: "BBT home" }).waitFor();
+check(!(await welcome.count()), "the Welcome sheet shows once");
+await iphone.close();
+
 check(errors.length === 0, `no page errors${errors.length ? `: ${errors.join(" | ")}` : ""}`);
 await browser.close();
 console.log(failures ? `\n${failures} check(s) failed` : "\nall checks passed");

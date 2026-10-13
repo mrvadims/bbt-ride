@@ -338,7 +338,10 @@ Each person can subscribe their own calendar (Apple, Google, Outlook) to a priva
 - **Secrets:** the APK signing key and the Firebase config (`google-services.json`) live in GitHub repository secrets; `FCM_SERVICE_ACCOUNT` is a Worker secret (SETUP.md → 7).
 
 ### iPhone
-- Unchanged for now: the Home Screen web app with Web Push (iOS 16.4+), plus the calendar link. Native notification buttons and an App Store install are what's missing.
+- For now: the Home Screen web app with Web Push (iOS 16.4+), plus the calendar link. Native notification buttons and an App Store install are what's missing.
+- **Install hint:** in an iPhone or iPad browser tab, signed-in members see a card above the page: "Get notifications: add BBT to your Home Screen", with the three taps (Share, Add to Home Screen, open it and sign in once more; the Home Screen app keeps its own sign-in). **Not now** hides it for 30 days (`src/components/InstallHint.tsx`).
+- **First open from the Home Screen:** the same Welcome sheet as the Android app (Turn on notifications, the calendar link with Apple Calendar), once, skipped if notifications are already on.
+- **Look:** drawn under the status bar (`black-translucent`), so the top bar's blue fills it with white status icons, as in the Android app. The Home Screen icon is the bike logo.
 - Later: the same Capacitor project gains `ios/`, push via FCM (which also delivers to Apple's service), distributed by an unlisted App Store link. Needs the Apple Developer Program ($99/year) or Apple's nonprofit fee waiver, which the team is looking into.
 
 ### Data model changes

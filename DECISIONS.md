@@ -80,6 +80,7 @@ Every open question from the design review, with what was decided. Details live 
 | Leave-by alerts | Not now (backlog; would need location and a traffic API) | 2026-10-13 |
 | Android build | Capacitor 8; one in-app plugin (version, Firebase, Google sign-in, share, open outside) rather than several npm plugins; data-only Firebase messages drawn by the app so Still in / I'm out work in the background | 2026-10-13 |
 | APK hosting | Built in its own Deploy job and served with the site at /download/ (no Releases, R2 or KV); a failed Android build shows red but doesn't block the web deploy | 2026-10-13 |
+| iPhone for now | The Home Screen web app, with an install hint in iPhone browsers (Not now = 30 days) and the Welcome sheet on first open; native app later | 2026-10-13 |
 | Firebase key | A service account with only "Firebase Cloud Messaging API Admin", not the Admin SDK key | 2026-10-13 |
 
 ## Notes

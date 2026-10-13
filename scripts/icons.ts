@@ -28,6 +28,8 @@ async function render(path: string, w: number, h: number, body: string, backgrou
 
 // Web app (Home Screen, notifications)
 for (const size of [180, 192, 512]) await render(join(root, `public/icons/icon-${size}.png`), size, size, logo(76));
+// Android Chrome's installed icon may be cut to a circle: keep the logo inside the central 80% (the maskable safe zone).
+await render(join(root, "public/icons/icon-maskable-512.png"), 512, 512, logo(62));
 
 // Android launcher: legacy square and round icons, and the adaptive icon's foreground (logo inside the 66/108 safe zone)
 const densities: [string, number][] = [

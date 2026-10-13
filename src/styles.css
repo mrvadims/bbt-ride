@@ -1447,3 +1447,17 @@ a.tile[aria-label="Open in RideWithGPS"] {
   display: grid;
   gap: 4px;
 }
+
+/* iPhone browsers: how to add BBT to the Home Screen (InstallHint) */
+.notice.install ol {
+  margin: 6px 0 6px;
+  padding-left: 20px;
+}
+.notice.install li {
+  margin: 2px 0;
+}
+.install-icon svg {
+  width: 16px;
+  height: 16px;
+  vertical-align: -3px;
+}
