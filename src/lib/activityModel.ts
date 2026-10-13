@@ -32,19 +32,21 @@ export function useActivityModel(act: ActivityLike | null, routeIndex = 0) {
   const spots = useSpots().data;
   const weather = useWeather().data;
   // Ride and run have a main route and at most one alternate; both are loaded so names and the switcher are ready.
-  const main = useRoute(act?.routes[0]?.routeId).data;
+  const mainQ = useRoute(act?.routes[0]?.routeId);
   const alt = useRoute(act?.routes[1]?.routeId).data;
+  const main = mainQ.data;
   if (!act || !team || !spots) return null;
   const idx = routeIndex > 0 && act.routes.length > 1 ? 1 : 0;
   const rt: RideRoute | undefined = act.routes[idx];
   const route = (idx === 1 ? alt : main) ?? null;
   const spot: SpotWithState | undefined = spots.find((s) => s.id === act.spotId);
-  const routed = hasRoute(act.sport);
+  // A route that can't be loaded (private, deleted) leaves the page without route details instead of loading forever.
+  const routed = hasRoute(act.sport) && !mainQ.isError;
   if (!spot || (routed && (!rt || !route))) return { loading: true as const };
   const s = team.settings;
   const ride: RideTimes | null = routed && route && rt ? rideTimes(route, act.startTime, act.pace, rt.stop, s) : null;
   const start = hhmmToMin(act.startTime);
-  const end = ride ? ride.end : hhmmToMin(act.endTime ?? act.startTime);
+  const end = ride ? ride.end : act.endTime ? hhmmToMin(act.endTime) : start + s.durationH * 60;
   const rules = rulesFor(act.sport, act.pace, s.warn);
   const se = act.outdoor ? weather?.series[spot.id] : undefined;
   const ev = se ? evaluate(se, act.date, start, end - start, rules, s) : null;
@@ -59,7 +61,7 @@ export function useActivityModel(act: ActivityLike | null, routeIndex = 0) {
     rules,
     se,
     ev,
-    warnings: ev && se ? warnings(ev, se, act.date, start, weather?.alerts[spot.id] ?? [], rules.lowLight) : [],
+    warnings: ev && se ? warnings(ev, se, act.date, start, rules, weather?.alerts[spot.id] ?? []) : [],
     kit: ev && act.sport === "ride" ? kitAdvice(ev.st, team.kit, prefs.kitOffset, s) : null,
     settings: s,
   };

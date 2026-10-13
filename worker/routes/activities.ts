@@ -15,12 +15,13 @@ import {
   rsvpInput,
 } from "../../shared/api.ts";
 import type { RideRoute } from "../../shared/ride.ts";
-import { hasRoute, SPORT_LABEL, type Sport } from "../../shared/sports.ts";
+import { hasRoute, minPerMile, SPORT_LABEL, type Sport } from "../../shared/sports.ts";
 import { dayLabel, fmtTime, hhmmToMin, nyNow } from "../../shared/time.ts";
 import { type AppEnv, can, requireRole } from "../app.ts";
 import { notifyActivity } from "../push.ts";
 import { audit, fail, newId, nowIso } from "../util.ts";
 import { validate } from "../validate.ts";
+import { loadSettings } from "./settings.ts";
 
 interface ActivityRow {
   id: string;
@@ -205,6 +206,8 @@ async function changes(db: D1Database, a: Activity, b: ActivityValues): Promise<
   if (a.spotId !== b.spotId)
     out.push(`${hasRoute(b.sport) ? "start" : "at"} ${await spot(a.spotId)} → ${await spot(b.spotId)}`);
   if (a.outdoor !== b.outdoor) out.push(b.outdoor ? "now outdoors" : "now indoors");
+  if (hasRoute(b.sport) && Math.abs(a.pace - b.pace) > 0.01)
+    out.push(b.sport === "run" ? `pace ${minPerMile(b.pace)} min/mi` : `pace ${b.pace} mph`);
   if (a.details !== b.details) out.push(b.details ? `details: ${b.details}` : "details removed");
   if (routeText(a.routes) !== routeText(b.routes)) out.push(`route ${routeText(b.routes)}`);
   const aStop = a.routes[0]?.stop ?? null;
@@ -277,6 +280,8 @@ export const activities = new Hono<AppEnv>()
   .post("/", requireRole("edit"), validate("json", activityInput), async (c) => {
     const input = c.req.valid("json");
     await checkInput(c.env.DB, input);
+    if (input.sport !== "other" && !(await loadSettings(c.env.DB)).sports.includes(input.sport))
+      fail(400, "That sport is turned off in Settings");
     const user = c.get("user");
     const clash = await publishedOn(c.env.DB, input.date, input.sport);
     if (clash && !input.replace) fail(409, clashText(input.sport));

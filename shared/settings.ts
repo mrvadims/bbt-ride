@@ -1,11 +1,13 @@
 import { z } from "zod";
-import { DEFAULT_WARN, GROUP_LABEL, GROUPS, type Group, SPORTS, warnSchema } from "./sports.ts";
+import { DEFAULT_WARN, GROUP_LABEL, GROUPS, type Group, TOGGLE_SPORTS, warnSchema } from "./sports.ts";
 
 export const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/; // "08:30"
 
 // Team settings (Admin-editable, stored in D1 `settings`, one row per key). Imperial units.
 export const settingsSchema = z.object({
-  sports: z.array(z.enum(SPORTS)).max(SPORTS.length), // sports offered in Plan (Other always is)
+  sports: z // sports offered in Plan (Other always is)
+    .array(z.enum(TOGGLE_SPORTS))
+    .refine((s) => new Set(s).size === s.length, "Each sport once"),
   pace: z.number().min(10).max(25), // ride pace, mph
   meetTime: z.string().regex(HHMM),
   durationH: z.number().min(0.5).max(8), // weather window before a route is picked
@@ -18,6 +20,9 @@ export const settingsSchema = z.object({
 });
 
 export type Settings = z.infer<typeof settingsSchema>;
+/** A settings change: any keys, and only the weather groups that change (merged with the stored ones). */
+export const settingsChange = settingsSchema.extend({ warn: settingsSchema.shape.warn.partial() }).partial();
+export type SettingsChange = z.infer<typeof settingsChange>;
 
 /** What's inconsistent across settings (red must be beyond amber; drying below wet), or null. */
 export function settingsProblem(s: Settings): string | null {

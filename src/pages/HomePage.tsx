@@ -58,7 +58,8 @@ export function HomePage({ me }: { me: Me }) {
       !list.data.some((b) => b.status === "published" && b.date === a.date && b.sport === a.sport),
   );
   const sports = [...new Set(all.map((a) => a.sport))];
-  const shown = all.filter((a) => sport === "all" || a.sport === sport);
+  const pick = sports.includes(sport as Sport) ? sport : "all"; // the chosen sport may have nothing left
+  const shown = all.filter((a) => pick === "all" || a.sport === pick);
   const spotName = (id: string) => spots.find((s) => s.id === id)?.name ?? "";
   return (
     <>
@@ -66,7 +67,7 @@ export function HomePage({ me }: { me: Me }) {
       {sports.length > 1 && (
         <div className="filters" role="group" aria-label="Show">
           {(["all", ...sports] as const).map((s) => (
-            <button key={s} type="button" aria-pressed={sport === s} onClick={() => setSport(s)}>
+            <button key={s} type="button" aria-pressed={pick === s} onClick={() => setSport(s)}>
               {s === "all" ? "All" : SPORT_LABEL[s]}
             </button>
           ))}

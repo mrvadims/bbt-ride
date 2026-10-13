@@ -53,11 +53,11 @@ export function fold(line: string): string {
 }
 
 export function downloadIcs(c: CalEvent, uid: string) {
-  const e = (v: string) => v.replace(/[\\,;]/g, (m) => `\\${m}`).replace(/\n/g, "\\n");
+  const e = (v: string) => v.replace(/[\\,;]/g, (m) => `\\${m}`).replace(/\r?\n|\r/g, "\\n");
   const text = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//BBT//Ride//EN",
+    "PRODID:-//BBT//App//EN",
     "BEGIN:VEVENT",
     `UID:${uid}@app.bbt.team`,
     `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, "").slice(0, 15)}Z`,

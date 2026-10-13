@@ -10,7 +10,7 @@ import { LinkPage } from "./pages/LinkPage.tsx";
 import { PastList } from "./pages/PastPage.tsx";
 import { SignIn } from "./pages/SignIn.tsx";
 
-// Editor and admin screens load on demand; most riders never open them.
+// Editor and admin screens load on demand; most members never open them.
 const PlanPage = lazy(() => import("./pages/PlanPage.tsx").then((m) => ({ default: m.PlanPage })));
 const SettingsPage = lazy(() => import("./pages/SettingsPage.tsx").then((m) => ({ default: m.SettingsPage })));
 

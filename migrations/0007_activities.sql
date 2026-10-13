@@ -22,7 +22,25 @@ alter table messages rename column ride_id to activity_id;
 drop index messages_ride;
 create index messages_activity on messages (activity_id, created_at);
 
--- Warning thresholds are now grouped per weather group under one "warn" key; the old per-threshold rows go.
+-- Warning thresholds are now grouped per weather group under one "warn" key. Any ride thresholds an Admin changed carry
+-- over into warn.ride (each missing one gets v1's default); the other groups start from their defaults.
+insert into settings (key, value_json, updated_at)
+select 'warn', json_object('ride', json_object(
+    'feelCaution', coalesce((select json_extract(value_json, '$') from settings where key = 'feelCaution'), 40),
+    'feelNoGo', coalesce((select json_extract(value_json, '$') from settings where key = 'feelNoGo'), 32),
+    'heatCaution', coalesce((select json_extract(value_json, '$') from settings where key = 'heatCaution'), 92),
+    'heatNoGo', coalesce((select json_extract(value_json, '$') from settings where key = 'heatNoGo'), 100),
+    'windCaution', coalesce((select json_extract(value_json, '$') from settings where key = 'windCaution'), 15),
+    'windNoGo', coalesce((select json_extract(value_json, '$') from settings where key = 'windNoGo'), 22),
+    'gustCaution', coalesce((select json_extract(value_json, '$') from settings where key = 'gustCaution'), 25),
+    'gustNoGo', coalesce((select json_extract(value_json, '$') from settings where key = 'gustNoGo'), 35),
+    'rainProbCaution', coalesce((select json_extract(value_json, '$') from settings where key = 'rainProbCaution'), 30),
+    'rainProbNoGo', coalesce((select json_extract(value_json, '$') from settings where key = 'rainProbNoGo'), 60),
+    'rainAmtCaution', coalesce((select json_extract(value_json, '$') from settings where key = 'rainAmtCaution'), 0.01),
+    'rainAmtNoGo', coalesce((select json_extract(value_json, '$') from settings where key = 'rainAmtNoGo'), 0.05))),
+  strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+where exists (select 1 from settings where key in ('feelCaution', 'feelNoGo', 'heatCaution', 'heatNoGo', 'windCaution',
+  'windNoGo', 'gustCaution', 'gustNoGo', 'rainProbCaution', 'rainProbNoGo', 'rainAmtCaution', 'rainAmtNoGo'));
 delete from settings where key in ('feelCaution', 'feelNoGo', 'heatCaution', 'heatNoGo', 'windCaution', 'windNoGo',
   'gustCaution', 'gustNoGo', 'rainProbCaution', 'rainProbNoGo', 'rainAmtCaution', 'rainAmtNoGo');
 -- Drafts hold the old Plan form; they're short-lived autosaves.

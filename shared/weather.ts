@@ -266,7 +266,7 @@ export type Warning = { level: 1 | 2 } & (
   | { kind: "alert"; event: string; headline: string }
   | { kind: "lowLight"; sunrise: number }
   | { kind: "road"; state: RoadState; endState: RoadState; rainIn: number }
-  | { kind: "cold"; feel: number }
+  | { kind: "cold"; feel: number; feelName: string; kit: boolean }
   | { kind: "heat"; app: number }
   | { kind: "wind"; ws: number; wg: number; dir: number }
   | { kind: "thunder"; rain: number }
@@ -282,19 +282,19 @@ export function warnings(
   se: Series,
   date: string,
   startMin: number,
+  rules: Rules,
   alerts: Alert[] = [],
-  lowLight = true,
 ): Warning[] {
   const st = ev.st;
   const out: Warning[] = alerts.map((a) => ({ level: a.level, kind: "alert", event: a.event, headline: a.headline }));
   const sunrise = se.sunrise.get(date);
-  if (lowLight && sunrise != null && startMin < sunrise + LOW_LIGHT_MIN)
+  if (rules.lowLight && sunrise != null && startMin < sunrise + LOW_LIGHT_MIN)
     out.push({ level: 1, kind: "lowLight", sunrise });
   for (const { k, level } of ev.factors) {
     if (!level) continue;
     if (k === "Road")
       out.push({ level, kind: "road", state: st.road.state, endState: st.roadEnd.state, rainIn: st.road.rainIn });
-    else if (k === "Cold") out.push({ level, kind: "cold", feel: st.feelMin });
+    else if (k === "Cold") out.push({ level, kind: "cold", feel: st.feelMin, feelName: rules.feel, kit: rules.road });
     else if (k === "Heat") out.push({ level, kind: "heat", app: st.appMax });
     else if (k === "Wind") out.push({ level, kind: "wind", ws: st.wsMax, wg: st.wgMax, dir: st.dir });
     else if (st.thunder) out.push({ level: 2, kind: "thunder", rain: st.rain });

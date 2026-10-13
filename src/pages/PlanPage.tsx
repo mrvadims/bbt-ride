@@ -6,14 +6,14 @@ import type { ActivityDetail, ActivityUpdate, RouteSummary } from "../../shared/
 import { etaAt, FT_PER_M, M_PER_MI, nearest, type Poi, rideTimes, startDistance } from "../../shared/ride.ts";
 import {
   canBeIndoor,
-  DEFAULT_LENGTH_MIN,
   DETAILS_HINT,
+  defaultLength,
   hasRoute,
+  INDOOR_LABELS,
   minPerMile,
   mphFromMinPerMile,
   PACE_RANGE,
   rulesFor,
-  SETTING_LABELS,
   SPORT_LABEL,
   SPORTS,
   type Sport,
@@ -88,8 +88,9 @@ interface Form {
 }
 
 const isCoffee = (p: Poi) => /coffee|food/.test(p.type);
+/** "HH:MM" plus minutes, kept within the same day (an activity ends by 23:45). */
 const addMin = (hhmm: string, min: number) => {
-  const t = Math.min(23 * 60 + 45, hhmmToMin(hhmm) + min);
+  const t = Math.max(0, Math.min(23 * 60 + 45, hhmmToMin(hhmm) + min));
   return `${pad(Math.floor(t / 60))}:${pad(t % 60)}`;
 };
 
@@ -108,7 +109,7 @@ function fromActivity(a: ActivityDetail, date: string, editing: string | null): 
     title: a.title,
     date,
     time: a.startTime,
-    endTime: a.endTime ?? addMin(a.startTime, DEFAULT_LENGTH_MIN[a.sport]),
+    endTime: a.endTime ?? addMin(a.startTime, defaultLength(a.sport)),
     outdoor: a.outdoor,
     spotId: a.spotId,
     routeId: main?.routeId ?? null,
@@ -206,6 +207,7 @@ export function PlanPage() {
   const [form, setForm] = useState<Form | null>(null);
   const [addingSpot, setAddingSpot] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [paceMsg, setPaceMsg] = useState<string | null>(null);
   const editId = query.get("edit");
   const reuseId = query.get("reuse");
   const source = useActivity(editId ?? reuseId);
@@ -230,7 +232,7 @@ export function PlanPage() {
     return {
       pace: sport === "run" ? 3600 / 540 : (team?.settings.pace ?? 17), // run: 9:00 min/mi
       time,
-      endTime: addMin(time, DEFAULT_LENGTH_MIN[sport]),
+      endTime: addMin(time, defaultLength(sport)),
       outdoor: sport !== "swim", // a swim starts as a pool swim
     };
   };
@@ -352,7 +354,7 @@ export function PlanPage() {
           spotId: form.spotId,
           outdoor: canBeIndoor(form.sport) ? form.outdoor : true,
           pace: routed ? form.pace : 0,
-          details: form.details.trim(),
+          details: routed ? "" : form.details.trim(),
           notes: form.notes,
           status: "published" as const,
           routes:
@@ -424,8 +426,8 @@ export function PlanPage() {
   };
   const pickSport = (sport: Sport) => {
     if (!form || form.sport === sport) return;
-    const keepDate = (acts ?? []).some((a) => a.date === form.date && a.sport === sport && a.status === "published");
-    set({ sport, ...defaults(sport), ...(keepDate ? { date: nextFreeDay(sport) } : {}), stop: undefined });
+    const taken = (acts ?? []).some((a) => a.date === form.date && a.sport === sport && a.status === "published");
+    set({ sport, ...defaults(sport), ...(taken ? { date: nextFreeDay(sport) } : {}), stop: undefined });
   };
 
   if (source.isError) return <p className="small">That activity couldn't be loaded. {source.error.message}</p>;
@@ -439,16 +441,21 @@ export function PlanPage() {
   const outdoor = canBeIndoor(form.sport) ? form.outdoor : true;
   const rules = rulesFor(form.sport, form.pace, s.warn);
   const spot = active.find((x) => x.id === form.spotId) ?? spots.find((x) => x.id === form.spotId);
-  const clash = acts.find(
-    (a) => a.date === form.date && a.sport === form.sport && a.status === "published" && a.id !== form.editing,
-  );
+  // Publishing (or updating a published activity) replaces the same sport's activity that day; editing a cancelled one
+  // replaces nothing (the server keeps it cancelled).
+  const clash =
+    editingAct?.status === "cancelled"
+      ? undefined
+      : acts.find(
+          (a) => a.date === form.date && a.sport === form.sport && a.status === "published" && a.id !== form.editing,
+        );
   const sportName = SPORT_LABEL[form.sport].toLowerCase();
   const pois = route
     ? [...route.pois].sort((a, b) => Number(isCoffee(b)) - Number(isCoffee(a)) || a.route_d_m - b.route_d_m)
     : [];
   const far = route && spot ? startDistance(route, spot) : 0;
   const placeLabel = routed ? "Start spot" : "Place";
-  const settingLabels = SETTING_LABELS[form.sport];
+  const indoorLabels = INDOOR_LABELS[form.sport];
   const runPace = form.sport === "run";
   const [paceLo, paceHi] = runPace ? PACE_RANGE.run : PACE_RANGE.ride;
 
@@ -475,7 +482,7 @@ export function PlanPage() {
                 <>
                   {wxSummary(ev.st, u)}
                   <WarningChips
-                    list={warnings(ev, se, form.date, startMin, weather.alerts[sp.id] ?? [], rules.lowLight)}
+                    list={warnings(ev, se, form.date, startMin, rules, weather.alerts[sp.id] ?? [])}
                     u={u}
                     lookback={s.lookback}
                   />
@@ -568,13 +575,13 @@ export function PlanPage() {
                 </button>
               ))}
             </div>
-            {settingLabels && (
+            {indoorLabels && (
               <div className="seg" role="group" aria-label="Setting">
                 <button type="button" aria-pressed={!form.outdoor} onClick={() => set({ outdoor: false })}>
-                  {settingLabels[0]}
+                  {indoorLabels[0]}
                 </button>
                 <button type="button" aria-pressed={form.outdoor} onClick={() => set({ outdoor: true })}>
-                  {settingLabels[1]}
+                  {indoorLabels[1]}
                 </button>
               </div>
             )}
@@ -624,8 +631,9 @@ export function PlanPage() {
                   step={900}
                   onChange={(e) => {
                     const time = e.target.value || form.time;
-                    // Moving the start keeps the length the same.
-                    set({ time, endTime: addMin(time, hhmmToMin(form.endTime) - hhmmToMin(form.time)) });
+                    // Moving the start keeps the length the same (at least 15 minutes).
+                    const len = Math.max(15, hhmmToMin(form.endTime) - hhmmToMin(form.time));
+                    set({ time, endTime: addMin(time, len) });
                   }}
                 />
               </label>
@@ -825,16 +833,24 @@ export function PlanPage() {
                 {runPace ? (
                   <label className="field">
                     Pace (min/mi)
+                    {/* A text keyboard: the iPhone number pad has no ":". */}
                     <input
-                      inputMode="numeric"
+                      inputMode="text"
                       placeholder="9:00"
                       defaultValue={minPerMile(form.pace)}
                       key={form.pace}
                       onBlur={(e) => {
                         const mph = mphFromMinPerMile(e.target.value);
-                        set({ pace: mph ? Math.min(paceHi, Math.max(paceLo, mph)) : form.pace });
+                        setPaceMsg(mph ? null : "Type the pace as minutes per mile, e.g. 9:30");
+                        if (mph) set({ pace: Math.min(paceHi, Math.max(paceLo, mph)) });
+                        else e.target.value = minPerMile(form.pace);
                       }}
                     />
+                    {paceMsg && (
+                      <span className="tiny" role="alert" style={{ color: "var(--no-fg)" }}>
+                        {paceMsg}
+                      </span>
+                    )}
                   </label>
                 ) : (
                   <label className="field">

@@ -1,4 +1,4 @@
-// Warnings as boxes (ride page) or chips (Plan's spot list), in the rider's units.
+// Warnings as boxes (activity page) or chips (Home rows, Plan's place list), in the person's units.
 import type { ReactNode } from "react";
 import { fmtTime } from "../../shared/time.ts";
 import { compass, type Warning } from "../../shared/weather.ts";
@@ -12,7 +12,7 @@ function warningText(w: Warning, u: Units, lookback: number): { short: string; t
     case "lowLight":
       return {
         short: "Low light",
-        title: "Low light at meet time",
+        title: "Low light at the start",
         detail: `Sunrise ${fmtTime(w.sunrise)}; bring front and rear lights`,
       };
     case "road": {
@@ -27,8 +27,8 @@ function warningText(w: Warning, u: Units, lookback: number): { short: string; t
     case "cold":
       return {
         short: `Cold ${u.temp(w.feel)}`,
-        title: `Cold: bike feel down to ${u.temp(w.feel)}`,
-        detail: "Dress for the start; see What to wear",
+        title: `Cold: ${w.feelName} down to ${u.temp(w.feel)}`,
+        detail: w.kit ? "Dress for the start; see What to wear" : "Dress for the start",
       };
     case "heat":
       return {
@@ -48,7 +48,7 @@ function warningText(w: Warning, u: Units, lookback: number): { short: string; t
       return {
         short: `Rain ${Math.round(w.pp)}%`,
         title: `Rain: ${Math.round(w.pp)}% chance`,
-        detail: `${u.rain(w.rain)} expected during the ride`,
+        detail: `${u.rain(w.rain)} expected`,
       };
   }
 }

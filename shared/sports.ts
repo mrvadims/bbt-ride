@@ -1,10 +1,10 @@
 // Sports and what each one needs (DESIGN.md → v2): route and pace, indoor option, weather group, labels.
 import { z } from "zod";
 
-export const SPORTS = ["ride", "run", "swim", "pickleball", "ski", "other"] as const;
-export type Sport = (typeof SPORTS)[number];
 /** Sports an Admin can turn off; Other is always offered. */
-export const TOGGLE_SPORTS = SPORTS.filter((s) => s !== "other");
+export const TOGGLE_SPORTS = ["ride", "run", "swim", "pickleball", "ski"] as const;
+export const SPORTS = [...TOGGLE_SPORTS, "other"] as const;
+export type Sport = (typeof SPORTS)[number];
 
 export const SPORT_LABEL: Record<Sport, string> = {
   ride: "Ride",
@@ -16,14 +16,14 @@ export const SPORT_LABEL: Record<Sport, string> = {
 };
 
 /** Ride and run follow a RideWithGPS route at a pace; their end time comes from the route. */
-export const hasRoute = (s: Sport): boolean => s === "ride" || s === "run";
+export const hasRoute = (s: Sport): s is "ride" | "run" => s === "ride" || s === "run";
 /** Sports that can be planned indoors (no weather check), with the labels for the two choices. */
-export const SETTING_LABELS: Partial<Record<Sport, [indoor: string, outdoor: string]>> = {
+export const INDOOR_LABELS: Partial<Record<Sport, [indoor: string, outdoor: string]>> = {
   swim: ["Pool", "Open water"],
   pickleball: ["Indoor", "Outdoor"],
   other: ["Indoor", "Outdoor"],
 };
-export const canBeIndoor = (s: Sport): boolean => s in SETTING_LABELS;
+export const canBeIndoor = (s: Sport): boolean => s in INDOOR_LABELS;
 
 export const START_LABEL: Record<Sport, string> = {
   ride: "Meet time",
@@ -33,10 +33,9 @@ export const START_LABEL: Record<Sport, string> = {
   ski: "Carpool leaves",
   other: "Start time",
 };
-/** Default length for sports without a route, minutes. */
-export const DEFAULT_LENGTH_MIN: Record<Sport, number> = {
-  ride: 180,
-  run: 90,
+/** Default length for sports without a route, minutes (ride and run end when their route says). */
+export const defaultLength = (s: Sport): number => (hasRoute(s) ? 120 : DEFAULT_LENGTH_MIN[s]);
+export const DEFAULT_LENGTH_MIN: Record<Exclude<Sport, "ride" | "run">, number> = {
   swim: 60,
   pickleball: 120,
   ski: 600,
@@ -112,12 +111,14 @@ export const DEFAULT_WARN: Record<Group, Warn> = {
 /** What the weather check uses for one activity. */
 export interface Rules {
   pace: number; // airflow from moving, mph (0 for sports done in place)
-  road: boolean; // road wetness warnings (rides)
+  feel: string; // what the cold check uses: "bike feel", "run feel" or "wind chill"
+  road: boolean; // road wetness warnings and the kit chart (rides)
   lowLight: boolean; // start near sunrise (ride and run)
   warn: Warn;
 }
 export const rulesFor = (sport: Sport, paceMph: number, warn: Record<Group, Warn>): Rules => ({
   pace: hasRoute(sport) ? paceMph : 0,
+  feel: sport === "ride" ? "bike feel" : sport === "run" ? "run feel" : "wind chill",
   road: sport === "ride",
   lowLight: hasRoute(sport),
   warn: warn[groupOf(sport)],
@@ -128,9 +129,10 @@ export const minPerMile = (mph: number): string => {
   const s = Math.round(3600 / mph);
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 };
+/** Accepts "9:30", "9" or "9.5" (minutes per mile); null if it isn't one of those. */
 export const mphFromMinPerMile = (v: string): number | null => {
-  const m = v.trim().match(/^(\d{1,2}):([0-5]\d)$/);
-  if (!m) return null;
-  const sec = Number(m[1]) * 60 + Number(m[2]);
+  const t = v.trim();
+  const m = t.match(/^(\d{1,2}):([0-5]\d)$/);
+  const sec = m ? Number(m[1]) * 60 + Number(m[2]) : /^\d{1,2}(\.\d+)?$/.test(t) ? Number(t) * 60 : 0;
   return sec > 0 ? 3600 / sec : null;
 };

@@ -14,7 +14,7 @@ export function navigate(to: string, replace = false) {
   if (!replace) window.scrollTo(0, 0);
 }
 
-/** Current location as path segments plus query parameters, e.g. /ride/2026-10-17 → ["ride", "2026-10-17"]. */
+/** Current location as path segments plus query parameters, e.g. /a/abc123 → ["a", "abc123"]. */
 export function useLocation() {
   const loc = useSyncExternalStore(subscribe, snapshot);
   const url = new URL(loc, window.location.origin);

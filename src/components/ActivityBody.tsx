@@ -5,7 +5,7 @@ import rwgpsLogo from "../../brand/web/ridewithgps-vertical-logo.svg";
 import { type ActivityDetail, activityName, type RecordedWeather } from "../../shared/api.ts";
 import { KIT_OFFSETS, type KitAdvice, type KitOffset } from "../../shared/kit.ts";
 import { M_PER_MI, mapsLink, type Spot } from "../../shared/ride.ts";
-import { hasRoute, SETTING_LABELS, SPORT_LABEL, type Sport } from "../../shared/sports.ts";
+import { hasRoute, INDOOR_LABELS, SPORT_LABEL, type Sport } from "../../shared/sports.ts";
 import { dayLabel, fmtDur, fmtTime } from "../../shared/time.ts";
 import { bikeFeel, compass } from "../../shared/weather.ts";
 import type { ActivityLike, ActivityModel } from "../lib/activityModel.ts";
@@ -150,21 +150,13 @@ export const feelLabel = (sport: Sport): string | undefined =>
 
 /** "Ride · Outdoor" / "Swim · Pool": the sport, plus the setting for sports that can be indoors. */
 export function sportLine(a: Pick<ActivityLike, "sport" | "outdoor">): string {
-  const labels = SETTING_LABELS[a.sport];
+  const labels = INDOOR_LABELS[a.sport];
   return labels ? `${SPORT_LABEL[a.sport]} · ${a.outdoor ? labels[1] : labels[0]}` : SPORT_LABEL[a.sport];
 }
 
 /** Header card: sport, name, day and time, details; the Edit pencil for editors. */
-export function ActivityHeader({
-  act,
-  m,
-  onEdit,
-}: {
-  act: ActivityLike & { routes: { name?: string | null }[] };
-  m: ActivityModel;
-  onEdit?: () => void;
-}) {
-  const name = act.title || (hasRoute(act.sport) ? m.route?.name : null) || SPORT_LABEL[act.sport];
+export function ActivityHeader({ act, m, onEdit }: { act: ActivityLike; m: ActivityModel; onEdit?: () => void }) {
+  const name = activityName(act);
   return (
     <section className="panel ahead">
       <span className="ahead-icon">
@@ -308,7 +300,7 @@ function calendarEvent(act: ActivityLike, m: ActivityModel): CalEvent {
     const route = m.routeById(r.routeId);
     return `${r.label}: ${route?.name ?? `#${r.routeId}`} — ${route?.url ?? ""}`;
   });
-  const name = act.title || m.route?.name || SPORT_LABEL[act.sport];
+  const name = activityName(act);
   return {
     date: act.date,
     start: m.start,

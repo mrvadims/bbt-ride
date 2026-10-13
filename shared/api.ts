@@ -155,6 +155,7 @@ const normalize = <T extends ActivityFields>(a: T): T => ({
   ...a,
   endTime: hasRoute(a.sport) ? null : a.endTime,
   pace: hasRoute(a.sport) ? a.pace : 0,
+  details: hasRoute(a.sport) ? "" : a.details,
   outdoor: canBeIndoor(a.sport) ? a.outdoor : true,
 });
 

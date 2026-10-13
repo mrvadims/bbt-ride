@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import fallback from "../data/raw/om_purchase.json";
 import seed from "../data/seed.json";
+import { activityInput, activityUpdate } from "../shared/api.ts";
 import { DEFAULT_KIT, kitAdvice, kitBand } from "../shared/kit.ts";
 import { parseLatLng, type Route, rideTimes } from "../shared/ride.ts";
 import { DEFAULT_SETTINGS as S, settingsProblem } from "../shared/settings.ts";
@@ -126,9 +127,9 @@ describe("warnings", () => {
   it("shows nothing for a clean forecast and thunder replaces rain", () => {
     const clean = series(24);
     const ev = must(evaluate(clean, "2026-10-10", 9 * 60, 180, RIDE, S));
-    expect(warnings(ev, clean, "2026-10-10", 9 * 60)).toEqual([]);
+    expect(warnings(ev, clean, "2026-10-10", 9 * 60, RIDE)).toEqual([]);
     const storm = series(24, { code: Array(24).fill(95), pp: Array(24).fill(40) });
-    const w = warnings(must(evaluate(storm, "2026-10-10", 9 * 60, 180, RIDE, S)), storm, "2026-10-10", 9 * 60);
+    const w = warnings(must(evaluate(storm, "2026-10-10", 9 * 60, 180, RIDE, S)), storm, "2026-10-10", 9 * 60, RIDE);
     expect(w.map((x) => x.kind)).toEqual(["thunder"]);
   });
   it("evaluates the saved Open-Meteo sample", () => {
@@ -221,7 +222,9 @@ describe("sports", () => {
   it("converts run pace", () => {
     expect(minPerMile(3600 / 540)).toBe("9:00");
     expect(mphFromMinPerMile("8:00")).toBe(7.5);
-    expect(mphFromMinPerMile("8")).toBeNull();
+    expect(mphFromMinPerMile("8")).toBe(7.5);
+    expect(mphFromMinPerMile("7.5")).toBe(8);
+    expect(mphFromMinPerMile("8:75")).toBeNull();
   });
   it("leaves out road warnings except for rides", () => {
     const wet = series(24, { p: Array(24).fill(0.05) });
@@ -229,5 +232,48 @@ describe("sports", () => {
     const run = must(evaluate(wet, "2026-10-10", 9 * 60, 120, rulesFor("run", 6.5, S.warn), S));
     expect(ride.factors.find((f) => f.k === "Road")?.level).toBe(2);
     expect(run.factors.find((f) => f.k === "Road")?.level).toBe(0);
+  });
+});
+
+describe("activity input", () => {
+  const ride = {
+    sport: "ride",
+    date: "2026-10-17",
+    startTime: "08:30",
+    spotId: "suny-purchase",
+    pace: 17,
+    notes: "",
+    routes: [{ label: "Main", routeId: 57406828, stop: null }],
+  } as const;
+  const swim = {
+    ...ride,
+    sport: "swim",
+    pace: 0,
+    routes: [],
+    endTime: "07:00",
+    startTime: "06:00",
+    outdoor: false,
+  } as const;
+  it("needs a route and an in-range pace for ride and run", () => {
+    expect(activityInput.safeParse(ride).success).toBe(true);
+    expect(activityInput.safeParse({ ...ride, routes: [] }).success).toBe(false);
+    expect(activityInput.safeParse({ ...ride, pace: 30 }).success).toBe(false);
+    expect(activityInput.safeParse({ ...ride, sport: "run", pace: 17 }).success).toBe(false); // runs: 4–12 mph
+  });
+  it("needs an end after the start and no route for other sports", () => {
+    expect(activityInput.safeParse(swim).success).toBe(true);
+    expect(activityInput.safeParse({ ...swim, endTime: "06:00" }).success).toBe(false);
+    expect(activityInput.safeParse({ ...swim, endTime: null }).success).toBe(false);
+    expect(activityInput.safeParse({ ...swim, routes: ride.routes }).success).toBe(false);
+  });
+  it("stores fields that don't apply as empty", () => {
+    const r = activityInput.parse({ ...ride, endTime: "11:00", outdoor: false, details: "2 courts" });
+    expect(r).toMatchObject({ endTime: null, outdoor: true, details: "" });
+    expect(activityInput.parse({ ...swim, pace: 5 }).pace).toBe(0);
+    expect(activityInput.parse({ ...swim, sport: "ski", outdoor: false }).outdoor).toBe(true);
+  });
+  it("needs the base version on an update", () => {
+    expect(activityUpdate.safeParse(ride).success).toBe(false);
+    expect(activityUpdate.safeParse({ ...ride, baseUpdatedAt: "2026-10-13T00:00:00Z" }).success).toBe(true);
   });
 });

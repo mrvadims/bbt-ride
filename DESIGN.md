@@ -339,20 +339,24 @@ Each person can subscribe their own calendar (Apple, Google, Outlook) to a priva
 - Unchanged for now: the Home Screen web app with Web Push (iOS 16.4+), plus the calendar link. Native notification buttons and an App Store install are what's missing.
 - Later: the same Capacitor project gains `ios/`, push via FCM (which also delivers to Apple's service), distributed by an unlisted App Store link. Needs the Apple Developer Program ($99/year) or Apple's nonprofit fee waiver, which the team is looking into.
 
-### Data model changes (one migration)
+### Data model changes
+Step 1 (`0007_activities.sql`, built):
 ```
 rides → activities: + sport CHECK(sport IN ('ride','run','swim','pickleball','ski','other')) DEFAULT 'ride',
-                    + title NULL, + outdoor DEFAULT 1, + details NULL, + end_time NULL,
+                    + title DEFAULT '', + end_time NULL, + outdoor DEFAULT 1, + details DEFAULT '',
                     meet_time → start_time; pace_mph stays NOT NULL, 0 for sports without a pace
                     -- UNIQUE(date, sport) WHERE status = 'published'
 ride_routes → activity_routes; ride_id → activity_id in activity_routes, rsvps, messages
-spots: note becomes optional (pools and courts may need none)
+spots: note optional (pools and courts may need none)
+settings: + 'sports' (the enabled list); the twelve threshold keys become one 'warn' key: { ride, run, ski, outdoor }
+```
+Step 2 (calendar link, per-sport notifications) and step 3 (Android):
+```
 push_subscriptions: + kind CHECK(kind IN ('web','fcm')) DEFAULT 'web'; keys_json NULL for fcm
 notify_off(user_id, sport, PRIMARY KEY(user_id, sport))          -- sports a person muted for new posts
 calendar_tokens(user_id PRIMARY KEY, token_hash UNIQUE, created_at)
-settings: + 'sports' (the enabled list); the twelve threshold keys become one 'warn' key: { ride, run, ski, outdoor }
 ```
-Existing rides become `sport = 'ride'`, outdoor, with their current titles empty (migration `0007_activities.sql`; old threshold settings and drafts are cleared). The API moves to `/api/activities`, pages to `/a/<id>` (upcoming and past alike; a past one is read-only with Reuse this plan). Old `/ride/<date>` and `/past/<id>` links aren't kept: nobody but the captain used them. Home lists a cancelled activity unless the same sport has a published one that day (after Replace).
+Existing rides become `sport = 'ride'`, outdoor, with empty titles. Ride thresholds an Admin changed carry over into `warn.ride`; drafts are cleared. The server checks each sport's fields (`activityInput` in `shared/api.ts`: a route and a pace for ride and run, an end time after the start for the rest; fields that don't apply are stored empty) and refuses a new activity for a sport that's turned off. The API moves to `/api/activities`, pages to `/a/<id>` (upcoming and past alike; a past one is read-only with Reuse this plan). Old `/ride/<date>` and `/past/<id>` links aren't kept: nobody but the captain used them. Home lists a cancelled activity unless the same sport has a published one that day (after Replace). The header card's first line is the sport, plus Pool / Open water or Indoor / Outdoor for sports that can be either.
 
 ### Build order
 Each step is its own PR, deployed before the next:

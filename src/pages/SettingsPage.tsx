@@ -12,7 +12,7 @@ import {
   type UserRow,
 } from "../../shared/api.ts";
 import type { KitBand } from "../../shared/kit.ts";
-import { type Settings, settingsProblem } from "../../shared/settings.ts";
+import { type Settings, type SettingsChange, settingsProblem } from "../../shared/settings.ts";
 import {
   GROUP_LABEL,
   GROUPS,
@@ -459,7 +459,7 @@ export function SettingsPage({ me }: { me: Me }) {
     setError(null);
   };
   const save = useMutation({
-    mutationFn: (p: Partial<Settings>) => api<TeamSettings>("/settings", { method: "PUT", body: p }),
+    mutationFn: (p: SettingsChange) => api<TeamSettings>("/settings", { method: "PUT", body: p }),
     onSuccess: done,
     onError: (e) => setError(e.message),
   });
@@ -475,10 +475,11 @@ export function SettingsPage({ me }: { me: Me }) {
   });
   if (!team) return <p className="muted small">Loading…</p>;
   const s = team.settings;
-  const saveSetting = (p: Partial<Settings>) => {
+  /** Checks the change against the current settings, then sends only what changed (`send`, if narrower than `p`). */
+  const saveSetting = (p: Partial<Settings>, send: SettingsChange = p) => {
     const problem = settingsProblem({ ...s, ...p });
     if (problem) setError(problem);
-    else save.mutate(p);
+    else save.mutate(send);
     return !problem;
   };
   type NumKey = { [K in keyof Settings]: Settings[K] extends number ? K : never }[keyof Settings];
@@ -492,7 +493,9 @@ export function SettingsPage({ me }: { me: Me }) {
       label={label}
       unit={unit}
       step={step}
-      onSave={(v) => saveSetting({ warn: { ...s.warn, [group]: { ...w, [k]: v } } })}
+      onSave={(v) =>
+        saveSetting({ warn: { ...s.warn, [group]: { ...w, [k]: v } } }, { warn: { [group]: { ...w, [k]: v } } })
+      }
     />
   );
   const toggleSport = (x: Sport, on: boolean) =>

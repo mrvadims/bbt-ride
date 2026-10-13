@@ -163,6 +163,15 @@ check(
   (await admin("/api/settings", { method: "PUT", body: { sports: ["ride", "kayak"] } })).status === 400,
   "an unknown sport is refused",
 );
+const oneGroup = await admin("/api/settings", {
+  method: "PUT",
+  body: { warn: { run: { ...defaults.warn.run, feelCaution: 31 } } },
+});
+check(
+  oneGroup.json?.settings?.warn?.run?.feelCaution === 31 &&
+    oneGroup.json.settings.warn.ride.feelCaution === defaults.warn.ride.feelCaution,
+  "saving one weather group leaves the others alone",
+);
 check(
   (await admin("/api/settings/kit", { method: "PUT", body: [{ minFeel: 50, name: "One", items: ["Jersey"] }] }))
     .status === 400,
@@ -272,6 +281,9 @@ const pickle = {
   details: "2 courts",
   notes: "",
 };
+await admin("/api/settings", { method: "PUT", body: { sports: ["ride", "run"] } });
+check((await admin("/api/activities", { body: pickle })).status === 400, "a sport that's turned off is refused");
+await admin("/api/settings", { method: "PUT", body: { sports: defaults.sports } });
 const pk = await admin("/api/activities", { body: pickle });
 check(
   pk.status === 201 && pk.json.sport === "pickleball" && pk.json.outdoor === false && pk.json.pace === 0,
