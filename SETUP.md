@@ -11,7 +11,7 @@ Nothing here is ever committed. Values go into Cloudflare Worker secrets, GitHub
 | 5. D1 database, KV namespace and Queue | D1 and KV done 2026-10-12; Queue created and deploy token updated 2026-10-12 |
 | 6. First deploy | Deployed 2026-10-12; address `app.bbt.team` since 2026-10-13 |
 | 7. Android app | Done 2026-10-13: Firebase, messaging service account, signing key, Android sign-in client; app built and installed |
-| 8. Home page (www.bbt.team) | To do after the first deploy with it: attach the two domains (below) |
+| 8. Home page (www.bbt.team) | Done 2026-10-13: `www.bbt.team` and `bbt.team` attached to `bbt-www` (old GoDaddy parking A records and a Google Sites `www` CNAME removed); DMARC added in monitoring mode (`p=none`) |
 
 ## 1. Cloudflare API token (for deploys)
 
