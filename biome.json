@@ -12,7 +12,8 @@
       "!worker/worker-configuration.d.ts",
       "!dist",
       "!.wrangler",
-      "!android"
+      "!android",
+      "!www/public"
     ]
   },
   "formatter": {

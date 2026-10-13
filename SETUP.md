@@ -10,7 +10,8 @@ Nothing here is ever committed. Values go into Cloudflare Worker secrets, GitHub
 | 4. Web Push keys | Done 2026-10-12: `VAPID_PRIVATE_KEY` stored as a Worker secret (verified), public key in `wrangler.jsonc` |
 | 5. D1 database, KV namespace and Queue | D1 and KV done 2026-10-12; Queue created and deploy token updated 2026-10-12 |
 | 6. First deploy | Deployed 2026-10-12; address `app.bbt.team` since 2026-10-13 |
-| 7. Android app | To do: Firebase, signing key, Android sign-in client (below) |
+| 7. Android app | Done 2026-10-13: Firebase, messaging service account, signing key, Android sign-in client; app built and installed |
+| 8. Home page (www.bbt.team) | To do after the first deploy with it: attach the two domains (below) |
 
 ## 1. Cloudflare API token (for deploys)
 
@@ -166,3 +167,13 @@ console.cloud.google.com → project **bbt-ride** → **Google Auth Platform →
 1. Merge any change to `main` (or re-run the last Deploy). The Deploy run's **android** job should print `Built BBT for Android <versionName> (<versionCode>), <size>`, e.g. `1.1 (2)`.
 2. On an Android phone open https://app.bbt.team/download/, install, sign in with Google, turn on notifications, and have someone post an activity or edit one you're In for (Still in / I'm out).
 3. A new native version (only when `android/` changes): bump `versionCode` and `versionName` in `android/app/build.gradle`; installed apps then show "Update available".
+
+## 8. Home page (www.bbt.team)
+
+The public home page is a separate Worker, `bbt-www`, with static files only (`www/`). The Deploy workflow publishes it on every merge, with the same Cloudflare token. After the first deploy that includes it, attach its domains once by hand, the same way as `app.bbt.team`:
+
+1. dash.cloudflare.com → **Workers & Pages → bbt-www → Settings → Domains & Routes → Add → Custom domain** → `www.bbt.team` → Add domain.
+2. The same again for `bbt.team`, so the bare address shows the page too (the page names `www.bbt.team` as its canonical address).
+3. Open https://www.bbt.team: **Open BBT** goes to the app's sign-in.
+
+Cloudflare creates the DNS records. There's nothing to add to Google sign-in: the home page has no sign-in of its own.
