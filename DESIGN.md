@@ -376,6 +376,11 @@ Each step is its own PR, deployed before the next:
 3. **Android app** (built): Capacitor shell, FCM delivery, native Google sign-in, signed APK and its download page.
 4. **iPhone app:** when the Apple fee is settled.
 
+## Public site (www.bbt.team)
+- A one-page home for the team at **www.bbt.team** (and `bbt.team`), design B on the private "bbt.team Home Page" canvas. It points members to the app and asks nothing of visitors: the team is invitation-only, so there's no sign-up, request-access form or contact address on it.
+- Content: top bar with **Open BBT**; headline "Rides, runs, swims and more, planned together."; **Open BBT** and **Get the Android app** (iPhone: add to the Home Screen, both via `app.bbt.team/download/`); the sports; How it works (see what's planned, say you're in, never miss a change); footer links to the app, phone apps and Privacy. Light and dark like the app; system fonts.
+- Built as plain HTML in `www/public/` and deployed as its own Worker `bbt-www` with static files only (`www/wrangler.jsonc`), so it can't affect the app. No scripts, cookies or third-party requests; its CSP allows only its own images and inline styles. Domains attached by hand (SETUP.md → 8).
+
 ## Backlog (post-v1)
 1. **Route weather** — forecast at points along the route by ETA; head/tail/crosswind per segment.
 2. **WhatsApp integration** (or another messenger) — post the ride brief to the group chat.

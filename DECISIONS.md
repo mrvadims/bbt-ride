@@ -80,6 +80,7 @@ Every open question from the design review, with what was decided. Details live 
 | Android build | Capacitor 8; one in-app plugin (version, Firebase, Google sign-in, share, open outside) rather than several npm plugins; data-only Firebase messages drawn by the app so Still in / I'm out work in the background | 2026-10-13 |
 | APK hosting | Built in its own Deploy job and served with the site at /download/ (no Releases, R2 or KV); a failed Android build shows red but doesn't block the web deploy | 2026-10-13 |
 | iPhone | The Home Screen web app for now, with an install hint in iPhone browsers (Not now = 30 days) and the Welcome sheet on first open; once the Apple fee ($99/year) or a nonprofit waiver is settled, the same Capacitor project with an unlisted App Store link | 2026-10-13 |
+| Public site | One static page at www.bbt.team (and bbt.team) with Open BBT and the phone-app links; no sign-up, request-access form or contact address (invitation only); its own static Worker, separate from the app | 2026-10-13 |
 | Firebase key | A service account with only "Firebase Cloud Messaging API Admin", not the Admin SDK key | 2026-10-13 |
 
 ## Notes

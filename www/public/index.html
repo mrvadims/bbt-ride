@@ -1,0 +1,109 @@
+<!doctype html>
+<!-- www.bbt.team: the public home page (DESIGN.md → Public site). Members only: it links to the app and asks for
+     nothing. No scripts, cookies or third-party requests. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BBT</title>
+<meta name="description" content="The BBT team app: rides, runs, swims and more, planned together. For BBT members.">
+<meta name="theme-color" content="#0077D1">
+<link rel="canonical" href="https://www.bbt.team/">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<style>
+:root{--blue:#0077d1;--stripe:#ff3115;--bg:#f3f6fa;--card:#fff;--text:#03144d;--body:#3d4a73;--muted:#56638a;--line:#dce3ee;--link:#0067b5;--tint:rgba(0,119,209,.1)}
+@media (prefers-color-scheme:dark){:root{--bg:#020c2b;--card:#03144d;--text:#eaf0ff;--body:#c3cdea;--muted:#a9b6d9;--line:#1e2f66;--link:#4da3ff;--tint:rgba(77,163,255,.15)}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:17px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+a{color:var(--link)}
+.wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+header{background:var(--blue);border-bottom:4px solid var(--stripe)}
+header .wrap{height:64px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+header img{height:38px;width:auto;display:block}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:52px;padding:0 24px;border-radius:12px;font-weight:700;font-size:18px;text-decoration:none}
+.btn-primary{background:var(--blue);color:#fff}
+.btn-primary:hover{background:#0067b5}
+.btn-secondary{background:var(--card);color:var(--link);border:1px solid var(--line);font-weight:600;font-size:17px}
+.btn-light{background:#fff;color:#0067b5;min-height:44px;font-size:16px;padding:0 18px;border-radius:10px}
+.hero{display:flex;flex-wrap:wrap;align-items:center;gap:48px;padding-top:72px;padding-bottom:56px}
+.hero-text{flex:999 1 520px;min-width:0;display:flex;flex-direction:column;gap:20px}
+h1{margin:0;font-size:clamp(38px,6vw,62px);line-height:1.04;font-weight:800;letter-spacing:-.01em}
+.lead{margin:0;font-size:20px;color:var(--body);max-width:560px}
+.actions{display:flex;flex-wrap:wrap;gap:12px;padding-top:4px}
+.small{margin:0;font-size:15px;color:var(--muted)}
+.hero-art{flex:1 1 300px;min-width:0;display:flex;justify-content:center}
+.badge{width:100%;max-width:360px;aspect-ratio:1;border-radius:28px;background:var(--blue);display:flex;align-items:center;justify-content:center;box-shadow:0 18px 40px rgba(3,20,77,.18)}
+.badge img{width:74%;height:auto}
+@media (max-width:640px){.hero{padding-top:40px}.hero-art{display:none}}
+.sports{display:flex;flex-wrap:wrap;gap:12px;padding-bottom:56px;margin:0 auto;list-style:none}
+.sports li{flex:1 1 150px;min-width:0;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;align-items:center;gap:12px;font-weight:700;font-size:18px}
+.sports svg{flex:none;stroke:var(--blue)}
+.how{background:var(--card);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.how .wrap{padding-top:64px;padding-bottom:72px;display:flex;flex-direction:column;gap:32px}
+h2{margin:0;font-size:34px;font-weight:800}
+.steps{display:flex;flex-wrap:wrap;gap:24px;margin:0;padding:0;list-style:none}
+.steps li{flex:1 1 280px;min-width:0;display:flex;flex-direction:column;gap:10px}
+.num{width:44px;height:44px;border-radius:12px;background:var(--tint);color:var(--blue);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:20px}
+h3{margin:0;font-size:22px;font-weight:700}
+.steps p{margin:0;color:var(--body)}
+footer .wrap{padding-top:28px;padding-bottom:40px;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px;font-size:15px}
+footer img{height:28px;width:auto;display:block}
+footer nav{display:flex;flex-wrap:wrap;gap:20px}
+@media (prefers-color-scheme:dark){footer img{filter:brightness(0) invert(1)}}
+</style>
+</head>
+<body>
+<header>
+<div class="wrap">
+<a href="/" aria-label="BBT home"><img src="/logo-white.svg" alt="BBT"></a>
+<a class="btn btn-light" href="https://app.bbt.team">Open BBT</a>
+</div>
+</header>
+
+<main>
+<section class="wrap hero">
+<div class="hero-text">
+<h1>Rides, runs, swims and more, planned together.</h1>
+<p class="lead">The BBT team app: see what's coming up, check the weather for the start, and tell everyone you're in.</p>
+<div class="actions">
+<a class="btn btn-primary" href="https://app.bbt.team">Open BBT</a>
+<a class="btn btn-secondary" href="https://app.bbt.team/download/">Get the Android app</a>
+</div>
+<p class="small">For BBT members: sign in with the account you were invited with. On iPhone, <a href="https://app.bbt.team/download/">add BBT to your Home Screen</a> for notifications.</p>
+</div>
+<div class="hero-art" aria-hidden="true"><div class="badge"><img src="/logo-white.svg" alt=""></div></div>
+</section>
+
+<ul class="wrap sports" aria-label="Sports">
+<li><svg width="30" height="30" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="16.5" r="3.5"/><circle cx="18.5" cy="16.5" r="3.5"/><path d="M5.5 16.5 9 9h6l3.5 7.5M9 9l3 7.5h-1M14 6h2l-1 3"/></svg>Ride</li>
+<li><svg width="30" height="30" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="14.5" cy="4.5" r="2"/><path d="M8 21l3-6 3 2v5M6 11l3-3 4 1 2 4 3 1M11 15l1-5"/></svg>Run</li>
+<li><svg width="30" height="30" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="16" cy="7" r="2"/><path d="M5 12l5-3 3 3M2 16c2 0 2-1.5 4-1.5s2 1.5 4 1.5 2-1.5 4-1.5 2 1.5 4 1.5 2-1.5 4-1.5M2 20c2 0 2-1.5 4-1.5s2 1.5 4 1.5 2-1.5 4-1.5 2 1.5 4 1.5 2-1.5 4-1.5"/></svg>Swim</li>
+<li><svg width="30" height="30" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="11" height="13" rx="5.5" transform="rotate(-30 8.5 9.5)"/><path d="M11 15l4 5"/><circle cx="18.5" cy="6.5" r="2.5"/></svg>Pickleball</li>
+<li><svg width="30" height="30" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 19l8-12 4 6 2-3 6 9M3 22l18-4"/></svg>Ski</li>
+</ul>
+
+<section class="how" aria-labelledby="how">
+<div class="wrap">
+<h2 id="how">How it works</h2>
+<ol class="steps">
+<li><span class="num" aria-hidden="true">1</span><h3>See what's planned</h3><p>One list of everything coming up, with the meeting place, the route and a weather check for the start time.</p></li>
+<li><span class="num" aria-hidden="true">2</span><h3>Say you're in</h3><p>Tap In or Out so everyone knows who's coming, and talk it over in the activity's thread.</p></li>
+<li><span class="num" aria-hidden="true">3</span><h3>Never miss a change</h3><p>Notifications for new activities, changes and cancellations, and a calendar link that keeps your calendar up to date.</p></li>
+</ol>
+</div>
+</section>
+</main>
+
+<footer>
+<div class="wrap">
+<img src="/logo-navy.svg" alt="BBT">
+<nav aria-label="Links">
+<a href="https://app.bbt.team">Open BBT</a>
+<a href="https://app.bbt.team/download/">Phone apps</a>
+<a href="https://app.bbt.team/privacy">Privacy</a>
+</nav>
+</div>
+</footer>
+</body>
+</html>

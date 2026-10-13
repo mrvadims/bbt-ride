@@ -1,0 +1,10 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  // www.bbt.team (and bbt.team): the public home page, static files only, no Worker code (DESIGN.md → Public site).
+  // Separate from the app so nothing here can touch it. Domains are attached once by hand (SETUP.md → 8).
+  "name": "bbt-www",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": false,
+  "preview_urls": false,
+  "assets": { "directory": "./public" }
+}
