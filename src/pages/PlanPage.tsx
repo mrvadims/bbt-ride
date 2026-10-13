@@ -183,7 +183,7 @@ function AddSpot({ onAdded, onCancel }: { onAdded: (id: string) => void; onCance
   return (
     <SpotForm
       title="New place"
-      submitLabel="Save place"
+      submitLabel="Add place"
       onCancel={onCancel}
       onSubmit={async (f) => {
         const spot = await api<SpotWithState>("/spots", { body: f });
@@ -276,6 +276,7 @@ export function PlanPage() {
         if (restored.date < today)
           Object.assign(restored, { date: nextFreeDay(restored.sport), editing: null, base: null });
         if (dateParam) Object.assign(restored, { date: dateParam, editing: null, base: null });
+        hadDraft.current = Boolean(d?.form);
         setForm(restored);
       })
       .catch(() => setForm(freshForm(first)));
@@ -284,6 +285,7 @@ export function PlanPage() {
   // Autosave the draft (debounced), but only once the editor changes something: just opening an activity to edit or
   // reuse leaves the saved draft alone. The last save is kept so dropping the draft can wait for it.
   const dirty = useRef(false);
+  const hadDraft = useRef(false); // a draft came back from the server, so Start over must delete it too
   const saving = useRef<Promise<unknown>>(Promise.resolve());
   useEffect(() => {
     if (!form || !dirty.current) return;
@@ -292,10 +294,11 @@ export function PlanPage() {
     }, 800);
     return () => clearTimeout(t);
   }, [form]);
-  /** Stops autosave, waits for a save in flight, then deletes the draft this session saved (if any). */
+  /** Stops autosave, waits for a save in flight, then deletes the saved draft (this session's or a restored one). */
   const dropDraft = async () => {
-    const saved = dirty.current;
+    const saved = dirty.current || hadDraft.current;
     dirty.current = false;
+    hadDraft.current = false;
     await saving.current;
     if (saved) await api("/draft", { method: "DELETE" }).catch(() => undefined);
   };
@@ -430,7 +433,8 @@ export function PlanPage() {
     set({ sport, ...defaults(sport), ...(taken ? { date: nextFreeDay(sport) } : {}), stop: undefined });
   };
 
-  if (source.isError) return <p className="small">That activity couldn't be loaded. {source.error.message}</p>;
+  if (source.isError && !source.data)
+    return <p className="small">That activity couldn't be loaded. {source.error.message}</p>;
   if (!form || !team || !spots || !acts) return <p className="muted small">Loading…</p>;
   const s = team.settings;
   const active = spots.filter((x) => !x.archived);

@@ -39,7 +39,7 @@ Nothing here is ever committed. Values go into Cloudflare Worker secrets, GitHub
 8. **Create Token**, then copy it. Cloudflare shows it only once.
 9. Copy your **Account ID**: Workers & Pages → Overview, right sidebar.
 
-No DNS permission on purpose. When the Worker is ready, attach `app.bbt.team` once by hand: Workers & Pages → bbt-ride → **Domains** tab → add a Custom domain. Cloudflare creates the DNS record for you, and the deploy token never needs DNS edit rights.
+No DNS permission on purpose: the domain is attached once by hand (step 6.2), so the deploy token never needs DNS edit rights.
 
 **Where to put it:**
 - GitHub: repository → Settings → Secrets and variables → Actions → add `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. The deploy workflow uses these.
@@ -51,7 +51,7 @@ No DNS permission on purpose. When the Worker is ready, attach `app.bbt.team` on
 - Don't put them in the Claude environment's variables (visible to anyone using the environment) or in chat.
 - Check: `npx wrangler whoami` should show your account. "Invalid access token" means the value in `.env` is wrong or a stale `CLOUDFLARE_API_TOKEN` is set in your shell.
 
-## 2. RideWithGPS credentials (API key, auth token)
+## 2. Worker secrets: RideWithGPS and session
 
 These are stored as **Cloudflare Worker secrets**. Only the Worker reads them; the browser never sees them.
 
@@ -74,7 +74,7 @@ For local development, put the same names in `.dev.vars` (git-ignored). `.dev.va
 Google keeps this under **Google Auth Platform** (APIs & Services → OAuth consent screen opens it). Use a Google account the team can keep long term; add a second owner later under IAM & Admin → IAM.
 
 1. console.cloud.google.com → project picker → **New project** `bbt-ride` → Create, and select it.
-2. **Google Auth Platform → Get started:** app name `BBT Ride`, support email, audience **External**, contact email → Create.
+2. **Google Auth Platform → Get started:** app name `BBT` (created as `BBT Ride`; rename it under **Branding** if it still shows that), support email, audience **External**, contact email → Create.
 3. **Branding** (all of this is needed before you can publish):
    - Application home page: `https://app.bbt.team`
    - Application privacy policy link: `https://app.bbt.team/privacy` (the page is `public/privacy.html`)
@@ -101,14 +101,14 @@ Google keeps this under **Google Auth Platform** (APIs & Services → OAuth cons
 
 Password sign-in needs no extra setup: it runs in the Worker and uses `SESSION_SECRET` (already set).
 
-## 4. Web Push keys (ride notifications)
+## 4. Web Push keys (notifications)
 
 Generate a key pair once, from your own terminal:
 ```
 npx web-push generate-vapid-keys
 npx wrangler secret put VAPID_PRIVATE_KEY --name bbt-ride   # paste the private key
 ```
-The public key isn't secret; it goes in `wrangler.jsonc` under `vars` as `VAPID_PUBLIC_KEY` (`VAPID_SUBJECT` is already `mailto:info@bbt.team`). Without the keys the app works; the "Ride notifications" switch just says "Not set up yet".
+The public key isn't secret; it goes in `wrangler.jsonc` under `vars` as `VAPID_PUBLIC_KEY` (`VAPID_SUBJECT` is already `mailto:info@bbt.team`). Without the keys the app works; the "Notifications" switch just says "Not set up yet".
 
 ## 5. D1 database, KV namespace and Queue
 
@@ -118,7 +118,7 @@ npx wrangler d1 create bbt-ride
 npx wrangler kv namespace create CACHE
 npx wrangler queues create bbt-ride-push
 ```
-The first two print an id. Put them in `wrangler.jsonc`: the D1 id as `database_id` and the KV id as `id`, then commit. The ids aren't secret (done: both are in `wrangler.jsonc`). The Queue (ride notifications) is referenced by name, so it needs no id; it's on the Workers free plan.
+The first two print an id. Put them in `wrangler.jsonc`: the D1 id as `database_id` and the KV id as `id`, then commit. The ids aren't secret (done: both are in `wrangler.jsonc`). The Queue (notifications) is referenced by name, so it needs no id; it's on the Workers free plan.
 
 The deploy token also needs **Account → Queues → Edit** so `wrangler deploy` can attach the Worker to the Queue: My Profile → API Tokens → `bbt-ride deploy` → **Edit** → add the row → **Continue to summary** → **Update Token**. The token's value doesn't change.
 
@@ -145,7 +145,7 @@ The deploy builds the Android app and puts it on https://app.bbt.team/download/ 
    ```
    npx wrangler secret put FCM_SERVICE_ACCOUNT --name bbt-ride < ~/Downloads/<the downloaded file>.json
    ```
-   Then delete the downloaded file. (Firebase → Project settings → **Cloud Messaging** should show "Firebase Cloud Messaging API (V1): Enabled", the default.)
+   Then delete the downloaded file. For local development, add the same JSON on one line as `FCM_SERVICE_ACCOUNT=` in `.dev.vars` (optional). (Firebase → Project settings → **Cloud Messaging** should show "Firebase Cloud Messaging API (V1): Enabled", the default.)
 
 ### B. Signing key (keep it forever)
 
@@ -163,6 +163,6 @@ console.cloud.google.com → project **bbt-ride** → **Google Auth Platform →
 
 ### D. Build and try it
 
-1. Merge any change to `main` (or re-run the last Deploy). The Deploy run's **android** job should print `Built BBT for Android 1.0 (1)`.
+1. Merge any change to `main` (or re-run the last Deploy). The Deploy run's **android** job should print `Built BBT for Android 1.0 (1), <size>`.
 2. On an Android phone open https://app.bbt.team/download/, install, sign in with Google, turn on notifications, and have someone post an activity or edit one you're In for (Still in / I'm out).
 3. A new native version (only when `android/` changes): bump `versionCode` and `versionName` in `android/app/build.gradle`; installed apps then show "Update available".

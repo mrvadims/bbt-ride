@@ -2,7 +2,8 @@
 fetch("/download/android.json", { cache: "no-store" })
   .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
   .then((v) => {
-    document.getElementById("version").textContent = `Version ${v.versionName} · the team app, with notifications on your phone.`;
+    document.getElementById("version").textContent =
+      `Version ${v.versionName} · the team app, with notifications on your phone.`;
   })
   .catch(() => {
     document.getElementById("download").hidden = true;

@@ -2,7 +2,12 @@
 // An update to an activity someone is In for has Still in / I'm out buttons (DESIGN.md → v2, Notifications); browsers
 // without notification buttons (iPhone) just show the notification, and tapping it opens the activity.
 self.addEventListener("push", (event) => {
-  const data = event.data ? event.data.json() : {};
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    // not JSON: show a plain BBT notification
+  }
   event.waitUntil(
     self.registration.showNotification(data.title || "BBT", {
       body: data.body || "",
@@ -14,11 +19,15 @@ self.addEventListener("push", (event) => {
   );
 });
 
-// Take control of pages opened before this worker, so a tapped notification can navigate them.
+// A new version takes over at once (a Home Screen app may stay open for days), including pages opened before it, so a
+// tapped notification can navigate them.
+self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
 
 const openUrl = (path) => {
-  const url = new URL(path || "/", self.location.origin).href;
+  let url = new URL(path || "/", self.location.origin);
+  if (url.origin !== self.location.origin) url = new URL("/", self.location.origin); // only BBT's own pages
+  url = url.href;
   return self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(async (wins) => {
     const open = wins.find((w) => w.url.startsWith(self.location.origin));
     if (!open) return self.clients.openWindow(url);

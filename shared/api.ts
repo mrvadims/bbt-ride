@@ -162,7 +162,6 @@ const normalize = <T extends ActivityFields>(a: T): T => ({
 });
 
 export const activityInput = activityFields.superRefine(checkSport).transform(normalize);
-export type ActivityInput = z.input<typeof activityInput>;
 export type ActivityValues = z.output<typeof activityInput>;
 // An update also sends the activity's updatedAt from when the editor opened it, so a later change isn't overwritten.
 export const activityUpdate = activityFields

@@ -62,13 +62,26 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx vite build # wrangler deploy uses the build's output
-      # The Android app from the android job, into the site's /download/ (skipped when it wasn't built).
-      - if: needs.android.outputs.built == 'true'
+      # The Android app for the site's /download/: this run's build, or else the published one, so a failed or skipped
+      # Android build never takes the app down (a deploy replaces every static file).
+      - id: fresh
+        if: needs.android.outputs.built == 'true'
         continue-on-error: true
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: android-app
           path: dist/client/download
+      - if: steps.fresh.outcome != 'success'
+        run: |
+          mkdir -p dist/client/download
+          cd dist/client/download
+          if curl -fsS -o android.json https://app.bbt.team/download/android.json && grep -q versionCode android.json &&
+            curl -fsS -o bbt.apk https://app.bbt.team/download/bbt.apk; then
+            echo "::warning::Android app not rebuilt in this run; kept the published $(cat android.json)"
+          else
+            rm -f android.json bbt.apk
+            echo "::notice::No Android app published yet"
+          fi
       # Only the Wrangler steps get the Cloudflare credentials.
       - run: npx wrangler d1 migrations apply DB --remote
         env:

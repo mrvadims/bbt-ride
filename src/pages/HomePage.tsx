@@ -49,7 +49,7 @@ export function HomePage({ me }: { me: Me }) {
   const spots = useSpots().data ?? [];
   const [sport, setSport] = useState<Sport | "all">("all");
   if (list.isPending) return <p className="muted small">Loading…</p>;
-  if (list.isError) return <p role="alert">{list.error.message}</p>;
+  if (list.isError && !list.data) return <p role="alert">{list.error.message}</p>;
   // A cancelled activity stays listed (so people see it's off) unless the same sport has a published one that day,
   // e.g. after Replace.
   const all = list.data.filter(

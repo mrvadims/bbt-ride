@@ -36,7 +36,7 @@ function View({ act, me }: { act: ActivityDetail; me: Me }) {
           <LevelIcon level={2} />
           <div>
             <b>Cancelled</b>
-            <span>{act.messages.findLast((x) => x.kind === "cancel")?.body ?? ""} See Who’s in for messages.</span>
+            <span>{act.messages.findLast((x) => x.kind === "cancel")?.body ?? ""} See Who's in for messages.</span>
           </div>
         </div>
       ) : (
@@ -62,7 +62,8 @@ function View({ act, me }: { act: ActivityDetail; me: Me }) {
 
 export function ActivityPage({ id, me }: { id: string; me: Me }) {
   const q = useActivity(id);
-  if (q.isError)
+  if (q.isError && !q.data)
+    // a failed background refresh keeps showing what loaded (and any half-typed message)
     return (
       <p className="small" role="alert">
         Couldn't load this activity: {q.error.message}

@@ -1,5 +1,5 @@
 // Renders the app icons (white BBT bike logo on BBT Light Blue, DESIGN.md → v2) with the preinstalled Chromium:
-// the web app's icons (also used on notifications) and the Android launcher icons and splash screens.
+// the web app's icons (also used on notifications) and the Android launcher icons (the splash screen reuses them).
 // Run once when the brand changes: node scripts/icons.ts. The favicon stays the "bbt" wordmark, which reads at 16px.
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -50,22 +50,5 @@ writeFileSync(
   `<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <color name="ic_launcher_background">${BLUE}</color>\n</resources>\n`,
 );
 
-// Android splash screens (same sizes as Capacitor's template)
-const splash: [string, number, number][] = [
-  ["drawable", 480, 320],
-  ["drawable-land-mdpi", 480, 320],
-  ["drawable-land-hdpi", 800, 480],
-  ["drawable-land-xhdpi", 1280, 720],
-  ["drawable-land-xxhdpi", 1600, 960],
-  ["drawable-land-xxxhdpi", 1920, 1280],
-  ["drawable-port-mdpi", 320, 480],
-  ["drawable-port-hdpi", 480, 800],
-  ["drawable-port-xhdpi", 720, 1280],
-  ["drawable-port-xxhdpi", 960, 1600],
-  ["drawable-port-xxxhdpi", 1280, 1920],
-];
-for (const [dir, w, h] of splash)
-  await render(res(`${dir}/splash.png`), w, h, `<div style="width:${Math.min(w, h) * 0.5}px">${logo(100)}</div>`);
-
 await browser.close();
-console.log("Wrote public/icons, Android launcher icons and splash screens");
+console.log("Wrote public/icons and the Android launcher icons");

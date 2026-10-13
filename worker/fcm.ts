@@ -2,6 +2,8 @@
 // OAuth token from the service-account key (secret FCM_SERVICE_ACCOUNT) and keeps it in KV for under an hour, so a
 // queue run signs at most once. Messages are data-only; the app draws the notification (BbtMessagingService).
 
+import { b64url } from "./util.ts";
+
 interface ServiceAccount {
   project_id: string;
   client_email: string;
@@ -15,13 +17,6 @@ export interface FcmAuth {
 const TOKEN_KEY = "fcm-access-token";
 const SCOPE = "https://www.googleapis.com/auth/firebase.messaging";
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
-
-const b64url = (data: ArrayBuffer | Uint8Array | string) => {
-  const bytes = typeof data === "string" ? new TextEncoder().encode(data) : new Uint8Array(data);
-  let s = "";
-  for (const b of bytes) s += String.fromCharCode(b);
-  return btoa(s).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
-};
 
 /** The service account's signed JWT asking Google for a messaging token (RFC 7523). */
 export async function serviceJwt(sa: ServiceAccount, nowSec: number): Promise<string> {

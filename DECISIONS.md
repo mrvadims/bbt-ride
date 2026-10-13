@@ -8,7 +8,7 @@ Every open question from the design review, with what was decided. Details live 
 | Navy | `#020C2B` dark-mode background; `#03144D` text on light and dark-mode cards; `#1C367B` not used | 2026-10-09 |
 | Header | Light-blue bar, white bike logo, 4px orange stripe directly under it, no hairline (checked on a phone), no text next to the logo | 2026-10-11 |
 | Wording | "Meet time" everywhere riders see a ride's start time (was "roll-out") | 2026-10-12 |
-| Navigation | No tab row. Top bar: logo (home = Ride), Plan and Settings icons for roles that have them, account menu (theme, units, notifications, new-activity sports, calendar link, sign out) | 2026-10-11 |
+| Navigation | No tab row. Top bar: logo (home; v2: the upcoming list), Plan and Settings icons for roles that have them, account menu (theme, units, notifications, new-activity sports, calendar link, sign out) | 2026-10-11 |
 
 ## Weather model
 | Topic | Decision | Date |
@@ -35,11 +35,11 @@ Every open question from the design review, with what was decided. Details live 
 | Drafts | No Save draft button; the form autosaves. Edit, Update, Replace, Cancel and Restore ride | 2026-10-10 |
 | RSVP | In / Out (route choice only for In on rides with an alternate); message thread with one-level replies | 2026-10-10 |
 | RSVP reminders | None in v1 | 2026-10-11 |
-| Notifications | Only when a ride is updated, cancelled or restored; Web Push only (opt-in per device), no email service; delivered through a Cloudflare Queue in batches of 5 devices, to stay inside the free plan's CPU limit (no device limit) | 2026-10-12 |
+| Notifications | Only when a ride is updated, cancelled or restored; Web Push only (opt-in per device), no email service; delivered through a Cloudflare Queue in batches of 5 devices (v2: plus Firebase for the Android app; each person keeps their newest 10 devices) | 2026-10-12 |
 | Notification audience | Every member who turned ride notifications on, whether or not they've answered In / Out | 2026-10-12 |
-| History | Past tab on the Ride page (latest 200); read-only past rides with recorded weather; Reuse this plan. Routes and times stay live (not frozen at publish) | 2026-10-12 |
+| History | Past tab on the Ride page (v2: a Past activities link; latest 200); read-only past rides with recorded weather; Reuse this plan. Routes and times stay live (not frozen at publish) | 2026-10-12 |
 | Edit conflicts | Update ride is refused if the ride changed after the editor opened it | 2026-10-12 |
-| Start spots | Name, Google Maps link and parking notes all required. Settings lists spots with Open in Maps, Edit (in place), Archive and Add a spot; archived spots fold into a collapsed list | 2026-10-12 |
+| Start spots | Name, Google Maps link and parking notes all required (v2: notes optional). Settings lists spots with Open in Maps, Edit (in place), Archive and Add a spot; archived spots fold into a collapsed list | 2026-10-12 |
 | Settings layout | One column of panels on every screen width, so an open panel never leaves a gap beside it; fields in a row line up at the input | 2026-10-12 |
 
 ## Access and accounts
@@ -51,12 +51,12 @@ Every open question from the design review, with what was decided. Details live 
 | Admin endpoints | Better Auth's own admin endpoints are blocked; user management goes through the app's API (checks + audit) | 2026-10-12 |
 | Forgotten password | Admin creates a one-time reset link in Settings → Users and sends it; no reset emails in v1 | 2026-10-11 |
 | Uninvited accounts | Blocked with "Not invited — ask a team admin"; public sign-up off; invites are links the Admin sends | 2026-10-11 |
-| Public pages | Only sign-in, the invite and reset link pages (valid token required) and a static `/privacy` page (Google requires a public privacy policy to publish the sign-in app); everything else requires sign-in | 2026-10-11 |
+| Public pages | Only sign-in, the invite and reset link pages (valid token required) and a static `/privacy` page (Google requires a public privacy policy to publish the sign-in app); everything else requires sign-in (v2: also `/download/` and the signed calendar feed) | 2026-10-11 |
 | RideWithGPS | API key and auth token stored as Worker secrets (verified on the `bbt-ride` Worker); the API secret isn't needed | 2026-10-12 |
 | Cloudflare deploys | Scoped API token in GitHub repository secrets; deploy via GitHub Actions; `app.bbt.team` attached by hand | 2026-10-10 |
 | Address | `app.bbt.team` (was `ride.bbt.team` while only the captain used it; the old address is detached, no forwarding) | 2026-10-13 |
 
-## v2: any sport and phone apps (step 1 built; the rest designed)
+## v2: any sport and phone apps (steps 1–3 built; the iPhone app waits on the Apple fee)
 | Topic | Decision | Date |
 |---|---|---|
 | Name | The app becomes **BBT**; the address is `app.bbt.team`; app and notification icon = full bike logo on Light Blue | 2026-10-13 |
@@ -76,11 +76,10 @@ Every open question from the design review, with what was decided. Details live 
 | Notification buttons | Still in / I'm out on changes to activities you're In for; I'm out answers from the notification, Still in only closes it | 2026-10-13 |
 | Native approach | Capacitor around the existing web app; the app loads `app.bbt.team`, so web deploys reach it without a new APK | 2026-10-13 |
 | Android | Signed APK from a download page on app.bbt.team, built by GitHub Actions; push via Firebase (free); native Google sign-in; no Play account for now | 2026-10-13 |
-| iPhone | Stays the Home Screen web app until the Apple fee ($99/year) or a nonprofit waiver is settled; then the same Capacitor project, unlisted App Store link | 2026-10-13 |
 | Leave-by alerts | Not now (backlog; would need location and a traffic API) | 2026-10-13 |
 | Android build | Capacitor 8; one in-app plugin (version, Firebase, Google sign-in, share, open outside) rather than several npm plugins; data-only Firebase messages drawn by the app so Still in / I'm out work in the background | 2026-10-13 |
 | APK hosting | Built in its own Deploy job and served with the site at /download/ (no Releases, R2 or KV); a failed Android build shows red but doesn't block the web deploy | 2026-10-13 |
-| iPhone for now | The Home Screen web app, with an install hint in iPhone browsers (Not now = 30 days) and the Welcome sheet on first open; native app later | 2026-10-13 |
+| iPhone | The Home Screen web app for now, with an install hint in iPhone browsers (Not now = 30 days) and the Welcome sheet on first open; once the Apple fee ($99/year) or a nonprofit waiver is settled, the same Capacitor project with an unlisted App Store link | 2026-10-13 |
 | Firebase key | A service account with only "Firebase Cloud Messaging API Admin", not the Admin SDK key | 2026-10-13 |
 
 ## Notes

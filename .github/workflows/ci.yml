@@ -11,7 +11,7 @@ permissions:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'push' }}
+  cancel-in-progress: ${{ github.workflow == 'CI' }} # not when deploy.yml calls it
 
 jobs:
   check:

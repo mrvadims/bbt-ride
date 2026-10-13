@@ -57,11 +57,19 @@ const stamp = (iso: string) => `${iso.replace(/[-:]/g, "").slice(0, 15)}Z`;
 
 /** RFC 5545 line folding: at most 75 bytes per line, continuations start with a space. */
 export function fold(line: string): string {
+  // Printable ASCII (most lines): one byte per character, so cut by length.
+  if (!/[^ -~]/.test(line)) {
+    if (line.length <= 75) return line;
+    const out = [line.slice(0, 75)];
+    for (let i = 75; i < line.length; i += 74) out.push(` ${line.slice(i, i + 74)}`);
+    return out.join("\r\n");
+  }
   const parts: string[] = [];
   let cur = "";
   let bytes = 0;
   for (const ch of line) {
-    const n = new TextEncoder().encode(ch).length;
+    const c = ch.codePointAt(0) ?? 0; // UTF-8 length, without an encoder per character (the feed's CPU budget is small)
+    const n = c < 0x80 ? 1 : c < 0x800 ? 2 : c < 0x10000 ? 3 : 4;
     if (bytes + n > 75) {
       parts.push(cur);
       cur = " ";

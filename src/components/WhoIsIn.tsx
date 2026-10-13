@@ -46,7 +46,7 @@ export function WhoIsIn({ act, me, past }: { act: ActivityDetail; me: Me; past: 
 
   const msg = (m: Message, isReply: boolean) => {
     const replies = isReply ? [] : act.messages.filter((r) => r.parentId === m.id);
-    const canEdit = m.kind === "user" && !m.deleted && m.authorId === me.id && !past;
+    const canEdit = m.kind === "user" && !m.deleted && m.authorId === me.id && open;
     // Authors delete their own on upcoming activities; editors and admins can always delete (moderation).
     const canDelete = m.kind === "user" && !m.deleted && (me.role !== "view" || (m.authorId === me.id && !past));
     return (
@@ -156,7 +156,7 @@ export function WhoIsIn({ act, me, past }: { act: ActivityDetail; me: Me; past: 
   return (
     <Panel
       id="people"
-      label="Who’s in"
+      label="Who's in"
       summary={
         <>
           <b>
@@ -166,10 +166,20 @@ export function WhoIsIn({ act, me, past }: { act: ActivityDetail; me: Me; past: 
           {open && (
             <div className="sw">
               <div className="seg" role="group" aria-label="Your RSVP">
-                <button type="button" aria-pressed={mine?.status === "in"} onClick={() => rsvp("in")}>
+                <button
+                  type="button"
+                  aria-pressed={mine?.status === "in"}
+                  disabled={call.isPending}
+                  onClick={() => rsvp("in")}
+                >
                   In
                 </button>
-                <button type="button" aria-pressed={mine?.status === "out"} onClick={() => rsvp("out")}>
+                <button
+                  type="button"
+                  aria-pressed={mine?.status === "out"}
+                  disabled={call.isPending}
+                  onClick={() => rsvp("out")}
+                >
                   Out
                 </button>
               </div>
@@ -180,6 +190,7 @@ export function WhoIsIn({ act, me, past }: { act: ActivityDetail; me: Me; past: 
                       key={r.label}
                       type="button"
                       aria-pressed={mine.routeLabel === r.label}
+                      disabled={call.isPending}
                       onClick={() =>
                         call.mutate({
                           path: `/activities/${act.id}/rsvp`,
@@ -195,14 +206,14 @@ export function WhoIsIn({ act, me, past }: { act: ActivityDetail; me: Me; past: 
               )}
             </div>
           )}
+          {error && ( // in the header, so a failed In / Out shows even while the panel is closed
+            <p className="tiny" role="alert" style={{ color: "var(--no-fg)", margin: "6px 0 0" }}>
+              {error}
+            </p>
+          )}
         </>
       }
     >
-      {error && (
-        <p className="tiny" role="alert" style={{ color: "var(--no-fg)", margin: "0 0 8px" }}>
-          {error}
-        </p>
-      )}
       <div className="people">
         <div>
           <div className="sub-h">In ({ins.length})</div>

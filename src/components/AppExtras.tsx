@@ -54,7 +54,7 @@ export function AppExtras({ me }: { me: Me }) {
     <>
       {update && (
         <div className="notice" role="status">
-          A new version of the BBT app ({update}) is out.{" "}
+          <b>Update available:</b> BBT for Android {update}.{" "}
           <button type="button" className="linkbtn" onClick={() => openExternal("/download/")}>
             Update
           </button>

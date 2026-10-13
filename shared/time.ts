@@ -1,4 +1,4 @@
-// All ride times are America/New_York wall-clock: a date "YYYY-MM-DD" plus minutes after midnight.
+// All activity times are America/New_York wall-clock: a date "YYYY-MM-DD" plus minutes after midnight.
 import { z } from "zod";
 
 export const TZ = "America/New_York";
@@ -25,17 +25,17 @@ function nyParts(t: Date): WallTime {
 
 export const nyNow = (): WallTime => nyParts(new Date());
 
-/** UTC instant of a New York wall-clock time (DST-aware): start from UTC, correct by the observed offset. */
+// US Eastern daylight time (UTC−4) runs from the second Sunday of March to the first Sunday of November, 02:00 local;
+// otherwise standard time (UTC−5). Plain arithmetic: Intl takes ~16 µs a call, too slow for a 100-event calendar feed.
+const sunday = (y: number, month: number, nth: number) =>
+  1 + ((7 - new Date(Date.UTC(y, month, 1)).getUTCDay()) % 7) + 7 * (nth - 1);
+
+/** UTC instant of a New York wall-clock time (DST-aware; the repeated 1–2 AM in November counts as daylight time). */
 export function nyToUTC(date: string, min: number): Date {
   const [y, m, d] = date.split("-").map(Number) as [number, number, number];
-  const want = Date.UTC(y, m - 1, d, 0, Math.round(min));
-  let t = want;
-  for (let i = 0; i < 2; i++) {
-    const p = nyParts(new Date(t));
-    const [py, pm, pd] = p.date.split("-").map(Number) as [number, number, number];
-    t += want - Date.UTC(py, pm - 1, pd, 0, p.min);
-  }
-  return new Date(t);
+  const wall = Date.UTC(y, m - 1, d, 0, Math.round(min)); // the wall-clock reading, as if it were UTC
+  const dst = wall >= Date.UTC(y, 2, sunday(y, 2, 2), 2) && wall < Date.UTC(y, 10, sunday(y, 10, 1), 2);
+  return new Date(wall + (dst ? 4 : 5) * 3_600_000);
 }
 
 export const pad = (n: number): string => String(n).padStart(2, "0");

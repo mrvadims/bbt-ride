@@ -11,7 +11,8 @@ if [[ -z "${ANDROID_KEYSTORE_BASE64:-}" ]]; then
   exit 0
 fi
 
-export ANDROID_KEYSTORE_FILE="$RUNNER_TEMP/bbt-release.jks"
+export ANDROID_KEYSTORE_FILE="${RUNNER_TEMP:-/tmp}/bbt-release.jks"
+trap 'rm -f "$ANDROID_KEYSTORE_FILE" android/app/google-services.json' EXIT
 base64 -d <<<"$ANDROID_KEYSTORE_BASE64" >"$ANDROID_KEYSTORE_FILE"
 if [[ -n "${GOOGLE_SERVICES_JSON:-}" ]]; then
   printf '%s' "$GOOGLE_SERVICES_JSON" >android/app/google-services.json
@@ -28,6 +29,10 @@ cp android/app/build/outputs/apk/release/app-release.apk "$out/bbt.apk"
 code=$(sed -n 's/^ *versionCode \([0-9]*\).*/\1/p' android/app/build.gradle)
 name=$(sed -n 's/^ *versionName "\(.*\)".*/\1/p' android/app/build.gradle)
 printf '{"versionCode":%s,"versionName":"%s"}\n' "$code" "$name" >"$out/android.json"
-rm -f "$ANDROID_KEYSTORE_FILE" android/app/google-services.json
+# Workers static assets are limited to 25 MiB per file.
+if (($(stat -c %s "$out/bbt.apk") > 25 * 1024 * 1024)); then
+  echo "::error::bbt.apk is over 25 MiB, too big for the site"
+  exit 1
+fi
 echo "Built BBT for Android $name ($code), $(du -h "$out/bbt.apk" | cut -f1)"
 echo "built=true" >>"${GITHUB_OUTPUT:-/dev/null}"

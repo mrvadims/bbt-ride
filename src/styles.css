@@ -250,7 +250,7 @@ main {
   background: var(--primary-hover);
 }
 .btn-outline {
-  background: transparent;
+  background: var(--card);
   color: var(--link);
   border-color: var(--line);
 }

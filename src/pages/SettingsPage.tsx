@@ -29,10 +29,14 @@ import { api } from "../lib/api.ts";
 import { refreshSpots, type SpotWithState, useSpots, useTeam } from "../lib/data.ts";
 
 function useCopyLink() {
-  const [shown, setShown] = useState<string | null>(null);
+  const [shown, setShown] = useState<{ url: string; copied: boolean } | null>(null);
+  // The link arrives after a network call; Safari may refuse the clipboard then, so say only what happened.
   const copy = async (url: string) => {
-    setShown(url);
-    await navigator.clipboard?.writeText(url).catch(() => undefined);
+    const copied = await (navigator.clipboard?.writeText(url) ?? Promise.reject()).then(
+      () => true,
+      () => false,
+    );
+    setShown({ url, copied });
   };
   return { shown, copy, clear: () => setShown(null) };
 }
@@ -67,8 +71,9 @@ function Users({ me }: { me: Me }) {
     >
       {link.shown && (
         <div className="notice">
-          <b>Link copied.</b> Send it to the person yourself (it works once):
-          <input readOnly value={link.shown} onFocus={(e) => e.target.select()} style={{ marginTop: 6 }} />
+          <b>{link.shown.copied ? "Link copied." : "Copy this link."}</b> Send it to the person yourself (it works
+          once):
+          <input readOnly value={link.shown.url} onFocus={(e) => e.target.select()} style={{ marginTop: 6 }} />
           <button type="button" className="linkbtn" onClick={link.clear}>
             Done
           </button>

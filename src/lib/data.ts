@@ -29,7 +29,7 @@ export const useActivities = () =>
 export const usePast = () =>
   useQuery({ queryKey: ["activities", "past"], queryFn: () => api<Activity[]>("/activities/past") });
 
-/** One activity with RSVPs and messages; refreshed every 30 s while the page is open (DESIGN.md → Rides, Who's in). */
+/** One activity with RSVPs and messages; refreshed every 30 s while the page is open (DESIGN.md → v1 scope → Rides, Who's in). */
 export const useActivity = (id: string | null | undefined) =>
   useQuery({
     queryKey: ["activity", id],

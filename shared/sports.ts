@@ -35,7 +35,7 @@ export const START_LABEL: Record<Sport, string> = {
 };
 /** Default length for sports without a route, minutes (ride and run end when their route says). */
 export const defaultLength = (s: Sport): number => (hasRoute(s) ? 120 : DEFAULT_LENGTH_MIN[s]);
-export const DEFAULT_LENGTH_MIN: Record<Exclude<Sport, "ride" | "run">, number> = {
+const DEFAULT_LENGTH_MIN: Record<Exclude<Sport, "ride" | "run">, number> = {
   swim: 60,
   pickleball: 120,
   ski: 600,
@@ -60,7 +60,7 @@ export const GROUP_LABEL: Record<Group, string> = {
   ski: "Ski",
   outdoor: "Other outdoor",
 };
-export const groupOf = (s: Sport): Group => (s === "ride" || s === "run" || s === "ski" ? s : "outdoor");
+const groupOf = (s: Sport): Group => (s === "ride" || s === "run" || s === "ski" ? s : "outdoor");
 
 /** Amber and red thresholds for one weather group. Cold uses the group's feel (bike feel, run feel or real feel). */
 export const warnSchema = z.object({

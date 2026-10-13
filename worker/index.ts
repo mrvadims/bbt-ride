@@ -2,6 +2,7 @@
 
 import { APIError } from "better-auth/api";
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import { HTTPException } from "hono/http-exception";
 import { secureHeaders } from "hono/secure-headers";
 import { type AppEnv, requireSession, sameOrigin, withAuth } from "./app.ts";
@@ -36,6 +37,13 @@ app.onError((err, c) => {
 app.notFound((c) => c.json({ error: "Not found" }, 404));
 
 app.use(secureHeaders()); // nosniff, frame and referrer protections on API responses
+// No request the app makes comes near this; larger bodies are refused before anything parses them.
+app.use(bodyLimit({ maxSize: 64 * 1024, onError: (c) => c.json({ error: "Request too large" }, 413) }));
+
+// Public, read-only and without Better Auth (it costs CPU on every request that builds it)
+app.get("/health", (c) => c.json({ ok: true }));
+app.route("/cal", calendar); // calendar apps fetch the private feed without a session
+
 app.use(withAuth);
 // Better Auth's admin endpoints (impersonation, setting passwords, …) aren't used by the app, which calls the ones it needs
 // on the server from /api/users with its own checks and audit log; keep them unreachable from browsers.
@@ -43,10 +51,8 @@ app.all("/auth/admin/*", (c) => c.json({ error: "Not found" }, 404));
 app.on(["GET", "POST"], "/auth/*", (c) => c.get("auth").handler(c.req.raw)); // Better Auth checks its own origins
 app.use(sameOrigin);
 
-// Public
-app.get("/health", (c) => c.json({ ok: true }));
+// Public: the invite and reset pages
 app.route("/links", links);
-app.route("/cal", calendar); // calendar apps fetch the private feed without a session
 
 // Signed in
 app.use(requireSession);

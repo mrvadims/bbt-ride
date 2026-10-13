@@ -57,10 +57,10 @@ export function WarningBoxes({ list, u, lookback }: { list: Warning[]; u: Units;
   if (!list.length) return null;
   return (
     <section className="warns" aria-label="Warnings">
-      {list.map((w) => {
+      {list.map((w, i) => {
         const t = warningText(w, u, lookback);
         return (
-          <div key={t.title} className={`warn lv${w.level}`}>
+          <div key={`${w.kind}-${i}`} className={`warn lv${w.level}`}>
             <LevelIcon level={w.level} />
             <div>
               <b>{t.title}</b>
@@ -86,10 +86,10 @@ export function WarningChips({ list, u, lookback }: { list: Warning[]; u: Units;
   if (!list.length) return null;
   return (
     <span className="chips">
-      {list.map((w) => {
+      {list.map((w, i) => {
         const t = warningText(w, u, lookback);
         return (
-          <Pill key={t.short} level={w.level}>
+          <Pill key={`${w.kind}-${i}`} level={w.level}>
             {t.short}
           </Pill>
         );

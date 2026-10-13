@@ -104,7 +104,7 @@ await shot(page, "plan");
 await publishBtn.click();
 await page.waitForURL("**/a/*");
 const rideUrl = page.url();
-for (const p of ["Meet", "Route", "Weather", "Notes", "Who’s in"])
+for (const p of ["Meet", "Route", "Weather", "Notes", "Who's in"])
   check(await page.getByRole("button", { name: p, exact: true }).isVisible(), `ride page: ${p} panel`);
 for (const t of ["Directions", "Calendar", "Share"])
   check(await page.getByRole("button", { name: t, exact: true }).isVisible(), `action row: ${t}`);
@@ -121,7 +121,7 @@ check(
 await page.getByRole("button", { name: "In", exact: true }).click();
 await page.getByText("1 in").waitFor();
 check(true, "RSVP In updates the count");
-await page.getByRole("button", { name: "Who’s in", exact: true }).click();
+await page.getByRole("button", { name: "Who's in", exact: true }).click();
 await page.getByPlaceholder("Message the team").fill("See you at 8:30!");
 await page.getByRole("button", { name: "Send" }).click();
 await page.getByText("See you at 8:30!").waitFor();
@@ -251,7 +251,12 @@ check(await hint.getByText("Add to Home Screen").isVisible(), "iPhone browser sh
 await shot(ipage, "iphone-install-hint");
 await hint.getByRole("button", { name: "Not now" }).click();
 await ipage.reload();
-await ipage.getByRole("link", { name: "BBT home" }).waitFor();
+// The hint and the Welcome sheet need the account; wait for it (and the async notification check) before looking.
+const settled = async () => {
+  await ipage.getByRole("button", { name: "Account menu" }).waitFor();
+  await ipage.waitForTimeout(800);
+};
+await settled();
 check(!(await hint.count()), "Not now hides the install hint");
 // iPhone Home Screen app: a Welcome sheet on first open (notifications, calendar), then never again
 await ipage.addInitScript(() => Object.defineProperty(navigator, "standalone", { get: () => true }));
@@ -265,7 +270,7 @@ check(
 await shot(ipage, "iphone-welcome");
 await welcome.getByRole("button", { name: "Done" }).click();
 await ipage.reload();
-await ipage.getByRole("link", { name: "BBT home" }).waitFor();
+await settled();
 check(!(await welcome.count()), "the Welcome sheet shows once");
 await iphone.close();
 

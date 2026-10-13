@@ -142,6 +142,25 @@ describe("warnings", () => {
 });
 
 describe("time", () => {
+  it("matches the time zone database every half hour for five years", () => {
+    const fmt = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/New_York",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    });
+    for (let t = Date.UTC(2026, 0, 1); t < Date.UTC(2031, 0, 1); t += 1_800_000) {
+      const p = Object.fromEntries(fmt.formatToParts(new Date(t)).map((x) => [x.type, x.value]));
+      const date = `${p.year}-${p.month}-${p.day}`;
+      const min = Number(p.hour) * 60 + Number(p.minute);
+      const back = nyToUTC(date, min).getTime();
+      // The repeated hour in November maps to its first (daylight) occurrence.
+      expect(back === t || back === t - 3_600_000).toBe(true);
+    }
+  });
   it("converts New York wall-clock to UTC across DST", () => {
     expect(nyToUTC("2026-10-10", 510).toISOString()).toBe("2026-10-10T12:30:00.000Z");
     expect(nyToUTC("2026-12-12", 510).toISOString()).toBe("2026-12-12T13:30:00.000Z");
@@ -204,6 +223,11 @@ describe("settings checks", () => {
 
 describe(".ics line folding", () => {
   it("keeps short lines", () => expect(fold("SUMMARY:Ride")).toBe("SUMMARY:Ride"));
+  it("folds long ASCII lines at 75 bytes", () => {
+    const lines = fold(`DESCRIPTION:${"x".repeat(200)}`).split("\r\n");
+    expect(lines.map((l) => l.length)).toEqual([75, 75, 64]);
+    expect(lines.map((l, i) => (i ? l.slice(1) : l)).join("")).toBe(`DESCRIPTION:${"x".repeat(200)}`);
+  });
   it("folds at 75 bytes without splitting a character", () => {
     const lines = fold(`DESCRIPTION:${"é".repeat(60)}`).split("\r\n");
     expect(lines.length).toBe(2);
@@ -232,6 +256,14 @@ describe(".ics calendar", () => {
     expect(ics).toContain("STATUS:CONFIRMED");
     expect(ics).not.toContain("X-WR-CALNAME");
     expect(ics.endsWith("END:VCALENDAR\r\n")).toBe(true);
+  });
+  it("builds a full feed (100 long events) quickly: the Worker has about 10 ms of CPU", () => {
+    const events = Array.from({ length: 100 }, (_, i) => ({ ...ev, id: `a${i}`, details: "é—x ".repeat(200) }));
+    icsCalendar(events, true); // warm up
+    const t = performance.now();
+    const ics = icsCalendar(events, true);
+    expect(performance.now() - t).toBeLessThan(25); // was ~45 ms before fold() stopped encoding per character
+    for (const line of ics.split("\r\n")) expect(new TextEncoder().encode(line).length).toBeLessThanOrEqual(75);
   });
   it("marks a cancelled activity and names the feed", () => {
     const ics = icsCalendar([{ ...ev, cancelled: true, updatedAt: "2026-10-15T10:00:00.000Z" }], true);

@@ -16,5 +16,5 @@
     "resolveJsonModule": true,
     "allowImportingTsExtensions": true
   },
-  "include": ["vite.config.ts", "vitest.config.ts", "test", "scripts"]
+  "include": ["vite.config.ts", "vitest.config.ts", "capacitor.config.ts", "test", "scripts"]
 }
