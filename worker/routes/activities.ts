@@ -7,6 +7,7 @@ import {
   activityInput,
   activityName,
   activityUpdate,
+  type HistoryEntry,
   type Message,
   messageEdit,
   messageInput,
@@ -141,7 +142,7 @@ const NOT_FOUND = "Activity not found";
 async function detail(db: D1Database, id: string): Promise<ActivityDetail> {
   const [act] = await summaries(db, "a.id = ?", [id]);
   if (!act) return fail(404, NOT_FOUND);
-  const [rsvps, messages] = await Promise.all([
+  const [rsvps, messages, made, changes] = await Promise.all([
     db
       .prepare(
         `select v.user_id, u.name, v.status, v.route_label from rsvps v join "user" u on u.id = v.user_id where v.activity_id = ? order by v.updated_at`,
@@ -155,9 +156,21 @@ async function detail(db: D1Database, id: string): Promise<ActivityDetail> {
       )
       .bind(id)
       .all<MessageRow>(),
+    db
+      .prepare(`select a.created_at, u.name from activities a left join "user" u on u.id = a.created_by where a.id = ?`)
+      .bind(id)
+      .first<{ created_at: string; name: string | null }>(),
+    db
+      .prepare(
+        `select l.action, l.at, u.name from audit_log l left join "user" u on u.id = l.user_id
+         where l.entity = 'activity' and l.entity_id = ? and l.action in ('update', 'cancel', 'restore') order by l.at`,
+      )
+      .bind(id)
+      .all<{ action: "update" | "cancel" | "restore"; at: string; name: string | null }>(),
   ]);
   return {
     ...act,
+    history: history(made, changes.results, messages.results),
     rsvps: rsvps.results.map(
       (v): Rsvp => ({ userId: v.user_id, name: v.name, status: v.status, routeLabel: v.route_label }),
     ),
@@ -175,6 +188,32 @@ async function detail(db: D1Database, id: string): Promise<ActivityDetail> {
       }),
     ),
   };
+}
+
+const HISTORY_MAX = 50;
+const ACTION = { update: "changed", cancel: "cancelled", restore: "restored" } as const;
+const near = (a: string, b: string) => Math.abs(Date.parse(a) - Date.parse(b)) < 5000;
+
+/** Who created the activity and every later change (audit log), newest first. An update's note (the system message
+ * written in the same batch) says what changed; a cancellation by Replace has no audit row of its own, only its note. */
+function history(
+  made: { created_at: string; name: string | null } | null,
+  changes: { action: "update" | "cancel" | "restore"; at: string; name: string | null }[],
+  messages: MessageRow[],
+): HistoryEntry[] {
+  const notes = messages.filter((m) => m.kind !== "user");
+  const out: HistoryEntry[] = changes.map((c) => ({
+    at: c.at,
+    who: c.name,
+    action: ACTION[c.action],
+    text:
+      c.action === "update" ? (notes.find((m) => m.kind === "update" && near(m.created_at, c.at))?.body ?? null) : null,
+  }));
+  for (const m of notes)
+    if (m.kind === "cancel" && !changes.some((c) => c.action === "cancel" && near(c.at, m.created_at)))
+      out.push({ at: m.created_at, who: null, action: "replaced", text: null });
+  if (made) out.push({ at: made.created_at, who: made.name, action: "created", text: null });
+  return out.sort((a, b) => b.at.localeCompare(a.at)).slice(0, HISTORY_MAX);
 }
 
 /** The same sport's published activity on that day (one per sport per day), other than `except`. */

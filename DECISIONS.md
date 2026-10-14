@@ -88,6 +88,7 @@ Every open question from the design review, with what was decided. Details live 
 | Sport icons | Google Material Symbols (Rounded, Apache 2.0), copied in as SVG paths rather than custom drawings: every BBT sport has one, including pickleball, and about 40 more cover future sports. Other is a circle with three dots; an editor can pick another icon for an Other activity (stored per activity). Same shapes on www.bbt.team | 2026-10-14 |
 | Tester feedback, first round | Built: going count + You're in on Home, place search in Plan, tappable links, one date field with weekend chips. Deferred: multi-day and all-day events, recurring events, a month view (until a real need shows) | 2026-10-14 |
 | Triathlon | Added as a sport, on by default: race start/end, place, details, Other outdoor weather, no route. Icon made from Material's swim, run and bike shapes (Material has no triathlon icon). The database no longer fixes the list of sports; the API does | 2026-10-14 |
+| Who created and changed an activity | A quiet, closed History panel at the end of the activity page and the Edit screen (design H of three rounds), built from the audit log; chosen over bylines and chips so the record doesn't compete with the activity | 2026-10-14 |
 | Firebase key | A service account with only "Firebase Cloud Messaging API Admin", not the Admin SDK key | 2026-10-13 |
 
 ## Notes

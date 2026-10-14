@@ -12,12 +12,13 @@ export function Panel(props: {
   children: ReactNode;
   collapsed?: boolean; // start closed even on desktop
   titled?: boolean; // label shown as a title (long names) instead of a small caps tag
+  quiet?: boolean; // record-keeping (History): no card fill or shadow, smaller grey text
 }) {
   const { panels } = usePrefs();
   const open = panels[props.id] ?? (props.collapsed ? false : wide());
   const toggle = () => setPref("panels", { ...panels, [props.id]: !open });
   return (
-    <section className={`panel${props.titled ? " titled" : ""}`}>
+    <section className={`panel${props.titled ? " titled" : ""}${props.quiet ? " quiet" : ""}`}>
       {/* The whole header toggles; the button carries the accessible state. Links and controls inside the summary keep working. */}
       {/* biome-ignore lint/a11y/useKeyWithClickEvents lint/a11y/noStaticElementInteractions: the button inside handles keyboard use */}
       <div

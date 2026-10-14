@@ -3,6 +3,7 @@ import { useState } from "react";
 import type { ActivityDetail, Me } from "../../shared/api.ts";
 import { fmtStamp, nyNow } from "../../shared/time.ts";
 import { ActionRow, ActivityBody, ActivityHeader } from "../components/ActivityBody.tsx";
+import { History } from "../components/History.tsx";
 import { LevelIcon } from "../components/icons.tsx";
 import { WhoIsIn } from "../components/WhoIsIn.tsx";
 import { useActivityModel } from "../lib/activityModel.ts";
@@ -55,6 +56,7 @@ function View({ act, me }: { act: ActivityDetail; me: Me }) {
         routeIndex={routeIndex}
         onRouteIndex={setRouteIndex}
         people={<WhoIsIn act={act} me={me} past={past} />}
+        history={<History act={act} id="history" />}
       />
     </>
   );

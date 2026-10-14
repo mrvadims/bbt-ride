@@ -132,6 +132,11 @@ check(
   "weather summary in the Weather header",
 );
 
+await page.getByRole("button", { name: "History", exact: true }).click();
+check(await page.getByText("created it").isVisible(), "History panel lists who created it");
+await shot(page, "history");
+await page.getByRole("button", { name: "History", exact: true }).click();
+
 // RSVP and messages
 await page.getByRole("button", { name: "In", exact: true }).click();
 await page.getByText("1 in").waitFor();

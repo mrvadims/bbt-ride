@@ -428,6 +428,18 @@ const upd = await admin(`/api/activities/${id}`, {
 });
 check(upd.json?.lastUpdate?.text?.includes("meet 8:30 AM → 9:00 AM"), "update posts what changed");
 check(upd.json.rsvps.length === 1, "RSVPs kept after an update");
+{
+  const h = upd.json.history as Json[];
+  check(
+    h?.length === 2 &&
+      h[0].action === "changed" &&
+      h[0].text?.includes("meet 8:30 AM → 9:00 AM") &&
+      h[1].action === "created" &&
+      h[0].who &&
+      h[1].who === h[0].who,
+    `History: created, then changed with what changed (${JSON.stringify(h?.map((x) => x.action))})`,
+  );
+}
 check(
   (await admin(`/api/activities/${id}`, { method: "PUT", body: { ...plan, notes: "stale", baseUpdatedAt: base } }))
     .status === 409,
