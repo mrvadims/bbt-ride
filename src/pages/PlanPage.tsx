@@ -62,7 +62,7 @@ import {
   useRoute,
   useRouteSearch,
   useSpots,
-  useTeam,
+  useTeamSettings,
   useWeather,
 } from "../lib/data.ts";
 import { setPref, usePrefs } from "../lib/prefs.ts";
@@ -205,7 +205,7 @@ export function PlanPage() {
   const { query } = useLocation();
   const qc = useQueryClient();
   const prefs = usePrefs();
-  const team = useTeam().data;
+  const team = useTeamSettings().data;
   const me = useMe().data;
   const spots = useSpots().data;
   const wq = useWeather();
@@ -401,7 +401,7 @@ export function PlanPage() {
 
   const publish = useMutation({
     mutationFn: async (replaceId: string | null) => {
-      if (!form || !draft) throw new Error(routed ? "Pick a start spot and a route" : "Pick a place");
+      if (!form || !draft) throw new Error(routed ? "Pick a start place and a route" : "Pick a place");
       if (form.altOn && form.altId && !altRoute) throw new Error("The alternate route hasn't loaded yet");
       const body: ActivityUpdate = {
         ...draft,
@@ -951,7 +951,7 @@ export function PlanPage() {
               text={
                 !form.spotId
                   ? routed
-                    ? "Pick a start spot and a route to see the preview."
+                    ? "Pick a start place and a route to see the preview."
                     : "Pick a place to see the preview."
                   : routed
                     ? "Pick a route to see the preview."
@@ -1003,34 +1003,39 @@ export function PlanPage() {
                     Replace {activityName(clash)}
                   </button>
                 )}
-                {editingAct && (
-                  <button
-                    type="button"
-                    className="btn btn-outline"
-                    disabled={toggleCancel.isPending}
-                    onClick={() => toggleCancel.mutate(editingAct)}
-                  >
-                    {editingAct.status === "cancelled" ? `Restore ${sportName}` : `Cancel ${sportName}`}
-                  </button>
-                )}
               </div>
               {clash && (
                 <p className="tiny muted" style={{ margin: "8px 0 0" }}>
-                  Replace cancels {activityName(clash)} and tells the {clash.counts.in} going.
+                  Replace cancels {activityName(clash)}; like any cancellation, everyone is told.
                 </p>
               )}
-              {editingAct && me?.role === "admin" && (
+            </>
+          )}
+          {/* Outside the preview, so an activity whose route or times won't load can still be cancelled or deleted */}
+          {editingAct && (
+            <>
+              <div className="btnrow" style={{ marginTop: 12 }}>
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  disabled={toggleCancel.isPending}
+                  onClick={() => toggleCancel.mutate(editingAct)}
+                >
+                  {editingAct.status === "cancelled" ? `Restore ${sportName}` : `Cancel ${sportName}`}
+                </button>
+              </div>
+              {me?.role === "admin" && (
                 <DeleteActivity
                   act={editingAct}
                   sportName={sportName}
+                  meId={me.id}
+                  onDeleted={dropDraft}
                   onCancelInstead={() => toggleCancel.mutate(editingAct)}
                 />
               )}
-              {editingAct && (
-                <div style={{ marginTop: 16 }}>
-                  <History act={editingAct} id="plan-history" />
-                </div>
-              )}
+              <div style={{ marginTop: 16 }}>
+                <History act={editingAct} id="plan-history" />
+              </div>
             </>
           )}
         </div>

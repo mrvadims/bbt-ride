@@ -2,13 +2,11 @@
 // arrived since from other people. Before someone first opens an activity, their baseline stands in, so everything that
 // existed when markers started counts as seen.
 import type { Unseen } from "../shared/api.ts";
-import { nowIso } from "./util.ts";
-
-const NEAR_MS = 5000; // an audit row and its note are written in one batch
-const near = (a: string, b: string) => Math.abs(Date.parse(a) - Date.parse(b)) < NEAR_MS;
+import { firstName } from "../shared/people.ts";
+import { nowIso, sameBatch } from "./util.ts";
 
 /** The person's baseline, made the first time they're asked about. */
-export async function baseline(db: D1Database, userId: string): Promise<string> {
+async function baseline(db: D1Database, userId: string): Promise<string> {
   await db
     .prepare("insert into seen_baseline (user_id, at) values (?, ?) on conflict do nothing")
     .bind(userId, nowIso())
@@ -64,13 +62,13 @@ export async function markers(db: D1Database, userId: string, today: string): Pr
   for (const r of (msgs?.results ?? []) as { activity_id: string; name: string | null }[]) {
     const u = get(r.activity_id);
     u.messages++;
-    const name = (r.name ?? "Former member").split(" ")[0] ?? "";
+    const name = r.name ? firstName(r.name) : "a former member";
     if (!u.from.includes(name)) u.from.push(name);
   }
   // The latest change note since, unless the person made that change themselves.
   const own = (mine?.results ?? []) as { entity_id: string; at: string }[];
   for (const r of (notes?.results ?? []) as { activity_id: string; kind: string; body: string; created_at: string }[]) {
-    if (own.some((o) => o.entity_id === r.activity_id && near(o.at, r.created_at))) continue;
+    if (own.some((o) => o.entity_id === r.activity_id && sameBatch(o.at, r.created_at))) continue;
     const u = get(r.activity_id);
     if (u.isNew) continue; // a new activity's own story is "New"
     u.change = r.kind === "update" ? `Changed: ${r.body}` : r.kind === "cancel" ? "Cancelled" : "Back on";

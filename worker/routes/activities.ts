@@ -15,7 +15,7 @@ import {
   type Rsvp,
   rsvpInput,
 } from "../../shared/api.ts";
-import { mentionIds, plainMentions } from "../../shared/people.ts";
+import { firstName, mentionIds, plainMentions } from "../../shared/people.ts";
 import type { RideRoute } from "../../shared/ride.ts";
 import type { Icon } from "../../shared/sport-icons.ts";
 import { hasRoute, minPerMile, SPORT_LABEL, type Sport } from "../../shared/sports.ts";
@@ -23,7 +23,7 @@ import { dayLabel, fmtTime, hhmmToMin, nyNow } from "../../shared/time.ts";
 import { type AppEnv, can, requireRole } from "../app.ts";
 import { notifyActivity } from "../push.ts";
 import { markers, visit } from "../seen.ts";
-import { audit, fail, newId, nowIso } from "../util.ts";
+import { audit, fail, newId, nowIso, sameBatch } from "../util.ts";
 import { validate } from "../validate.ts";
 import { loadSettings } from "./settings.ts";
 
@@ -194,7 +194,6 @@ async function detail(db: D1Database, id: string): Promise<ActivityDetail> {
 
 const HISTORY_MAX = 50;
 const ACTION = { update: "changed", cancel: "cancelled", restore: "restored" } as const;
-const near = (a: string, b: string) => Math.abs(Date.parse(a) - Date.parse(b)) < 5000;
 
 /** Who created the activity and every later change (audit log), newest first. An update's note (the system message
  * written in the same batch) says what changed; a cancellation by Replace has no audit row of its own, only its note. */
@@ -209,10 +208,12 @@ function history(
     who: c.name,
     action: ACTION[c.action],
     text:
-      c.action === "update" ? (notes.find((m) => m.kind === "update" && near(m.created_at, c.at))?.body ?? null) : null,
+      c.action === "update"
+        ? (notes.find((m) => m.kind === "update" && sameBatch(m.created_at, c.at))?.body ?? null)
+        : null,
   }));
   for (const m of notes)
-    if (m.kind === "cancel" && !changes.some((c) => c.action === "cancel" && near(c.at, m.created_at)))
+    if (m.kind === "cancel" && !changes.some((c) => c.action === "cancel" && sameBatch(c.at, m.created_at)))
       out.push({ at: m.created_at, who: null, action: "replaced", text: null });
   if (made) out.push({ at: made.created_at, who: made.name, action: "created", text: null });
   return out.sort((a, b) => b.at.localeCompare(a.at)).slice(0, HISTORY_MAX);
@@ -327,12 +328,12 @@ async function notifyReplaced(env: Env, id: string) {
   if (old) await notifyActivity(env, id, subject(old, "Cancelled"), "Replaced by a new plan.");
 }
 
-/** Tells the people a message newly mentions (not its author), even if they muted the sport or aren't going. */
-async function notifyMentions(env: Env, activityId: string, authorId: string, body: string, before = "") {
-  const already = new Set(mentionIds(before));
-  const ids = mentionIds(body).filter((id) => id !== authorId && !already.has(id));
+/** Tells the people a new message mentions (not its author), even if they muted the sport or aren't going. Editing a
+ * message never notifies, so a mention can't be sent again and again. */
+async function notifyMentions(env: Env, activityId: string, authorId: string, body: string) {
+  const ids = mentionIds(body).filter((id) => id !== authorId);
   if (!ids.length) return;
-  const all = [...new Set([...mentionIds(body), authorId])];
+  const all = [...ids, authorId];
   const [{ results }, [act]] = await Promise.all([
     env.DB.prepare(`select id, name from "user" where id in (select value from json_each(?))`)
       .bind(JSON.stringify(all))
@@ -341,7 +342,7 @@ async function notifyMentions(env: Env, activityId: string, authorId: string, bo
   ]);
   if (!act) return;
   const names = new Map(results.map((r) => [r.id, r.name]));
-  const who = (names.get(authorId) ?? "Someone").split(" ")[0];
+  const who = firstName(names.get(authorId));
   const text = plainMentions(body, (id) => names.get(id));
   await notifyActivity(env, activityId, `${who} mentioned you · ${activityName(act)}`, text.slice(0, 300), {
     to: ids.filter((id) => names.has(id)),
@@ -357,8 +358,8 @@ export const activities = new Hono<AppEnv>()
       summaries(
         c.env.DB,
         `a.date >= ? and not (a.status = 'cancelled' and exists (select 1 from messages r where r.activity_id = a.id
-           and r.kind = 'cancel' and r.body = '${REPLACED_NOTE}'))`,
-        [today],
+           and r.kind = 'cancel' and r.body = ?))`,
+        [today, REPLACED_NOTE],
       ),
       c.env.DB.prepare(
         "select v.activity_id, v.status from rsvps v join activities a on a.id = v.activity_id where v.user_id = ? and a.date >= ?",
@@ -373,10 +374,13 @@ export const activities = new Hono<AppEnv>()
   .get("/past", async (c) =>
     c.json(await summaries(c.env.DB, "a.date < ?", [nyNow().date], "a.date desc, a.start_time desc", 200)),
   )
+  .get("/:id", async (c) => c.json(await detail(c.env.DB, c.req.param("id"))))
   // Opening an activity records the visit; the reply says when the viewer last caught up, for the "N new" divider.
-  .get("/:id", async (c) => {
-    const act = await detail(c.env.DB, c.req.param("id"));
-    return c.json({ ...act, seenBefore: await visit(c.env.DB, c.get("user").id, act.id) });
+  .post("/:id/seen", async (c) => {
+    const id = c.req.param("id");
+    const act = await c.env.DB.prepare("select 1 from activities where id = ?").bind(id).first();
+    if (!act) return fail(404, NOT_FOUND);
+    return c.json({ seenBefore: await visit(c.env.DB, c.get("user").id, id) });
   })
 
   .post("/", requireRole("edit"), validate("json", activityInput), async (c) => {
@@ -470,14 +474,12 @@ export const activities = new Hono<AppEnv>()
       throw e;
     });
     if (clash) c.executionCtx.waitUntil(notifyReplaced(c.env, clash.id));
-    if (what.length) {
-      const updated = await detail(c.env.DB, id);
+    const updated = await detail(c.env.DB, id);
+    if (what.length)
       c.executionCtx.waitUntil(
         notifyActivity(c.env, id, subject(updated, "Updated"), what.join(" · "), { answer: true }),
       );
-      return c.json(updated);
-    }
-    return c.json(await detail(c.env.DB, id));
+    return c.json(updated);
   })
 
   .post("/:id/cancel", requireRole("edit"), async (c) => {
@@ -633,7 +635,6 @@ export const messages = new Hono<AppEnv>()
     await c.env.DB.prepare("update messages set body = ?, edited_at = ? where id = ?")
       .bind(body, nowIso(), c.req.param("id"))
       .run();
-    c.executionCtx.waitUntil(notifyMentions(c.env, m.activity_id, c.get("user").id, body, m.body)); // only newly mentioned
     return c.json(await detail(c.env.DB, m.activity_id));
   })
   .delete("/:id", async (c) => {

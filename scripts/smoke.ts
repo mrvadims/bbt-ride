@@ -183,7 +183,7 @@ check(
   "names over 80 characters refused",
 );
 check(
-  (await rider("/api/auth/update-user", { body: { name: "Ride update" } })).status === 400,
+  (await rider("/api/auth/update-user", { body: { name: "Former member" } })).status === 400,
   "system labels refused as names",
 );
 const evilPush = await rider("/api/push", {
@@ -338,11 +338,16 @@ const unseen = async () => ((await rider("/api/activities")).json as Json[]).fin
 {
   const u = await unseen();
   check(u?.isNew === true && u.by === "Admin", `a ride posted by someone else shows as New (${JSON.stringify(u)})`);
+  await rider(`/api/activities/${id}`);
+  check((await unseen())?.isNew === true, "just reading it (Plan, refreshes) doesn't count as opening it");
   check(
     ((await admin("/api/activities")).json as Json[]).find((a) => a.id === id)?.unseen === null,
     "your own post isn't new to you",
   );
-  check((await rider(`/api/activities/${id}`)).json.seenBefore === null, "opening it says it was new to you");
+  check(
+    (await rider(`/api/activities/${id}/seen`, { body: {} })).json.seenBefore === null,
+    "opening it says it was new to you",
+  );
   check((await unseen()) === null, "…and clears its marker");
 }
 {
@@ -494,6 +499,11 @@ check(
     "a mention is stored as a token that follows the person",
   );
   const mid = r.json.messages.find((m: Json) => m.body === `Pump? <@${me.id}>`).id;
+  const many = Array.from({ length: 11 }, (_, i) => `<@u${i}>`).join(" ");
+  check(
+    (await rider(`/api/activities/${id}/messages`, { body: { body: many, parentId: null } })).status === 400,
+    "at most 10 people mentioned in one message",
+  );
   await rider(`/api/messages/${mid}`, { method: "DELETE" });
 }
 {
@@ -502,7 +512,7 @@ check(
     u?.messages === 1 && u.from.join() === "Admin" && !u.isNew,
     `other people's new messages are counted, your own aren't (${JSON.stringify(u)})`,
   );
-  const seen = (await rider(`/api/activities/${id}`)).json.seenBefore;
+  const seen = (await rider(`/api/activities/${id}/seen`, { body: {} })).json.seenBefore;
   check(typeof seen === "string" && (await unseen()) === null, "opening it again clears the count");
 }
 
@@ -517,7 +527,7 @@ check(
   (await unseen())?.change === "Changed: meet 8:30 AM → 9:00 AM",
   "a change by someone else is marked with what changed",
 );
-await rider(`/api/activities/${id}`);
+await rider(`/api/activities/${id}/seen`, { body: {} });
 {
   const h = upd.json.history as Json[];
   check(

@@ -3,6 +3,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import type { ActivityDetail, Me, Message } from "../../shared/api.ts";
+import { FORMER_MEMBER } from "../../shared/people.ts";
 import { fmtStamp } from "../../shared/time.ts";
 import { api } from "../lib/api.ts";
 import { useMembers } from "../lib/data.ts";
@@ -65,11 +66,11 @@ export function WhoIsIn({
         );
   const firstNew = fresh[0]?.id;
 
-  const author = (m: Message) => (m.kind !== "user" ? "Update" : (m.authorName ?? "Former member"));
+  const author = (m: Message) => (m.kind !== "user" ? "Update" : (m.authorName ?? FORMER_MEMBER));
 
   const msg = (m: Message, isReply: boolean) => {
     const replies = isReply ? [] : act.messages.filter((r) => r.parentId === m.id);
-    const canEdit = m.kind === "user" && !m.deleted && m.authorId === me.id && open;
+    const canEdit = m.kind === "user" && !m.deleted && m.authorId === me.id && open && Boolean(members); // names for mentions
     // Authors delete their own on upcoming activities; editors and admins can always delete (moderation).
     const canDelete = m.kind === "user" && !m.deleted && (me.role !== "view" || (m.authorId === me.id && !past));
     return (
@@ -128,7 +129,7 @@ export function WhoIsIn({
             <button
               type="button"
               className="linkbtn"
-              onClick={() => setEditing({ id: m.id, body: bodyDraft(m.body, members) })}
+              onClick={() => members && setEditing({ id: m.id, body: bodyDraft(m.body, members) })}
             >
               Edit
             </button>

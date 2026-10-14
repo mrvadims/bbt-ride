@@ -6,7 +6,7 @@ import { type RideRoute, type RideTimes, type Route, rideTimes } from "../../sha
 import { hasRoute, rulesFor } from "../../shared/sports.ts";
 import { hhmmToMin } from "../../shared/time.ts";
 import { evaluate, warnings } from "../../shared/weather.ts";
-import { type SpotWithState, useRoute, useSpots, useTeam, useWeather } from "./data.ts";
+import { type SpotWithState, useRoute, useSpots, useTeamSettings, useWeather } from "./data.ts";
 import { usePrefs } from "./prefs.ts";
 
 /** The fields the model needs (a published activity or a draft from Plan). */
@@ -29,7 +29,7 @@ export type ActivityLike = Pick<
 
 export function useActivityModel(act: ActivityLike | null, routeIndex = 0) {
   const prefs = usePrefs();
-  const team = useTeam().data;
+  const team = useTeamSettings().data;
   const spots = useSpots().data;
   const weather = useWeather().data;
   // Ride and run have a main route and at most one alternate; both are loaded so names and the switcher are ready.

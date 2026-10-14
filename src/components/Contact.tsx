@@ -3,7 +3,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { type ContactFields, contactFields, type Me, ROLE_LABEL, type TeamMember } from "../../shared/api.ts";
-import { fmtPhone } from "../../shared/people.ts";
+import { firstName, fmtPhone } from "../../shared/people.ts";
 import { api } from "../lib/api.ts";
 import { useMembers } from "../lib/data.ts";
 import { PhoneIcon, TextIcon } from "./icons.tsx";
@@ -76,7 +76,7 @@ export function ContactForm({ me, first, onDone }: { me: Me; first?: boolean; on
     <form className="contact-form" onSubmit={save} noValidate>
       {first ? (
         <>
-          <h1>One more thing, {me.name.split(" ")[0]}</h1>
+          <h1>One more thing, {firstName(me.name)}</h1>
           <p className="muted small">
             Add your mobile number so teammates can reach you on the day. Everyone on the team can see it in Team, and
             your emergency contact too.
@@ -199,7 +199,7 @@ export function PersonButton({
 }) {
   const members = useMembers().data;
   const [open, setOpen] = useState(false);
-  const m = members?.find((x) => x.id === userId);
+  const m = members?.find((x) => x.id === userId && x.active);
   if (!m) return <span className={className}>{children}</span>;
   return (
     <>

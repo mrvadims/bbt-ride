@@ -1,4 +1,4 @@
-// Display formatting in the rider's units. All data is imperial (°F, mph, mi, ft, in); metric converts for display only.
+// Display formatting in the person's units. All data is imperial (°F, mph, mi, ft, in); metric converts for display only.
 import { FT_PER_M, M_PER_MI } from "../../shared/ride.ts";
 import type { Prefs } from "./prefs.ts";
 
@@ -14,7 +14,7 @@ export function units(u: Prefs["units"]) {
     speedUnit: m ? "km/h" : "mph",
     dist: (mi: number, digits = 1) => `${(m ? mi * KM_PER_MI : mi).toFixed(digits)} ${m ? "km" : "mi"}`,
     distUnit: m ? "km" : "mi",
-    mi: (mi: number) => (m ? mi * KM_PER_MI : mi), // a distance in the rider's unit, for charts
+    mi: (mi: number) => (m ? mi * KM_PER_MI : mi), // a distance in the person's unit, for charts
     marker: (mi: number) => (m ? `km ${(mi * KM_PER_MI).toFixed(1)}` : `mile ${mi.toFixed(1)}`), // a point along a route
     short: (meters: number) => (m ? `${Math.round(meters)} m` : `${Math.round(meters * FT_PER_M)} ft`),
     elev: (ft: number) => `${Math.round(m ? ft / FT_PER_M : ft).toLocaleString()} ${m ? "m" : "ft"}`,

@@ -1,7 +1,7 @@
 // @mentions (DESIGN.md → Mentions): a message box with a team picker, and message text that shows mentions and links.
 import { type KeyboardEvent, useId, useRef, useState } from "react";
-import type { TeamMember } from "../../shared/api.ts";
-import { encodeMentions, mentionIds, plainMentions, splitMentions } from "../../shared/people.ts";
+import { MESSAGE_MAX, type TeamMember } from "../../shared/api.ts";
+import { encodeMentions, FORMER_MEMBER, mentionIds, plainMentions, splitMentions } from "../../shared/people.ts";
 import { useMembers } from "../lib/data.ts";
 import { Initials } from "./Contact.tsx";
 import { Linkified } from "./Linkified.tsx";
@@ -14,9 +14,10 @@ export interface Draft {
 export const EMPTY_DRAFT: Draft = { text: "", picked: [] };
 /** The body to send: picked names become mention tokens. */
 export const draftBody = (d: Draft) => encodeMentions(d.text.trim(), d.picked);
-/** A stored body back into a draft, for editing. */
-export function bodyDraft(body: string, members: TeamMember[] | undefined): Draft {
-  const nameOf = (id: string) => members?.find((m) => m.id === id)?.name;
+/** A stored body back into a draft, for editing (once the team list has loaded; a deleted account's mention becomes
+ * plain text). */
+export function bodyDraft(body: string, members: TeamMember[]): Draft {
+  const nameOf = (id: string) => members.find((m) => m.id === id)?.name;
   return {
     text: plainMentions(body, nameOf),
     picked: mentionIds(body).flatMap((id) => {
@@ -58,7 +59,7 @@ export function MentionBox({
   const words = mention?.query.toLowerCase().split(/\s+/).filter(Boolean) ?? [];
   const matches = mention
     ? members
-        .filter((m) => m.id !== meId)
+        .filter((m) => m.active && m.id !== meId)
         .filter((m) => {
           const parts = m.name.toLowerCase().split(/\s+/);
           return words.every((w, i) => parts.some((p, j) => j >= i && p.startsWith(w)));
@@ -128,7 +129,7 @@ export function MentionBox({
         aria-label={label}
         placeholder={placeholder}
         value={value.text}
-        maxLength={1800}
+        maxLength={MESSAGE_MAX}
         role="combobox"
         aria-expanded={open}
         aria-controls={open ? listId : undefined}
@@ -149,7 +150,7 @@ export function MessageText({ body, meId }: { body: string; meId: string }) {
       {splitMentions(body).map((p, i) =>
         "mention" in p ? (
           <span key={i} className={`mention${p.mention === meId ? " me" : ""}`}>
-            @{members?.find((m) => m.id === p.mention)?.name ?? "Former member"}
+            @{members?.find((m) => m.id === p.mention)?.name ?? FORMER_MEMBER}
           </span>
         ) : (
           <Linkified key={i} text={p.text} />

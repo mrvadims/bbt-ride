@@ -5,6 +5,7 @@ import { activityInput, activityUpdate, contactFields } from "../shared/api.ts";
 import { fold, icsCalendar } from "../shared/ics.ts";
 import { DEFAULT_KIT, kitAdvice, kitBand } from "../shared/kit.ts";
 import {
+  cleanName,
   encodeMentions,
   fmtPhone,
   mentionIds,
@@ -448,6 +449,14 @@ describe("mentions", () => {
     const body = encodeMentions("Thanks @Jo Park and @Jo! @Sam stays text", team);
     expect(body).toBe("Thanks <@u1> and <@u2>! @Sam stays text");
     expect(mentionIds(`${body} <@u1>`)).toEqual(["u1", "u2"]);
+  });
+  it("never matches inside a longer name, and copes with names that look like patterns", () => {
+    expect(encodeMentions("@Jo Parker", [{ id: "u1", name: "Jo Park" }])).toBe("@Jo Parker");
+    expect(encodeMentions("@Joanna, @Jo.", team)).toBe("@Joanna, <@u2>.");
+    expect(encodeMentions("hi @A.B (x)", [{ id: "u3", name: "A.B (x)" }])).toBe("hi <@u3>");
+  });
+  it("cleans names: invisible and direction-changing characters out, spaces collapsed", () => {
+    expect(cleanName("  Jo\u202E kraP \u200B  Park\n")).toBe("Jo kraP Park");
   });
   it("shows tokens as names, and unknown people as a former member", () => {
     const names = new Map(team.map((t) => [t.id, t.name]));

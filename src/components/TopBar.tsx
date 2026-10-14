@@ -4,7 +4,7 @@ import { type FormEvent, useEffect, useRef, useState } from "react";
 import { type Me, ROLE_LABEL } from "../../shared/api.ts";
 import { SPORT_LABEL, type Sport } from "../../shared/sports.ts";
 import { api, authClient } from "../lib/api.ts";
-import { useTeam } from "../lib/data.ts";
+import { useTeamSettings } from "../lib/data.ts";
 import { appPushOn, disableAppPush, enableAppPush, isAndroidBrowser, isApp, isIosBrowser } from "../lib/native.ts";
 import { type Prefs, setPref, usePrefs } from "../lib/prefs.ts";
 import { currentSubscription, disablePush, enablePush, pushSupported } from "../lib/push.ts";
@@ -92,7 +92,7 @@ function Notifications({ me }: { me: Me }) {
 // Which sports' new activities to hear about (DESIGN.md → v2, Notifications): the team's sports plus Other, all on
 // until turned off. Changes and cancellations notify everyone with notifications on, whatever the sport.
 function NotifySports({ me }: { me: Me }) {
-  const team = useTeam().data;
+  const team = useTeamSettings().data;
   const qc = useQueryClient();
   const [note, setNote] = useState("");
   if (!team) return null;
@@ -164,7 +164,8 @@ function Name({ me }: { me: Me }) {
     setBusy(false);
     if (error) return setNote(error.message ?? "Couldn't save your name.");
     setEditing(false);
-    await qc.invalidateQueries(); // the name also shows in Who's in and the threads
+    // the name also shows in Team, Who's in and the threads
+    for (const key of ["me", "members", "activity", "activities"]) await qc.invalidateQueries({ queryKey: [key] });
   };
   return (
     <form className="row2" onSubmit={save}>

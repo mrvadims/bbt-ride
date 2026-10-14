@@ -11,8 +11,9 @@ export function TeamPage({ me }: { me: Me }) {
   const [search, setSearch] = useState("");
   const [card, setCard] = useState<TeamMember | null>(null);
   const [editing, setEditing] = useState(false);
-  const all = q.data ?? [];
-  const words = search.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const all = (q.data ?? []).filter((m) => m.active);
+  const searchable = all.length > 6;
+  const words = searchable ? search.trim().toLowerCase().split(/\s+/).filter(Boolean) : [];
   const shown = all.filter((m) => words.every((w) => m.name.toLowerCase().includes(w)));
   return (
     <section className="team">
@@ -20,7 +21,7 @@ export function TeamPage({ me }: { me: Me }) {
         <div className="kicker">Team</div>
         <h1>{q.data ? `${all.length} member${all.length === 1 ? "" : "s"}` : "Team"}</h1>
       </div>
-      {all.length > 6 && (
+      {searchable && (
         <input
           type="search"
           aria-label="Search by name"

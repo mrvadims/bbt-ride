@@ -140,12 +140,23 @@ export const me = new Hono<AppEnv>()
     return c.json(await meOf(c.env, c.get("user")));
   });
 
-// The team directory, for every member: names, roles, phones and emergency contacts. Disabled accounts are left out.
+// The team directory, for every member: names, roles, phones and emergency contacts. Disabled accounts come with their
+// name only (so mentions of them still read right); the app leaves them out of Team and the mention list.
 export const team = new Hono<AppEnv>().get("/", async (c) => {
   const { results } = await c.env.DB.prepare(
-    `select id, name, role, ${CONTACT} from "user" where coalesce(banned, 0) = 0 order by name collate nocase`,
-  ).all<ContactRow & { id: string; name: string; role: Role | null }>();
-  return c.json(results.map((r): TeamMember => ({ id: r.id, name: r.name, role: r.role ?? "view", ...contactOf(r) })));
+    `select id, name, role, banned, ${CONTACT} from "user" order by name collate nocase`,
+  ).all<ContactRow & { id: string; name: string; role: Role | null; banned: number | null }>();
+  return c.json(
+    results.map(
+      (r): TeamMember => ({
+        id: r.id,
+        name: r.name,
+        role: r.role ?? "view",
+        active: !r.banned,
+        ...contactOf(r.banned ? null : r),
+      }),
+    ),
+  );
 });
 
 export const users = new Hono<AppEnv>()
@@ -186,9 +197,14 @@ export const users = new Hono<AppEnv>()
     return c.json({ url: await createLink(c.env, "invite", email, role, null, c.get("user").id) }, 201);
   })
   .delete("/invites/:email", async (c) => {
-    await c.env.DB.prepare("update links set used_at = ? where kind = 'invite' and email = ? and used_at is null")
-      .bind(nowIso(), c.req.param("email").toLowerCase())
-      .run();
+    const email = c.req.param("email").toLowerCase();
+    await c.env.DB.batch([
+      c.env.DB.prepare("update links set used_at = ? where kind = 'invite' and email = ? and used_at is null").bind(
+        nowIso(),
+        email,
+      ),
+      audit(c.env.DB, c.get("user").id, "revoke-invite-link", "user", email),
+    ]);
     return c.body(null, 204);
   })
   .post("/:id/reset-link", async (c) => {
@@ -284,6 +300,8 @@ export const links = new Hono<AppEnv>()
       else
         await ctx.internalAdapter.linkAccount({ userId, providerId: "credential", accountId: userId, password: hash });
       await ctx.internalAdapter.deleteUserSessions(userId); // sign out everywhere else
+      // …and stop notifications to every device: a lost phone shouldn't keep getting them
+      await c.env.DB.prepare("delete from push_subscriptions where user_id = ?").bind(userId).run();
     }
     return c.body(null, 204);
   });

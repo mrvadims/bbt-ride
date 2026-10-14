@@ -13,7 +13,7 @@ import { validate } from "./validate.ts";
 interface Sub {
   endpoint: string; // Web Push URL, or the app's Firebase token
   keys_json: string;
-  kind?: "web" | "fcm"; // missing on jobs queued before the app existed
+  kind: "web" | "fcm";
 }
 /** One queue message: a notification and up to BATCH devices to send it to. */
 export interface PushJob {

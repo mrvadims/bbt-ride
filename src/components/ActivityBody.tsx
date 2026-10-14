@@ -47,7 +47,7 @@ const WX_APPS: Record<Prefs["wxApp"], { name: string; url: (s: Spot) => string }
   },
 };
 
-/** "Full-day forecast in <app>" plus the rider's choice of weather app. */
+/** "Full-day forecast in <app>" plus the person's choice of weather app. */
 export function WeatherAppRow({ spot, extra }: { spot: Spot; extra?: ReactNode }) {
   const { wxApp } = usePrefs();
   const app = WX_APPS[wxApp] ?? WX_APPS.nws;
@@ -153,7 +153,7 @@ function WhatToWear({ kit, feelMin, u }: { kit: KitAdvice; feelMin: number; u: U
 const feelLabel = (sport: Sport): string | undefined =>
   sport === "ride" ? "bike feel" : sport === "run" ? "run feel" : undefined;
 
-/** "Ride · Outdoor" / "Swim · Pool": the sport, plus the setting for sports that can be indoors. */
+/** "Pickleball · Indoor" / "Swim · Pool": the sport, plus the setting for sports that can be indoors. */
 function sportLine(a: Pick<ActivityLike, "sport" | "outdoor">): string {
   const labels = INDOOR_LABELS[a.sport];
   return labels ? `${SPORT_LABEL[a.sport]} · ${a.outdoor ? labels[1] : labels[0]}` : SPORT_LABEL[a.sport];
@@ -479,9 +479,8 @@ export function ActivityBody(props: {
       </Panel>
     ) : null;
 
-  let weather: ReactNode = null;
-  if (!act.outdoor) weather = null;
-  else if (mode === "past") {
+  let weather: ReactNode = null; // indoors: none
+  if (act.outdoor && mode === "past") {
     const o = props.act.observed;
     weather = o ? (
       <Panel
@@ -511,7 +510,7 @@ export function ActivityBody(props: {
     ) : (
       <EmptyPanel label="Weather" text="No weather was recorded." />
     );
-  } else if (st && ev && se) {
+  } else if (act.outdoor && st && ev && se) {
     weather = (
       <Panel
         id={`${kp}weather`}
@@ -539,7 +538,7 @@ export function ActivityBody(props: {
         {m.kit && <WhatToWear kit={m.kit} feelMin={st.feelMin} u={u} />}
       </Panel>
     );
-  } else {
+  } else if (act.outdoor) {
     weather = <EmptyPanel label="Weather" text="Forecast not available for this date yet." />;
   }
 

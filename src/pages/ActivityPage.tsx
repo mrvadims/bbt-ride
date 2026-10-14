@@ -1,6 +1,6 @@
 // One activity, upcoming or past (read-only): header card, action row, warnings and panels (DESIGN.md → Rides, v2).
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ActivityDetail, Me } from "../../shared/api.ts";
 import { fmtStamp, nyNow } from "../../shared/time.ts";
 import { ActionRow, ActivityBody, ActivityHeader } from "../components/ActivityBody.tsx";
@@ -8,6 +8,7 @@ import { History } from "../components/History.tsx";
 import { LevelIcon } from "../components/icons.tsx";
 import { WhoIsIn } from "../components/WhoIsIn.tsx";
 import { useActivityModel } from "../lib/activityModel.ts";
+import { api } from "../lib/api.ts";
 import { useActivity } from "../lib/data.ts";
 import { Link, navigate } from "../lib/router.tsx";
 
@@ -70,17 +71,21 @@ function View({ act, me, since }: { act: ActivityDetail; me: Me; since?: string 
 
 export function ActivityPage({ id, me }: { id: string; me: Me }) {
   const q = useActivity(id);
-  // When the viewer last caught up, from the first reply after opening (it records this visit; later refreshes record
-  // more, so it's kept); then Home's markers refresh.
+  // Opening it records the visit (once per page, even when React runs effects twice in development); the reply says
+  // when the viewer last caught up, for the "N new" divider. Home's markers then refresh.
   const [since, setSince] = useState<string | null | undefined>(undefined);
   const qc = useQueryClient();
-  const fresh = q.isFetchedAfterMount && q.data?.seenBefore !== undefined;
+  const recorded = useRef("");
   useEffect(() => {
-    if (fresh && since === undefined) {
-      setSince(q.data?.seenBefore);
-      qc.invalidateQueries({ queryKey: ["activities"] });
-    }
-  }, [fresh, since, q.data?.seenBefore, qc]);
+    if (recorded.current === id) return;
+    recorded.current = id;
+    api<{ seenBefore: string | null }>(`/activities/${id}/seen`, { method: "POST", body: {} })
+      .then((r) => {
+        setSince(r.seenBefore);
+        qc.invalidateQueries({ queryKey: ["activities"] });
+      })
+      .catch(() => undefined);
+  }, [id, qc]);
   if (q.isError && !q.data)
     // a failed background refresh keeps showing what loaded (and any half-typed message)
     return (

@@ -37,6 +37,11 @@ app.onError((err, c) => {
 app.notFound((c) => c.json({ error: "Not found" }, 404));
 
 app.use(secureHeaders()); // nosniff, frame and referrer protections on API responses
+// API replies carry people's details (names, phones, emails): never keep them in a browser or app cache.
+app.use(async (c, next) => {
+  await next();
+  if (!c.res.headers.has("cache-control")) c.header("Cache-Control", "no-store");
+});
 // No request the app makes comes near this; larger bodies are refused before anything parses them.
 app.use(bodyLimit({ maxSize: 64 * 1024, onError: (c) => c.json({ error: "Request too large" }, 413) }));
 
@@ -48,6 +53,7 @@ app.use(withAuth);
 // Better Auth's admin endpoints (impersonation, setting passwords, …) aren't used by the app, which calls the ones it needs
 // on the server from /api/users with its own checks and audit log; keep them unreachable from browsers.
 app.all("/auth/admin/*", (c) => c.json({ error: "Not found" }, 404));
+app.all("/auth/is-username-available", (c) => c.json({ error: "Not found" }, 404)); // would list who's on the team
 app.on(["GET", "POST"], "/auth/*", (c) => c.get("auth").handler(c.req.raw)); // Better Auth checks its own origins
 app.use(sameOrigin);
 

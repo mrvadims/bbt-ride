@@ -1,4 +1,4 @@
-// Date field with its own calendar: weeks start on Monday and weekends are shaded, since most rides are on Sat/Sun.
+// Date field with its own calendar: weeks start on Monday and weekends are shaded, since most activities are on weekends.
 // (A native <input type="date"> follows the device's locale and can't shade days.)
 import { useEffect, useRef, useState } from "react";
 import { addDays, dayLabel, dow, nyNow } from "../../shared/time.ts";

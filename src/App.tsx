@@ -74,8 +74,8 @@ export function App() {
     <>
       <TopBar me={user ?? null} />
       <main>
-        {user && (isApp() || isIosHomeScreen()) && <AppExtras me={user} />}
-        {user && isIosBrowser() && <InstallHint />}
+        {user?.phone && (isApp() || isIosHomeScreen()) && <AppExtras me={user} />}
+        {user?.phone && isIosBrowser() && <InstallHint />}
         <Suspense fallback={<p className="muted small">Loading…</p>}>{content}</Suspense>
       </main>
     </>

@@ -1,4 +1,4 @@
-// Collapsible panels: the collapsed header is the briefing; expanding shows detail. Open state is remembered per rider.
+// Collapsible panels: the collapsed header is the briefing; expanding shows detail. Open state is remembered per person.
 import type { ReactNode } from "react";
 import { setPref, usePrefs } from "../lib/prefs.ts";
 import { Chevron } from "./icons.tsx";

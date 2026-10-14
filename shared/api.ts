@@ -1,7 +1,7 @@
 // JSON shapes exchanged between the Worker (/api/*) and the React app, plus request schemas the Worker validates.
 import { z } from "zod";
 import type { KitBand } from "./kit.ts";
-import { normalizePhone } from "./people.ts";
+import { cleanName, MAX_MENTIONS, mentionIds, normalizePhone } from "./people.ts";
 import type { RideRoute } from "./ride.ts";
 import { HHMM, type Settings } from "./settings.ts";
 import { ICON_KEYS, type Icon } from "./sport-icons.ts";
@@ -33,6 +33,7 @@ export interface TeamMember {
   id: string;
   name: string;
   role: Role;
+  active: boolean; // false: disabled; kept so mentions still show the name, but without contact details
   phone: string | null;
   emergencyName: string | null;
   emergencyPhone: string | null;
@@ -121,7 +122,6 @@ export interface ActivityDetail extends Activity {
   rsvps: Rsvp[];
   messages: Message[];
   history: HistoryEntry[]; // newest first
-  seenBefore?: string | null; // GET /api/activities/:id only: when the viewer last caught up (null: it's new to them)
 }
 
 export interface UserRow {
@@ -217,11 +217,16 @@ export const rsvpInput = z.object({
   status: z.enum(["in", "out"]).nullable(),
   routeLabel: z.string().max(30).nullable(),
 });
-export const messageInput = z.object({
-  body: z.string().trim().min(1).max(2000),
-  parentId: z.string().max(64).nullable().default(null),
-});
-export const messageEdit = z.object({ body: z.string().trim().min(1).max(2000) });
+// Stored text, where a mention is its <@id> token: the app counts that length before sending.
+export const MESSAGE_MAX = 2000;
+const messageBody = z
+  .string()
+  .trim()
+  .min(1)
+  .max(MESSAGE_MAX, "That message is too long")
+  .refine((b) => mentionIds(b).length <= MAX_MENTIONS, `Mention at most ${MAX_MENTIONS} people in one message`);
+export const messageInput = z.object({ body: messageBody, parentId: z.string().max(64).nullable().default(null) });
+export const messageEdit = z.object({ body: messageBody });
 
 export const spotInput = z.object({
   name: z.string().trim().min(1).max(80),
@@ -260,7 +265,7 @@ export const contactFields = z
       .trim()
       .max(80)
       .nullish()
-      .transform((v) => v ?? ""),
+      .transform((v) => cleanName(v ?? "")),
     emergencyPhone: z
       .string()
       .trim()

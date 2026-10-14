@@ -1,4 +1,4 @@
-/* BBT styles (ported from the prototype). Tokens on :root; dark mode via prefers-color-scheme or data-theme. */
+/* BBT styles. Tokens on :root; dark mode via prefers-color-scheme or data-theme. */
 :root {
   --bar: #0077d1;
   --stripe: #ff3115;
@@ -183,42 +183,10 @@ h2 {
 .iconbtn:hover {
   background: rgba(255, 255, 255, 0.15);
 }
-/* Tabs: orange underline for active only. */
-.tab {
-  appearance: none;
-  background: none;
-  border: 0;
-  color: var(--muted);
-  font: inherit;
-  font-weight: 600;
-  padding: 12px 10px 10px;
-  border-bottom: 3px solid transparent;
-  cursor: pointer;
-  white-space: nowrap;
-  text-decoration: none;
-}
-.tab[aria-current="page"],
-.tab[aria-pressed="true"] {
-  color: var(--text);
-  border-bottom-color: var(--stripe);
-}
-.tab:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: -2px;
-}
 main {
   max-width: 1200px;
   margin: 0 auto;
   padding: 16px 16px calc(48px + env(safe-area-inset-bottom, 0px));
-}
-.daytabs {
-  display: flex;
-  gap: 4px;
-  border-bottom: 1px solid var(--line);
-  margin: -4px 0 14px;
-}
-.daytabs .tab {
-  padding: 10px 12px 8px;
 }
 .kicker {
   font-size: 12px;
@@ -1146,7 +1114,7 @@ a.spotrow {
   }
 }
 
-/* App additions (not in the prototype). */
+/* App screens and components. */
 .logo-wrap {
   display: flex;
 }

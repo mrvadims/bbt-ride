@@ -23,7 +23,7 @@ native/www/  the Android app's offline page
 data/        seed data (start spots, club routes) and the saved API samples it came from
 test/        unit tests (vitest)
 scripts/     auth schema generator, local seed data, smoke tests, icon renderer, APK build
-brand/, prototype/  logo sources and the v1 design prototype
+brand/       logo sources
 ```
 
 ### Run it locally
@@ -45,7 +45,7 @@ No network for the weather and route APIs? `npm run dev:seed` loads the saved Op
 npm run lint        # Biome
 npm run typecheck   # TypeScript, strict
 npm test            # unit tests, including the worked examples in DESIGN.md
-npm run smoke       # 118 API checks against the local dev server (creates test data locally)
+npm run smoke       # 120 API checks against the local dev server (creates test data locally)
 npm run ui-smoke    # 59 browser checks against the local dev server (after npm run dev:seed)
 ```
 
@@ -56,7 +56,3 @@ CI runs lint, typecheck, tests, a build and an unsigned Android build on every b
 ### The Android app
 
 The app is a shell around https://app.bbt.team, so web changes need no new APK. To build it yourself: Java 21 and the Android SDK (Android Studio), then `npx cap sync android && cd android && ./gradlew assembleDebug`. Bump `versionCode` / `versionName` in `android/app/build.gradle` when the native code changes.
-
-## Prototype
-
-`prototype/index.html` is the clickable design prototype (single file, no build needed); it was the spec for the app. To rebuild it after editing `prototype/src/app.html`: `python3 prototype/build.py`.
