@@ -384,6 +384,7 @@ tr.now td:first-child {
 }
 .notes {
   white-space: pre-wrap;
+  overflow-wrap: anywhere; /* a long link mustn't widen the page */
   margin: 0;
 }
 .controls {
@@ -912,6 +913,7 @@ dialog.sheet::backdrop {
 .msg p {
   margin: 2px 0 4px;
   white-space: pre-wrap;
+  overflow-wrap: anywhere; /* a long link mustn't widen the page */
 }
 .msg.reply {
   padding: 6px 0 6px 12px;
@@ -1345,11 +1347,65 @@ a.linkbtn {
   display: grid;
   place-items: center;
 }
+.arow-icon {
+  position: relative;
+}
+/* New / changed / unread marker on the sport icon (DESIGN.md → New and unread). */
+.arow-icon .badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 14px;
+  height: 14px;
+  box-sizing: border-box;
+  border-radius: 999px;
+  background: var(--primary);
+  border: 2px solid var(--card);
+}
+.arow-icon .badge.count {
+  top: -6px;
+  right: -8px;
+  width: auto;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 16px;
+  text-align: center;
+}
+.newline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 2px 0 8px;
+  color: var(--link);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.newline::before,
+.newline::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--primary);
+}
+.unseen {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--link);
+}
 .arow-b {
   display: grid;
   gap: 1px;
   min-width: 0;
   flex: 1;
+}
+.arow-b .chips {
+  margin-top: 4px;
 }
 .arow-b b {
   font-size: 16px;

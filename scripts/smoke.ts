@@ -99,6 +99,7 @@ check(
   "rider joins",
 );
 check((await rider("/api/me")).json?.role === "view", "rider has View role");
+await rider("/api/activities"); // the rider's markers start here: anything posted later is new to them
 check((await rider("/api/users")).status === 403, "rider can't list users");
 check((await anon("/api/me")).status === 401, "no session → 401");
 check(
@@ -286,7 +287,27 @@ check(
   `admin publishes a ride (${pub.status} ${pub.status === 201 ? "" : JSON.stringify(pub.json)})`,
 );
 const id = pub.json.id;
-check((await admin("/api/activities", { body: plan })).status === 409, "second ride on the same date needs replace");
+// New and unread markers (DESIGN.md → New and unread)
+const unseen = async () => ((await rider("/api/activities")).json as Json[]).find((a) => a.id === id)?.unseen;
+{
+  const u = await unseen();
+  check(u?.isNew === true && u.by === "Admin", `a ride posted by someone else shows as New (${JSON.stringify(u)})`);
+  check(
+    ((await admin("/api/activities")).json as Json[]).find((a) => a.id === id)?.unseen === null,
+    "your own post isn't new to you",
+  );
+  check((await rider(`/api/activities/${id}`)).json.seenBefore === null, "opening it says it was new to you");
+  check((await unseen()) === null, "…and clears its marker");
+}
+{
+  // Several activities of a sport may share a day; the second one doesn't touch the first.
+  const second = await admin("/api/activities", { body: { ...plan, title: `B group ${stamp}` } });
+  check(
+    second.status === 201 && (await admin(`/api/activities/${id}`)).json.status === "published",
+    `a second ride on the same date is posted alongside the first (${second.status})`,
+  );
+  await admin(`/api/activities/${second.json.id}/cancel`, { method: "POST" });
+}
 const pickle = {
   sport: "pickleball",
   title: `Doubles ${stamp}`,
@@ -420,6 +441,15 @@ check(
   (await admin(`/api/messages/${msgId}`, { method: "PATCH", body: { body: "edited" } })).status === 403,
   "only the author edits a message",
 );
+{
+  const u = await unseen();
+  check(
+    u?.messages === 1 && u.from.join() === "Admin" && !u.isNew,
+    `other people's new messages are counted, your own aren't (${JSON.stringify(u)})`,
+  );
+  const seen = (await rider(`/api/activities/${id}`)).json.seenBefore;
+  check(typeof seen === "string" && (await unseen()) === null, "opening it again clears the count");
+}
 
 const base = pub.json.updatedAt;
 const upd = await admin(`/api/activities/${id}`, {
@@ -428,6 +458,11 @@ const upd = await admin(`/api/activities/${id}`, {
 });
 check(upd.json?.lastUpdate?.text?.includes("meet 8:30 AM → 9:00 AM"), "update posts what changed");
 check(upd.json.rsvps.length === 1, "RSVPs kept after an update");
+check(
+  (await unseen())?.change === "Changed: meet 8:30 AM → 9:00 AM",
+  "a change by someone else is marked with what changed",
+);
+await rider(`/api/activities/${id}`);
 {
   const h = upd.json.history as Json[];
   check(
@@ -475,7 +510,11 @@ check(
 );
 c = (await admin(`/api/activities/${id}/restore`, { method: "POST" })).json;
 check(c.status === "published", "restore");
-const rep = await admin("/api/activities", { body: { ...plan, notes: "new plan", replace: true } });
+check(
+  (await admin("/api/activities", { body: { ...plan, notes: "new plan", replaceId: pk.json.id } })).status === 409,
+  "Replace only names a same-sport activity that day",
+);
+const rep = await admin("/api/activities", { body: { ...plan, notes: "new plan", replaceId: id } });
 check(rep.status === 201, "replace publishes the new ride");
 check(
   (await admin(`/api/activities/${id}`)).json.status === "cancelled",
@@ -485,6 +524,7 @@ check(
   (await rider("/api/activities")).json.some((r: Json) => r.id === rep.json.id),
   "upcoming list includes the new ride",
 );
+check(!(await rider("/api/activities")).json.some((r: Json) => r.id === id), "…and leaves out the one it replaced");
 check(
   (await admin(`/api/activities/${pk.json.id}`)).json.status === "published",
   "replacing the ride leaves the pickleball session alone",

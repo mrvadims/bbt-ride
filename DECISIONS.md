@@ -89,6 +89,8 @@ Every open question from the design review, with what was decided. Details live 
 | Tester feedback, first round | Built: going count + You're in on Home, place search in Plan, tappable links, one date field with weekend chips. Deferred: multi-day and all-day events, recurring events, a month view (until a real need shows) | 2026-10-14 |
 | Triathlon | Added as a sport, on by default: race start/end, place, details, Other outdoor weather, no route. Icon made from Material's swim, run and bike shapes (Material has no triathlon icon). The database no longer fixes the list of sports; the API does | 2026-10-14 |
 | Who created and changed an activity | A quiet, closed History panel at the end of the activity page and the Edit screen (design H of three rounds), built from the audit log; chosen over bylines and chips so the record doesn't compete with the activity | 2026-10-14 |
+| Several activities per sport per day | Allowed for every sport (was one per sport per day). Plan says what's already posted and offers Publish another (main) or Replace (cancels the one named) | 2026-10-14 |
+| New and unread markers | Design K1: a dot or message count on the sport icon plus a reason line; tracked per person on the server (synced across devices), with a baseline so existing activities start as seen | 2026-10-14 |
 | Firebase key | A service account with only "Firebase Cloud Messaging API Admin", not the Admin SDK key | 2026-10-13 |
 
 ## Notes

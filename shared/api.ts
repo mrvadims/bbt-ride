@@ -63,6 +63,7 @@ export interface Activity {
   lastUpdate: { at: string; text: string } | null;
   counts: { in: number; out: number; messages: number };
   mine?: "in" | "out" | null; // the viewer's own answer (the upcoming list only)
+  unseen?: Unseen | null; // what's new to the viewer since they last opened it (the upcoming list only)
   observed: RecordedWeather | null;
 }
 
@@ -85,6 +86,15 @@ export interface Rsvp {
   routeLabel: string | null;
 }
 
+/** Home's marker for one activity (DESIGN.md → New and unread). */
+export interface Unseen {
+  isNew: boolean; // posted since the viewer's baseline by someone else, never opened
+  by: string | null; // who posted it
+  change: string | null; // "Changed: …", "Cancelled" or "Back on", since the viewer last looked
+  messages: number; // other people's messages since then
+  from: string[]; // their first names, in order
+}
+
 /** One line of an activity's History panel. `who` is null when that person's account was deleted. */
 export interface HistoryEntry {
   at: string;
@@ -97,6 +107,7 @@ export interface ActivityDetail extends Activity {
   rsvps: Rsvp[];
   messages: Message[];
   history: HistoryEntry[]; // newest first
+  seenBefore?: string | null; // GET /api/activities/:id only: when the viewer last caught up (null: it's new to them)
 }
 
 export interface UserRow {
@@ -149,7 +160,7 @@ const activityFields = z.object({
     .max(2)
     .refine((r) => new Set(r.map((x) => x.label.toLowerCase())).size === r.length, "Route labels must differ")
     .default([]),
-  replace: z.boolean().default(false), // confirm replacing the same sport's activity already published that day
+  replaceId: z.string().max(80).nullable().default(null), // cancel this same-sport activity that day (Plan's "Replace")
 });
 type ActivityFields = z.output<typeof activityFields>;
 

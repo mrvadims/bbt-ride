@@ -27,6 +27,8 @@ const shot = async (page: Page, name: string) => {
 // An Admin invite, seeded directly (production's first Admin signs in with Google as BOOTSTRAP_ADMIN_EMAIL).
 const token = `ui-${stamp}`;
 const hash = createHash("sha256").update(token).digest("hex");
+const sql = (command: string) =>
+  execFileSync("npx", ["wrangler", "d1", "execute", "DB", "--local", "--command", command], { stdio: "pipe" });
 execFileSync(
   "npx",
   [
@@ -111,7 +113,7 @@ await page
   .getByRole("option", { name: /Katonah/ })
   .first()
   .click();
-const publishBtn = page.getByRole("button", { name: /^(Publish|Replace ride)$/ }); // Replace on re-runs
+const publishBtn = page.getByRole("button", { name: /^(Publish|Publish another ride)$/ }); // "another" on re-runs
 await publishBtn.waitFor();
 check(await page.getByText("Tazza Cafe").first().isVisible(), "coffee stop suggested from the route's POIs");
 await page.getByLabel("Notes").fill("Regroup at the top of every climb.");
@@ -150,6 +152,27 @@ check(
     "https://example.com/lot",
   "a link in a message is tappable",
 );
+await page
+  .getByPlaceholder("Message the team")
+  .fill(`Sheet: https://docs.google.com/spreadsheets/d/${"x".repeat(160)}/edit?gid=1994446438#gid=1994446438`);
+await page.getByRole("button", { name: "Send" }).click();
+await page.getByRole("link", { name: /^https:\/\/docs\.google\.com/ }).waitFor();
+// Nothing spills past its card (or its own box), except inside a strip meant to scroll sideways (filters, tables).
+const fits = () =>
+  page.evaluate(() =>
+    [...document.querySelectorAll(".arow *, .panel *")].every((el) => {
+      const card = el.closest(".arow, .panel") as Element;
+      if (
+        el.getBoundingClientRect().right <= card.getBoundingClientRect().right + 1 &&
+        el.scrollWidth <= el.clientWidth + 1
+      )
+        return true;
+      for (let a = el.parentElement; a && a !== card; a = a.parentElement)
+        if (/auto|scroll/.test(getComputedStyle(a).overflowX)) return true;
+      return false;
+    }),
+  );
+check(await fits(), "a very long link doesn't widen the activity page");
 check(true, "message posted to the thread");
 await shot(page, "ride");
 
@@ -205,7 +228,7 @@ await page.getByLabel("Title (optional)").fill(`Doubles ${stamp}`);
 await page.getByLabel("Details (optional)").fill("2 courts");
 await page.getByRole("button", { name: sundayLabel }).click();
 await page.getByRole("radio", { name: /SUNY Purchase/ }).click();
-await page.getByRole("button", { name: /^(Publish|Replace pickleball)$/ }).click();
+await page.getByRole("button", { name: /^(Publish|Publish another pickleball)$/ }).click();
 await page.waitForURL("**/a/*");
 check(
   await page.getByRole("heading", { name: `Doubles ${stamp}` }).isVisible(),
@@ -215,8 +238,37 @@ check(
   !(await page.getByRole("button", { name: "Weather", exact: true }).count()),
   "indoor activity has no Weather panel",
 );
-await page.getByLabel("BBT home").click();
+// A teammate posts on the captain's ride: Home marks it, opening it shows where the new messages start, then it clears.
+{
+  const rideId = rideUrl.split("/a/")[1];
+  const now = new Date().toISOString();
+  sql(
+    `insert into "user" (id, name, email, emailVerified, createdAt, updatedAt, role) values ('mate-${stamp}', 'Teammate ${stamp}', 'mate-${stamp}@example.test', 1, '${now}', '${now}', 'view'); insert into messages (id, activity_id, kind, user_id, body, created_at) values ('msg-${stamp}', '${rideId}', 'user', 'mate-${stamp}', 'Count me in', '${new Date(Date.now() + 1000).toISOString()}')`,
+  );
+  await page.getByLabel("BBT home").click();
+  const card = page.locator(`a.arow[href="/a/${rideId}"]`);
+  await card.locator(".unseen").waitFor();
+  check(
+    (await card.locator(".badge.count").textContent()) === "1" &&
+      (await card.locator(".unseen").textContent()) === "1 new message · Teammate",
+    "Home marks a teammate's new message on the sport icon, with a reason line",
+  );
+  if (shots) await card.screenshot({ path: `${shots}/home-marked.png` });
+  await card.click();
+  await page.getByText("· 1 new").waitFor(); // in Who's in's summary line, even while it's closed
+  if (!(await page.getByRole("separator").count()))
+    await page.getByRole("button", { name: "Who's in", exact: true }).click();
+  await page.getByRole("separator").waitFor();
+  check((await page.getByRole("separator").textContent()) === "1 new", "the thread shows where new messages start");
+  await page.getByRole("separator").scrollIntoViewIfNeeded();
+  if (shots) await page.screenshot({ path: `${shots}/thread-new.png` });
+  await page.getByLabel("BBT home").click();
+  await page.getByRole("link", { name: new RegExp(`Doubles ${stamp}`) }).waitFor();
+  await page.waitForTimeout(500);
+  check(!(await card.locator(".badge").count()), "opening it clears the marker");
+}
 await page.getByRole("link", { name: new RegExp(`Doubles ${stamp}`) }).waitFor();
+check(await fits(), "home cards with warning chips fit the phone width");
 {
   const ride = page.locator(".arow", { has: page.locator(".you-in") }).first();
   check((await ride.locator(".going").textContent())?.trim() === "1 going", "home card: 1 going and You're in");

@@ -8,7 +8,17 @@ import { api } from "../lib/api.ts";
 import { Linkified } from "./Linkified.tsx";
 import { Panel } from "./Panel.tsx";
 
-export function WhoIsIn({ act, me, past }: { act: ActivityDetail; me: Me; past: boolean }) {
+export function WhoIsIn({
+  act,
+  me,
+  past,
+  since,
+}: {
+  act: ActivityDetail;
+  me: Me;
+  past: boolean;
+  since?: string | null; // when the viewer last caught up; undefined: no "new" divider
+}) {
   const qc = useQueryClient();
   const [draft, setDraft] = useState("");
   const [replyTo, setReplyTo] = useState<string | null>(null);
@@ -43,6 +53,14 @@ export function WhoIsIn({ act, me, past }: { act: ActivityDetail; me: Me; past: 
   const ins = act.rsvps.filter((r) => r.status === "in");
   const outs = act.rsvps.filter((r) => r.status === "out");
   const top = act.messages.filter((m) => !m.parentId);
+  // Other people's messages since the viewer last caught up; the divider goes before the first of them.
+  const fresh =
+    since === undefined
+      ? []
+      : act.messages.filter(
+          (m) => m.kind === "user" && !m.deleted && m.authorId !== me.id && (since === null || m.createdAt > since),
+        );
+  const firstNew = fresh[0]?.id;
 
   const author = (m: Message) => (m.kind !== "user" ? "Update" : (m.authorName ?? "Former member"));
 
@@ -53,6 +71,11 @@ export function WhoIsIn({ act, me, past }: { act: ActivityDetail; me: Me; past: 
     const canDelete = m.kind === "user" && !m.deleted && (me.role !== "view" || (m.authorId === me.id && !past));
     return (
       <div key={m.id} className={`msg${isReply ? " reply" : ""}${m.kind !== "user" ? " sys" : ""}`}>
+        {m.id === firstNew && (
+          <div className="newline" role="separator">
+            <span>{fresh.length} new</span>
+          </div>
+        )}
         <div className="meta">
           <b>{author(m)}</b>{" "}
           <span className="muted">
@@ -167,6 +190,7 @@ export function WhoIsIn({ act, me, past }: { act: ActivityDetail; me: Me; past: 
             {ins.length} {past ? (act.status === "cancelled" ? "were in" : "joined") : "in"}
           </b>{" "}
           · {outs.length} out · {nMsg} message{nMsg === 1 ? "" : "s"}
+          {fresh.length > 0 && <b className="unseen"> · {fresh.length} new</b>}
           {open && (
             <div className="sw">
               <div className="seg" role="group" aria-label="Your RSVP">
