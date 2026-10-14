@@ -85,9 +85,18 @@ export interface Rsvp {
   routeLabel: string | null;
 }
 
+/** One line of an activity's History panel. `who` is null when that person's account was deleted. */
+export interface HistoryEntry {
+  at: string;
+  who: string | null;
+  action: "created" | "changed" | "cancelled" | "restored" | "replaced";
+  text: string | null; // what changed, from the update note
+}
+
 export interface ActivityDetail extends Activity {
   rsvps: Rsvp[];
   messages: Message[];
+  history: HistoryEntry[]; // newest first
 }
 
 export interface UserRow {

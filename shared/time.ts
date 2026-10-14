@@ -62,6 +62,16 @@ export const hhmmToMin = (s: string): number => {
 export const fmtStamp = (iso: string): string =>
   new Date(iso).toLocaleString("en-US", { timeZone: TZ, weekday: "short", hour: "numeric", minute: "2-digit" });
 
+/** "Oct 13, 7:02 AM" in New York time: when something happened, for the History panel. */
+export const fmtWhen = (iso: string): string =>
+  new Date(iso).toLocaleString("en-US", {
+    timeZone: TZ,
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+
 export function fmtTime(min: number): string {
   const m = Math.round(min);
   const h = Math.floor(m / 60) % 24;

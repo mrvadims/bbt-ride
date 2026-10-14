@@ -43,6 +43,7 @@ import {
 } from "../components/ActivityBody.tsx";
 import { RainBars } from "../components/charts.tsx";
 import { DatePicker } from "../components/DatePicker.tsx";
+import { History } from "../components/History.tsx";
 import { HourTable } from "../components/HourTable.tsx";
 import { SportIcon, SymbolIcon } from "../components/icons.tsx";
 import { EmptyPanel, Panel, Section } from "../components/Panel.tsx";
@@ -980,6 +981,11 @@ export function PlanPage() {
                   </button>
                 )}
               </div>
+              {editingAct && (
+                <div style={{ marginTop: 16 }}>
+                  <History act={editingAct} id="plan-history" />
+                </div>
+              )}
             </>
           )}
         </div>

@@ -380,6 +380,7 @@ export function ActivityBody(props: {
   routeIndex: number;
   onRouteIndex?: (i: number) => void;
   people?: ReactNode;
+  history?: ReactNode; // the quiet History panel, last
 }) {
   const { act, model: m, mode } = props;
   const u = units(usePrefs().units);
@@ -559,6 +560,7 @@ export function ActivityBody(props: {
         {weather}
         {notes}
         {props.people}
+        {props.history}
       </div>
     </>
   );

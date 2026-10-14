@@ -552,6 +552,30 @@ textarea {
   box-shadow: var(--shadow);
   min-width: 0;
 }
+.panel.quiet {
+  background: transparent;
+  box-shadow: none;
+}
+.panel.quiet .panel-s {
+  font-size: 13px;
+  color: var(--muted);
+}
+.history {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+}
+.history li {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  gap: 10px;
+}
+.history-at {
+  color: var(--muted);
+}
 .panel-h {
   display: grid;
   grid-template-columns: 66px minmax(0, 1fr) 16px;
