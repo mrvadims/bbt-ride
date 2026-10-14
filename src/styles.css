@@ -1,4 +1,4 @@
-/* BBT styles (ported from the prototype). Tokens on :root; dark mode via prefers-color-scheme or data-theme. */
+/* BBT styles. Tokens on :root; dark mode via prefers-color-scheme or data-theme. */
 :root {
   --bar: #0077d1;
   --stripe: #ff3115;
@@ -183,42 +183,10 @@ h2 {
 .iconbtn:hover {
   background: rgba(255, 255, 255, 0.15);
 }
-/* Tabs: orange underline for active only. */
-.tab {
-  appearance: none;
-  background: none;
-  border: 0;
-  color: var(--muted);
-  font: inherit;
-  font-weight: 600;
-  padding: 12px 10px 10px;
-  border-bottom: 3px solid transparent;
-  cursor: pointer;
-  white-space: nowrap;
-  text-decoration: none;
-}
-.tab[aria-current="page"],
-.tab[aria-pressed="true"] {
-  color: var(--text);
-  border-bottom-color: var(--stripe);
-}
-.tab:focus-visible {
-  outline: 2px solid var(--primary);
-  outline-offset: -2px;
-}
 main {
   max-width: 1200px;
   margin: 0 auto;
   padding: 16px 16px calc(48px + env(safe-area-inset-bottom, 0px));
-}
-.daytabs {
-  display: flex;
-  gap: 4px;
-  border-bottom: 1px solid var(--line);
-  margin: -4px 0 14px;
-}
-.daytabs .tab {
-  padding: 10px 12px 8px;
 }
 .kicker {
   font-size: 12px;
@@ -1146,7 +1114,7 @@ a.spotrow {
   }
 }
 
-/* App additions (not in the prototype). */
+/* App screens and components. */
 .logo-wrap {
   display: flex;
 }
@@ -1597,4 +1565,255 @@ a.tile[aria-label="Open in RideWithGPS"] {
   width: 16px;
   height: 16px;
   vertical-align: -3px;
+}
+
+/* Team and contacts (DESIGN.md → Team and contacts) */
+.contact-form {
+  display: grid;
+  gap: 12px;
+}
+.contact-form h1,
+.contact-form h2 {
+  margin: 0;
+  font-size: 20px;
+}
+.contact-form p {
+  margin: 0;
+}
+.contact-first {
+  padding: 16px;
+  max-width: 520px;
+}
+.field-group {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 4px 0 0;
+  padding: 10px 0 0;
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.field-group legend {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 0 8px 0 0;
+}
+.initials {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--win);
+  color: var(--link);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 14px;
+}
+.roundbtn {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--link);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.roundbtn:hover {
+  border-color: var(--link);
+}
+.calltext {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.contact-card {
+  display: grid;
+  gap: 12px;
+}
+.contact-card p {
+  margin: 0;
+}
+.contact-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.contact-head > div {
+  flex: 1;
+  min-width: 0;
+}
+.contact-head h2 {
+  margin: 0;
+  font-size: 18px;
+  overflow-wrap: anywhere;
+}
+.emergency {
+  border: 1px solid var(--line);
+  background: var(--no-bg);
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: grid;
+  gap: 6px;
+}
+.emergency .sub-h {
+  color: var(--no-fg);
+  margin: 0;
+}
+.emergency-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: space-between;
+}
+.btn-danger {
+  background: #c62828;
+  color: #fff;
+}
+.btn-danger:hover {
+  background: #a91f1f;
+}
+.btn-danger-outline {
+  background: var(--card);
+  color: var(--no-fg);
+  border-color: var(--no-fg);
+}
+.personbtn {
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  min-height: 32px;
+}
+.personbtn:hover {
+  border-color: var(--link);
+}
+.plist-hint {
+  margin: -2px 0 6px;
+}
+.team {
+  display: grid;
+  gap: 12px;
+}
+.team-h h1 {
+  margin: 2px 0 0;
+}
+.team-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 14px;
+}
+.team-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+}
+.team-list li + li {
+  border-top: 1px solid var(--line);
+}
+.team-who {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.team-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.team-text b {
+  overflow-wrap: anywhere;
+}
+.danger-zone {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.danger-zone p {
+  margin: 6px 0 0;
+}
+.confirm {
+  display: grid;
+  gap: 10px;
+}
+.confirm h2 {
+  margin: 0;
+  font-size: 18px;
+  overflow-wrap: anywhere;
+}
+.confirm p {
+  margin: 0;
+}
+.confirm-btns {
+  display: grid;
+  gap: 8px;
+}
+
+/* @mentions */
+.mentionbox {
+  position: relative;
+}
+.mention-list {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 6px);
+  z-index: 5;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(3, 20, 77, 0.16);
+  padding: 4px;
+  display: grid;
+}
+.mention-list button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  font: inherit;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  min-height: 44px;
+}
+.mention-list button[aria-selected="true"],
+.mention-list button:hover {
+  background: var(--win);
+}
+.mention-list .initials {
+  width: 30px;
+  height: 30px;
+  font-size: 12px;
+}
+.mention {
+  color: var(--link);
+  background: var(--win);
+  border-radius: 5px;
+  padding: 0 3px;
+  font-weight: 600;
+}
+.mention.me {
+  background: var(--primary);
+  color: var(--on-primary);
 }

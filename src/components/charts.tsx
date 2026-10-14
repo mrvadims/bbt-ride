@@ -103,7 +103,7 @@ export function TrackOutline({ route, stop }: { route: Route; stop: { lat: numbe
   );
 }
 
-/** Hourly rain from 12 h before to 8 h after meet time; bars sit in the slot of the hour they end. */
+/** Hourly rain from 12 h before to 8 h after the start; bars sit in the slot of the hour they end. */
 export function RainBars({
   se,
   date,
@@ -168,7 +168,7 @@ export function RainBars({
         className="chart"
         viewBox={`0 0 ${W} ${H}`}
         role="img"
-        aria-label="Hourly rain from 12 hours before to 8 hours after meet time"
+        aria-label="Hourly rain from 12 hours before to 8 hours after the start"
       >
         <rect
           x={at(fs)}
@@ -185,7 +185,7 @@ export function RainBars({
           textAnchor="middle"
           style={{ fill: "var(--win-line)", fontWeight: 700 }}
         >
-          ride
+          window
         </text>
         {bars}
         {fn != null && fn >= i0 - 1 && fn <= i1 && (
@@ -215,7 +215,7 @@ export function RainBars({
         </span>
         <span>
           <i style={{ background: "var(--win)", outline: "1px dashed var(--win-line)" }} />
-          Ride window
+          Activity window
         </span>
       </div>
     </>

@@ -1,4 +1,4 @@
-// Sport icons (DESIGN.md → Sports): Google Material Symbols, Rounded, weight 400 (Apache 2.0). Each sport has its own
+// Sport icons (DESIGN.md → v2, Sport icons): Google Material Symbols, Rounded, weight 400 (Apache 2.0). Each sport has its own
 // icon; an Other activity can show any icon from ICONS instead (picked in Plan). The shapes are copied into
 // src/lib/icon-paths.ts by scripts/sport-icons.ts (Triathlon is put together there from Material's swim, bike and
 // run shapes); nothing loads from Google.

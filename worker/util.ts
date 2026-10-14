@@ -3,6 +3,8 @@ import { HTTPException } from "hono/http-exception";
 
 export const nowIso = (): string => new Date().toISOString();
 export const newId = (): string => crypto.randomUUID();
+/** Written in the same batch: an audit row and the note it posted carry timestamps a moment apart. */
+export const sameBatch = (a: string, b: string) => Math.abs(Date.parse(a) - Date.parse(b)) < 5000;
 
 /** Base64url without padding, of bytes or of a string's UTF-8 (tokens, signatures, JWTs). */
 export function b64url(data: ArrayBuffer | Uint8Array | string): string {

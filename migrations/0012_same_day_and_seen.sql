@@ -1,4 +1,4 @@
--- Several activities of a sport may share a day (DESIGN.md → Sports); Plan's Replace is now the editor's choice.
+-- Several activities of a sport may share a day (DESIGN.md → v2, Plan); Plan's Replace is now the editor's choice.
 drop index activities_one_published_per_sport_date;
 create index activities_date_sport on activities (date, sport);
 

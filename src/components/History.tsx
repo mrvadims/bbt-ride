@@ -1,10 +1,10 @@
 // History: a quiet record of who created an activity and who changed it since (DESIGN.md → Activity history). Closed by
 // default; shown at the end of the activity page and under the buttons when editing.
 import type { ActivityDetail, HistoryEntry } from "../../shared/api.ts";
+import { FORMER_MEMBER as FORMER } from "../../shared/people.ts";
 import { fmtWhen } from "../../shared/time.ts";
 import { Panel } from "./Panel.tsx";
 
-const FORMER = "Former member";
 const what = (h: HistoryEntry) =>
   h.action === "created"
     ? "created it"
@@ -19,7 +19,7 @@ const what = (h: HistoryEntry) =>
           : "Cancelled: replaced by a new plan";
 
 export function History({ act, id }: { act: ActivityDetail; id: string }) {
-  const list = act.history ?? [];
+  const list = act.history;
   if (!list.length) return null;
   const created = list.find((h) => h.action === "created");
   const latest = list.find((h) => h.action !== "created" && h.action !== "replaced");

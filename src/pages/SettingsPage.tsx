@@ -26,7 +26,7 @@ import { fmtTime, hhmmToMin } from "../../shared/time.ts";
 import { Panel } from "../components/Panel.tsx";
 import { type SpotFields, SpotForm } from "../components/SpotForm.tsx";
 import { api } from "../lib/api.ts";
-import { refreshSpots, type SpotWithState, useSpots, useTeam } from "../lib/data.ts";
+import { refreshSpots, type SpotWithState, useSpots, useTeamSettings } from "../lib/data.ts";
 
 type LinkFor = { email: string; kind: "invite" | "reset" };
 
@@ -91,7 +91,9 @@ function Users({ me }: { me: Me }) {
   const [role, setRole] = useState<Role>("view");
   const [error, setError] = useState<string | null>(null);
   const link = useCopyLink();
-  const refresh = () => qc.invalidateQueries({ queryKey: ["users"] });
+  // Roles, disabling and deleting also change Team, contact cards and the mention list
+  const refresh = () =>
+    Promise.all([qc.invalidateQueries({ queryKey: ["users"] }), qc.invalidateQueries({ queryKey: ["members"] })]);
   const act = useMutation({
     mutationFn: (req: { path: string; method?: string; body?: unknown; to?: LinkFor }) =>
       api<{ url?: string } | undefined>(req.path, req),
@@ -277,8 +279,8 @@ function Users({ me }: { me: Me }) {
         </button>
       </form>
       <p className="tiny muted" style={{ margin: "8px 0 0" }}>
-        View: see activities, RSVP and post. Edit: also plan, publish, edit and cancel activities, add places and delete
-        any message. Admin: also settings, places and users.
+        View: see activities and Team, RSVP and post. Edit: also plan, publish, edit, cancel and restore activities, add
+        places and delete any message. Admin: also settings, places, users and deleting activities.
         <br />
         BBT doesn't send email: an invite gives you a link to send yourself (Email it, Share, or paste it into a text).
         The link (7 days, one use) lets the person continue with Google or set a password. A reset link (24 h, one use)
@@ -506,7 +508,7 @@ const GROUP_HINT: Record<Group, string> = {
 
 export function SettingsPage({ me }: { me: Me }) {
   const qc = useQueryClient();
-  const team = useTeam().data;
+  const team = useTeamSettings().data;
   const [error, setError] = useState<string | null>(null);
   const [group, setGroup] = useState<Group>("ride");
   const done = (data: TeamSettings) => {

@@ -66,7 +66,7 @@ export const GROUP_LABEL: Record<Group, string> = {
 };
 const groupOf = (s: Sport): Group => (s === "ride" || s === "run" || s === "ski" ? s : "outdoor");
 
-/** Amber and red thresholds for one weather group. Cold uses the group's feel (bike feel, run feel or real feel). */
+/** Amber and red thresholds for one weather group. Cold uses the group's feel (bike feel, run feel, or wind chill for the others). */
 export const warnSchema = z.object({
   feelCaution: z.number(), // cold: feel below (°F)
   feelNoGo: z.number(),

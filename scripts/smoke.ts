@@ -78,8 +78,19 @@ check(
 );
 const weak = await anon("/api/links/accept", { body: { token: adminToken, name: "Admin", password: "short" } });
 check(weak.status === 400, "short password refused");
+check(
+  (await anon("/api/links/accept", { body: { token: adminToken, name: "Admin", password: "correct horse battery" } }))
+    .status === 400,
+  "an invite needs a phone number",
+);
 const made = await anon("/api/links/accept", {
-  body: { token: adminToken, name: "Admin", username: `admin${stamp}`, password: "correct horse battery" },
+  body: {
+    token: adminToken,
+    name: "Admin",
+    username: `admin${stamp}`,
+    password: "correct horse battery",
+    contact: { phone: "(914) 555-0142", emergencyName: "Chris Admin", emergencyPhone: "914 555 0190" },
+  },
 });
 check(made.status === 204, `admin account created from invite (${made.status})`);
 check((await login(admin, adminEmail, "correct horse battery")).status === 200, "new account signs in");
@@ -93,15 +104,56 @@ check(inv.status === 201 && inv.json?.url?.includes("/invite/"), "admin creates 
 check(
   (
     await anon("/api/links/accept", {
-      body: { token: tokenFromUrl(inv.json.url), name: `Rider ${stamp}`, password: "pedal pedal pedal" },
+      body: {
+        token: tokenFromUrl(inv.json.url),
+        name: `Rider ${stamp}`,
+        password: "pedal pedal pedal",
+        contact: { phone: "203-555-0119" },
+      },
     })
   ).status === 204 && (await login(rider, riderEmail, "pedal pedal pedal")).status === 200,
   "rider joins",
 );
 check((await rider("/api/me")).json?.role === "view", "rider has View role");
+
+// Team and contacts
+check(
+  me?.phone === "+19145550142" && me.emergencyName === "Chris Admin" && me.emergencyPhone === "+19145550190",
+  "invite saves the phone and emergency contact",
+);
+check(
+  (await rider("/api/me/contact", { method: "PUT", body: { phone: "555" } })).status === 400,
+  "a phone number that isn't one is refused",
+);
+check(
+  (await rider("/api/me/contact", { method: "PUT", body: { phone: "2035550119", emergencyName: "Pat" } })).status ===
+    400,
+  "an emergency contact needs a name and a phone",
+);
+const riderMe = (
+  await rider("/api/me/contact", {
+    method: "PUT",
+    body: { phone: "2035550119", emergencyName: "Pat Rider", emergencyPhone: "(203) 555-0177" },
+  })
+).json;
+check(riderMe?.emergencyPhone === "+12035550177", "anyone updates their own contact info");
+{
+  const t = (await rider("/api/team")).json as Json[];
+  const a = t?.find((m) => m.id === me.id);
+  check(
+    a?.phone === "+19145550142" && a.emergencyName === "Chris Admin" && !("role" in a),
+    "everyone sees the team directory, emergency contacts included, but not other people's roles",
+  );
+  const asAdmin = ((await admin("/api/team")).json as Json[]).find((m) => m.id === me.id);
+  check(asAdmin?.role === "admin", "Admins see roles in the directory");
+}
 await rider("/api/activities"); // the rider's markers start here: anything posted later is new to them
 check((await rider("/api/users")).status === 403, "rider can't list users");
 check((await anon("/api/me")).status === 401, "no session → 401");
+check(
+  (await fetch(`${BASE.replace("localhost", "127.0.0.1")}/api/health`)).status === 403,
+  "plain HTTP is refused (anywhere but local development)",
+);
 check(
   (await admin("/api/settings", { method: "PUT", body: { pace: 18 }, origin: null })).status === 403,
   "write without Origin refused",
@@ -137,7 +189,7 @@ check(
   "names over 80 characters refused",
 );
 check(
-  (await rider("/api/auth/update-user", { body: { name: "Ride update" } })).status === 400,
+  (await rider("/api/auth/update-user", { body: { name: "Former member" } })).status === 400,
   "system labels refused as names",
 );
 const evilPush = await rider("/api/push", {
@@ -292,11 +344,16 @@ const unseen = async () => ((await rider("/api/activities")).json as Json[]).fin
 {
   const u = await unseen();
   check(u?.isNew === true && u.by === "Admin", `a ride posted by someone else shows as New (${JSON.stringify(u)})`);
+  await rider(`/api/activities/${id}`);
+  check((await unseen())?.isNew === true, "just reading it (Plan, refreshes) doesn't count as opening it");
   check(
     ((await admin("/api/activities")).json as Json[]).find((a) => a.id === id)?.unseen === null,
     "your own post isn't new to you",
   );
-  check((await rider(`/api/activities/${id}`)).json.seenBefore === null, "opening it says it was new to you");
+  check(
+    (await rider(`/api/activities/${id}/seen`, { body: {} })).json.seenBefore === null,
+    "opening it says it was new to you",
+  );
   check((await unseen()) === null, "…and clears its marker");
 }
 {
@@ -442,12 +499,26 @@ check(
   "only the author edits a message",
 );
 {
+  const r = await rider(`/api/activities/${id}/messages`, { body: { body: `Pump? <@${me.id}>`, parentId: null } });
+  check(
+    r.status === 201 && r.json.messages.some((m: Json) => m.body === `Pump? <@${me.id}>`),
+    "a mention is stored as a token that follows the person",
+  );
+  const mid = r.json.messages.find((m: Json) => m.body === `Pump? <@${me.id}>`).id;
+  const many = Array.from({ length: 11 }, (_, i) => `<@u${i}>`).join(" ");
+  check(
+    (await rider(`/api/activities/${id}/messages`, { body: { body: many, parentId: null } })).status === 400,
+    "at most 10 people mentioned in one message",
+  );
+  await rider(`/api/messages/${mid}`, { method: "DELETE" });
+}
+{
   const u = await unseen();
   check(
     u?.messages === 1 && u.from.join() === "Admin" && !u.isNew,
     `other people's new messages are counted, your own aren't (${JSON.stringify(u)})`,
   );
-  const seen = (await rider(`/api/activities/${id}`)).json.seenBefore;
+  const seen = (await rider(`/api/activities/${id}/seen`, { body: {} })).json.seenBefore;
   check(typeof seen === "string" && (await unseen()) === null, "opening it again clears the count");
 }
 
@@ -462,7 +533,7 @@ check(
   (await unseen())?.change === "Changed: meet 8:30 AM → 9:00 AM",
   "a change by someone else is marked with what changed",
 );
-await rider(`/api/activities/${id}`);
+await rider(`/api/activities/${id}/seen`, { body: {} });
 {
   const h = upd.json.history as Json[];
   check(
@@ -529,6 +600,17 @@ check(
   (await admin(`/api/activities/${pk.json.id}`)).json.status === "published",
   "replacing the ride leaves the pickleball session alone",
 );
+
+// Deleting an activity: Admins only, for good
+{
+  const d = await admin("/api/activities", { body: { ...plan, notes: "to delete" } });
+  await rider(`/api/activities/${d.json.id}/rsvp`, { method: "PUT", body: { status: "in", routeLabel: null } });
+  await rider(`/api/activities/${d.json.id}/messages`, { body: { body: "see you", parentId: null } });
+  check((await rider(`/api/activities/${d.json.id}`, { method: "DELETE" })).status === 403, "only Admins delete");
+  check((await admin(`/api/activities/${d.json.id}`, { method: "DELETE" })).status === 204, "an Admin deletes");
+  check((await rider(`/api/activities/${d.json.id}`)).status === 404, "…and it's gone, with its RSVPs and messages");
+  check(!(await rider("/api/activities")).json.some((r: Json) => r.id === d.json.id), "…and off the list");
+}
 
 // Users
 const list = (await admin("/api/users")).json;

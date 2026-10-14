@@ -1,16 +1,18 @@
-// Top bar (the only navigation): logo home, Plan and Settings icons for roles that have them, and the account menu.
+// Top bar (the only navigation): logo home, Team for everyone, Plan and Settings for roles that have them, and the account menu.
 import { useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { type Me, ROLE_LABEL } from "../../shared/api.ts";
 import { SPORT_LABEL, type Sport } from "../../shared/sports.ts";
 import { api, authClient } from "../lib/api.ts";
-import { useTeam } from "../lib/data.ts";
+import { useTeamSettings } from "../lib/data.ts";
 import { appPushOn, disableAppPush, enableAppPush, isAndroidBrowser, isApp, isIosBrowser } from "../lib/native.ts";
 import { type Prefs, setPref, usePrefs } from "../lib/prefs.ts";
 import { currentSubscription, disablePush, enablePush, pushSupported } from "../lib/push.ts";
 import { Link, navigate, useLocation } from "../lib/router.tsx";
 import { CalendarLink } from "./CalendarLink.tsx";
-import { GearIcon, Logo, PlanIcon } from "./icons.tsx";
+import { ContactForm } from "./Contact.tsx";
+import { GearIcon, Logo, PeopleIcon, PlanIcon } from "./icons.tsx";
+import { Sheet } from "./Sheet.tsx";
 
 function Seg<T extends string>({
   label,
@@ -90,7 +92,7 @@ function Notifications({ me }: { me: Me }) {
 // Which sports' new activities to hear about (DESIGN.md → v2, Notifications): the team's sports plus Other, all on
 // until turned off. Changes and cancellations notify everyone with notifications on, whatever the sport.
 function NotifySports({ me }: { me: Me }) {
-  const team = useTeam().data;
+  const team = useTeamSettings().data;
   const qc = useQueryClient();
   const [note, setNote] = useState("");
   if (!team) return null;
@@ -162,7 +164,8 @@ function Name({ me }: { me: Me }) {
     setBusy(false);
     if (error) return setNote(error.message ?? "Couldn't save your name.");
     setEditing(false);
-    await qc.invalidateQueries(); // the name also shows in Who's in and the threads
+    // the name also shows in Team, Who's in and the threads
+    for (const key of ["me", "members", "activity", "activities"]) await qc.invalidateQueries({ queryKey: [key] });
   };
   return (
     <form className="row2" onSubmit={save}>
@@ -198,6 +201,7 @@ export function TopBar({ me }: { me: Me | null }) {
   const prefs = usePrefs();
   const { parts } = useLocation();
   const [open, setOpen] = useState(false);
+  const [contact, setContact] = useState(false);
   const menu = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
   const qc = useQueryClient();
@@ -241,6 +245,10 @@ export function TopBar({ me }: { me: Me | null }) {
         {me && (
           <>
             <nav className="topnav" aria-label="Main">
+              <Link className="navbtn" href="/team" title="Team" aria-current={page === "team" ? "page" : undefined}>
+                <PeopleIcon />
+                <span>Team</span>
+              </Link>
               {me.role !== "view" && (
                 <Link
                   className="navbtn"
@@ -287,6 +295,16 @@ export function TopBar({ me }: { me: Me | null }) {
               {ROLE_LABEL[me.role]} · signed in with {method}
             </span>
           </div>
+          <button
+            type="button"
+            className="btn btn-outline btn-sm"
+            onClick={() => {
+              setOpen(false);
+              setContact(true);
+            }}
+          >
+            My contact info
+          </button>
           <Seg<Prefs["theme"]>
             label="Theme"
             value={prefs.theme}
@@ -326,6 +344,11 @@ export function TopBar({ me }: { me: Me | null }) {
             Sign out
           </button>
         </div>
+      )}
+      {me && contact && (
+        <Sheet label="My contact info" onClose={() => setContact(false)}>
+          <ContactForm me={me} onDone={() => setContact(false)} />
+        </Sheet>
       )}
     </header>
   );

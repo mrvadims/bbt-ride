@@ -14,10 +14,18 @@ import { drafts } from "./routes/drafts.ts";
 import { routes } from "./routes/routes.ts";
 import { settings } from "./routes/settings.ts";
 import { spots } from "./routes/spots.ts";
-import { links, me, users } from "./routes/users.ts";
+import { links, me, team, users } from "./routes/users.ts";
 import { weather } from "./routes/weather.ts";
 
 const app = new Hono<AppEnv>().basePath("/api");
+
+// HTTPS only (Cloudflare's Always Use HTTPS redirects first; this is the backstop): nothing, the private calendar feed
+// included, is ever served over plain HTTP. Local development runs on http://localhost.
+app.use(async (c, next) => {
+  const url = new URL(c.req.url);
+  if (url.protocol === "http:" && url.hostname !== "localhost") return c.json({ error: "Use https://" }, 403);
+  await next();
+});
 
 // Read any request body a handler (or an early rejection) left unread before replying: a half-read body can leave the
 // connection unusable for the next request.
@@ -36,7 +44,13 @@ app.onError((err, c) => {
 });
 app.notFound((c) => c.json({ error: "Not found" }, 404));
 
-app.use(secureHeaders()); // nosniff, frame and referrer protections on API responses
+// nosniff, frame and referrer protections; HSTS as on the static pages (a year, every bbt.team subdomain)
+app.use(secureHeaders({ strictTransportSecurity: "max-age=31536000; includeSubDomains" }));
+// API replies carry people's details (names, phones, emails): never keep them in a browser or app cache.
+app.use(async (c, next) => {
+  await next();
+  if (!c.res.headers.has("cache-control")) c.header("Cache-Control", "no-store");
+});
 // No request the app makes comes near this; larger bodies are refused before anything parses them.
 app.use(bodyLimit({ maxSize: 64 * 1024, onError: (c) => c.json({ error: "Request too large" }, 413) }));
 
@@ -48,6 +62,7 @@ app.use(withAuth);
 // Better Auth's admin endpoints (impersonation, setting passwords, …) aren't used by the app, which calls the ones it needs
 // on the server from /api/users with its own checks and audit log; keep them unreachable from browsers.
 app.all("/auth/admin/*", (c) => c.json({ error: "Not found" }, 404));
+app.all("/auth/is-username-available", (c) => c.json({ error: "Not found" }, 404)); // would list who's on the team
 app.on(["GET", "POST"], "/auth/*", (c) => c.get("auth").handler(c.req.raw)); // Better Auth checks its own origins
 app.use(sameOrigin);
 
@@ -57,6 +72,7 @@ app.route("/links", links);
 // Signed in
 app.use(requireSession);
 app.route("/me", me);
+app.route("/team", team);
 app.route("/weather", weather);
 app.route("/routes", routes);
 app.route("/spots", spots);

@@ -2,20 +2,22 @@
 import { betterAuth } from "better-auth";
 import { APIError } from "better-auth/api";
 import type { Role } from "../shared/api.ts";
+import { cleanName } from "../shared/people.ts";
 import { authPlugins, RATE_LIMIT } from "./auth-plugins.ts";
 import { hashPassword, verifyPassword } from "./password.ts";
 import { nowIso } from "./util.ts";
 
 const DAY = 24 * 60 * 60;
 const NOT_INVITED = "Not invited — ask a team admin";
-const RESERVED_NAMES = /^(update|ride update|former member)$/i; // labels the app uses for system posts
+const RESERVED_NAMES = /^(update|former member)$/i; // labels the app shows for system posts and deleted accounts
 
 /** Display names are shown to the whole team: 1–80 characters and not a system label. */
 function checkName(name: unknown): string | undefined {
   if (name === undefined) return undefined;
-  const n = String(name).trim().replace(/\s+/g, " ");
-  if (!n || n.length > 80 || RESERVED_NAMES.test(n))
-    throw new APIError("BAD_REQUEST", { message: "Use a name of 1–80 characters." });
+  const n = cleanName(String(name));
+  if (!n || n.length > 80) throw new APIError("BAD_REQUEST", { message: "Use a name of 1–80 characters." });
+  if (RESERVED_NAMES.test(n))
+    throw new APIError("BAD_REQUEST", { message: "That name is used by the app; pick another." });
   return n;
 }
 
@@ -70,10 +72,7 @@ export function createAuth(env: Env) {
             const role = await invitedRole(env, email);
             if (!role) throw new APIError("FORBIDDEN", { message: NOT_INVITED });
             // Google supplies the name, so tidy it rather than refuse the sign-in.
-            let name = String(user.name ?? "")
-              .trim()
-              .replace(/\s+/g, " ")
-              .slice(0, 80);
+            let name = cleanName(String(user.name ?? "")).slice(0, 80);
             if (!name || RESERVED_NAMES.test(name)) name = email.split("@")[0] ?? "Member";
             return { data: { ...user, name, email, role, image: null, emailVerified: true } };
           },

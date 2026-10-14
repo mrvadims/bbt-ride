@@ -8,7 +8,7 @@ Every open question from the design review, with what was decided. Details live 
 | Navy | `#020C2B` dark-mode background; `#03144D` text on light and dark-mode cards; `#1C367B` not used | 2026-10-09 |
 | Header | Light-blue bar, white bike logo, 4px orange stripe directly under it, no hairline (checked on a phone), no text next to the logo | 2026-10-11 |
 | Wording | "Meet time" everywhere riders see a ride's start time (was "roll-out") | 2026-10-12 |
-| Navigation | No tab row. Top bar: logo (home; v2: the upcoming list), Plan and Settings icons for roles that have them, account menu (theme, units, notifications, new-activity sports, calendar link, sign out) | 2026-10-11 |
+| Navigation | No tab row. Top bar: logo (home; v2: the upcoming list), Team (everyone, 2026-10-14), Plan and Settings icons for roles that have them, account menu (theme, units, notifications, new-activity sports, calendar link, my contact info, sign out) | 2026-10-11 |
 
 ## Weather model
 | Topic | Decision | Date |
@@ -28,16 +28,16 @@ Every open question from the design review, with what was decided. Details live 
 |---|---|---|
 | Defaults | Meet time 8:30; coffee stop 20 min (15–20 typical, one team setting); regroup buffer 5 % of moving time; all Admin settings | 2026-10-09 |
 | Alternate routes | Free-text labels, pre-filled "Full" / "Short" | 2026-10-09 |
-| Days | Saturday and Sunday tabs always; rides can be scheduled on any date | 2026-10-09 |
+| Days | Saturday and Sunday tabs always; rides can be scheduled on any date (superseded by v2 → Home: one upcoming list) | 2026-10-09 |
 | Planning | One Plan flow: compare spots → pick a spot (or add one) → route → preview → Publish. No separate Weekend page | 2026-10-10 |
 | Date picker | The app's own calendar in Plan: weeks start on Monday, Saturdays and Sundays shaded | 2026-10-12 |
 | Calendar events | Location is the parking pin's coordinates (opens in Maps, works for car navigation); spot name and Maps link go in the description | 2026-10-12 |
 | Drafts | No Save draft button; the form autosaves. Edit, Update, Replace, Cancel and Restore ride | 2026-10-10 |
 | RSVP | In / Out (route choice only for In on rides with an alternate); message thread with one-level replies | 2026-10-10 |
 | RSVP reminders | None in v1 | 2026-10-11 |
-| Notifications | Only when a ride is updated, cancelled or restored; Web Push only (opt-in per device), no email service; delivered through a Cloudflare Queue in batches of 5 devices (v2: plus Firebase for the Android app; each person keeps their newest 10 devices) | 2026-10-12 |
+| Notifications | (v1; v2 adds new activities, mentions and deletions) Only when a ride is updated, cancelled or restored; Web Push only (opt-in per device), no email service; delivered through a Cloudflare Queue in batches of 5 devices (v2: plus Firebase for the Android app; each person keeps their newest 10 devices) | 2026-10-12 |
 | Notification audience | Every member who turned ride notifications on, whether or not they've answered In / Out | 2026-10-12 |
-| History | Past tab on the Ride page (v2: a Past activities link; latest 200); read-only past rides with recorded weather; Reuse this plan. Routes and times stay live (not frozen at publish) | 2026-10-12 |
+| Past activities | Past tab on the Ride page (v2: a Past activities link; latest 200); read-only past rides with recorded weather; Reuse this plan. Routes and times stay live (not frozen at publish) | 2026-10-12 |
 | Edit conflicts | Update ride is refused if the ride changed after the editor opened it | 2026-10-12 |
 | Start spots | Name, Google Maps link and parking notes all required (v2: notes optional). Settings lists spots with Open in Maps, Edit (in place), Archive and Add a spot; archived spots fold into a collapsed list | 2026-10-12 |
 | Settings layout | One column of panels on every screen width, so an open panel never leaves a gap beside it; fields in a row line up at the input | 2026-10-12 |
@@ -60,10 +60,10 @@ Every open question from the design review, with what was decided. Details live 
 | Topic | Decision | Date |
 |---|---|---|
 | Name | The app becomes **BBT**; the address is `app.bbt.team`; app and notification icon = full bike logo on Light Blue | 2026-10-13 |
-| Sports | Ride, Run, Swim, Pickleball, Ski, Other; Admins turn sports on or off; no custom sports beyond Other | 2026-10-13 |
+| Sports | Ride, Run, Swim, Pickleball, Ski, Other (+ Triathlon, 2026-10-14); Admins turn sports on or off; no custom sports beyond Other | 2026-10-13 |
 | One team | Sports are a field on each activity, not separate groups; Edit and Admin plan any sport | 2026-10-13 |
 | Home | One upcoming list, soonest first, with sport filters (shown only when more than one sport is coming up) and a Past activities link; replaces the day tabs | 2026-10-13 |
-| Per day | One published activity per sport per day; a second one offers Replace, as in v1 | 2026-10-13 |
+| Per day | One published activity per sport per day; a second one offers Replace, as in v1 (superseded 2026-10-14 by *Several activities per sport per day*) | 2026-10-13 |
 | Plan fields | Sport first; title optional (defaults to route or sport name); end time per sport; pace for ride and run, one Details line for the rest; indoor/outdoor for swim (Pool / Open water), pickleball and other | 2026-10-13 |
 | Places | Where = a saved place or a pasted Google Maps pin; v1 spots, with notes now optional | 2026-10-13 |
 | Routes | Ride and run take a RideWithGPS route (search or pasted link); Open in RideWithGPS is a tile with RideWithGPS's vertical logo, no extra text | 2026-10-13 |
@@ -85,16 +85,24 @@ Every open question from the design review, with what was decided. Details live 
 | Members edit their own name | **Edit name** in the account menu (one display name, 1–80 characters; checked by the server). Invites carry only the email, and Google sign-ups start with their Google name | 2026-10-13 |
 | Invite links, no email service | Kept: the Admin sends each link. Settings says so and offers **Email it** (their own mail app, message ready) and **Share…**. An email service (e.g. Resend) stays an option | 2026-10-14 |
 | Notification delivery | Devices re-register on every app start; a failed send is retried once after a minute and logged with the push service's status | 2026-10-14 |
+| Firebase key | A service account with only "Firebase Cloud Messaging API Admin", not the Admin SDK key | 2026-10-13 |
 | Sport icons | Google Material Symbols (Rounded, Apache 2.0), copied in as SVG paths rather than custom drawings: every BBT sport has one, including pickleball, and about 40 more cover future sports. Other is a circle with three dots; an editor can pick another icon for an Other activity (stored per activity). Same shapes on www.bbt.team | 2026-10-14 |
 | Tester feedback, first round | Built: going count + You're in on Home, place search in Plan, tappable links, one date field with weekend chips. Deferred: multi-day and all-day events, recurring events, a month view (until a real need shows) | 2026-10-14 |
 | Triathlon | Added as a sport, on by default: race start/end, place, details, Other outdoor weather, no route. Icon made from Material's swim, run and bike shapes (Material has no triathlon icon). The database no longer fixes the list of sports; the API does | 2026-10-14 |
 | Who created and changed an activity | A quiet, closed History panel at the end of the activity page and the Edit screen (design H of three rounds), built from the audit log; chosen over bylines and chips so the record doesn't compete with the activity | 2026-10-14 |
 | Several activities per sport per day | Allowed for every sport (was one per sport per day). Plan says what's already posted and offers Publish another (main) or Replace (cancels the one named) | 2026-10-14 |
 | New and unread markers | Design K1: a dot or message count on the sport icon plus a reason line; tracked per person on the server (synced across devices), with a baseline so existing activities start as seen | 2026-10-14 |
-| Firebase key | A service account with only "Firebase Cloud Messaging API Admin", not the Admin SDK key | 2026-10-13 |
+| Team directory | A **Team** icon in the top bar for everyone, plus names in Who's in that open a contact card with Call and Text (designs A + C; the account-menu link B not used) | 2026-10-14 |
+| Contact details | Mobile phone required (asked once before anything else), emergency contact optional; everyone on the team sees both | 2026-10-14 |
+| Mentions | @ plus a name picker; names only (no usernames); stored as user ids; the people mentioned are notified when it's posted (never on edits), even if they muted the sport; at most 10 per message | 2026-10-14 |
+| Deleting activities | Admins only, with a confirm sheet; RSVPs and messages go too; people going are told; the audit log keeps a record. Cancel stays for everyone else | 2026-10-14 |
+| Replace's notification | A cancellation by Replace is told to everyone with notifications on, like any other cancellation | 2026-10-14 |
+| Who sees contacts | Every member sees everyone's phone and emergency contact; only Admins see other people's roles; disabled members are hidden from Team and mentions (names kept for old mentions); the phone requirement is the app's, not the API's | 2026-10-14 |
+| Visit tracking | Only opening the activity page counts as a visit (its own request); reading it in Plan or the 30 s refresh doesn't | 2026-10-14 |
+| HTTPS only | Every connection is HTTPS: Cloudflare redirects plain HTTP, the API refuses it, HSTS for a year with includeSubDomains (no preload), no cleartext in the Android app; calendar buttons keep `webcal:` links for simplicity | 2026-10-14 |
+| Prototype | The v1 HTML prototype is removed (it predated v2); it stays in git history | 2026-10-14 |
 
 ## Notes
-- **Prototype data.** In sandboxed previews (such as the private artifact) the prototype can't reach Open-Meteo or map tiles, so it shows the saved Oct 7–11 sample (yellow banner) and an outline map. Opened directly in a browser it fetches live. The real app fetches forecasts through the Worker.
 - **Nearest spot.** Use the route's first track point to find the nearest start spot (the seed file's RWGPS start point differs by about 45 m).
 
 ## Still to do (outside the code)

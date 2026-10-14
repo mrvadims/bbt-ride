@@ -50,7 +50,7 @@ export const spots = new Hono<AppEnv>()
   .post("/", requireRole("edit"), validate("json", spotInput), async (c) => {
     const { name, link, note } = c.req.valid("json");
     const exists = await c.env.DB.prepare("select 1 from spots where name = ? collate nocase").bind(name).first();
-    if (exists) fail(409, "A spot with that name already exists");
+    if (exists) fail(409, "A place with that name already exists");
     const spot = { id: newId(), name, ...(await locate(link)), note };
     await c.env.DB.batch([
       c.env.DB.prepare(
@@ -65,7 +65,7 @@ export const spots = new Hono<AppEnv>()
     const cur = await c.env.DB.prepare("select id, name, lat, lng, maps_url, note, archived from spots where id = ?")
       .bind(id)
       .first<SpotRow>();
-    if (!cur) return fail(404, "Spot not found");
+    if (!cur) return fail(404, "Place not found");
     const e = c.req.valid("json");
     const next = {
       ...cur,
@@ -78,7 +78,7 @@ export const spots = new Hono<AppEnv>()
       const taken = await c.env.DB.prepare("select 1 from spots where name = ? collate nocase and id != ?")
         .bind(next.name, id)
         .first();
-      if (taken) fail(409, "A spot with that name already exists");
+      if (taken) fail(409, "A place with that name already exists");
     }
     await c.env.DB.batch([
       c.env.DB.prepare(

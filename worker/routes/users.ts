@@ -2,6 +2,8 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import {
+  type ContactFields,
+  contactFields,
   type Invite,
   inviteInput,
   linkAccept,
@@ -9,6 +11,7 @@ import {
   type Me,
   mutedChange,
   type Role,
+  type TeamMember,
   type UserRow,
   userEdit,
 } from "../../shared/api.ts";
@@ -69,11 +72,28 @@ async function openLink(db: D1Database, token: string) {
     .first<{ token_hash: string; kind: "invite" | "reset"; email: string; user_id: string | null }>();
 }
 
+const CONTACT = "phone, emergency_name, emergency_phone";
+interface ContactRow {
+  phone: string | null;
+  emergency_name: string | null;
+  emergency_phone: string | null;
+}
+const contactOf = (r: ContactRow | null) => ({
+  phone: r?.phone ?? null,
+  emergencyName: r?.emergency_name ?? null,
+  emergencyPhone: r?.emergency_phone ?? null,
+});
+const saveContact = (db: D1Database, userId: string, c: ContactFields) =>
+  db
+    .prepare(`update "user" set phone = ?, emergency_name = ?, emergency_phone = ? where id = ?`)
+    .bind(c.phone, c.emergencyName, c.emergencyPhone, userId);
+
 async function meOf(env: Env, u: SessionUser): Promise<Me> {
-  const [methods, muted, calendarUrl] = await Promise.all([
+  const [methods, muted, calendarUrl, contact] = await Promise.all([
     methodsOf(env.DB, u.id),
     env.DB.prepare("select sport from notify_off where user_id = ?").bind(u.id).all<{ sport: Sport }>(),
     calendarLinkOf(env, u.id),
+    env.DB.prepare(`select ${CONTACT} from "user" where id = ?`).bind(u.id).first<ContactRow>(),
   ]);
   return {
     ...u,
@@ -81,6 +101,7 @@ async function meOf(env: Env, u: SessionUser): Promise<Me> {
     vapidPublicKey: env.VAPID_PUBLIC_KEY,
     mutedSports: muted.results.map((r) => r.sport),
     calendarUrl,
+    ...contactOf(contact),
   };
 }
 
@@ -112,7 +133,32 @@ export const me = new Hono<AppEnv>()
   .post("/calendar/reset", async (c) => {
     await resetCalendarLink(c.env, c.get("user").id).run();
     return c.json(await meOf(c.env, c.get("user")));
+  })
+  // Phone and emergency contact: asked for once (the app waits for a phone), changed any time from the account menu.
+  .put("/contact", validate("json", contactFields), async (c) => {
+    await saveContact(c.env.DB, c.get("user").id, c.req.valid("json")).run();
+    return c.json(await meOf(c.env, c.get("user")));
   });
+
+// The team directory, for every member: names, phones and emergency contacts; roles only for Admins. Disabled accounts
+// come with their name only (so mentions of them still read right); the app leaves them out of Team and the mention list.
+export const team = new Hono<AppEnv>().get("/", async (c) => {
+  const { results } = await c.env.DB.prepare(
+    `select id, name, role, banned, ${CONTACT} from "user" order by name collate nocase`,
+  ).all<ContactRow & { id: string; name: string; role: Role | null; banned: number | null }>();
+  const admin = c.get("user").role === "admin";
+  return c.json(
+    results.map(
+      (r): TeamMember => ({
+        id: r.id,
+        name: r.name,
+        ...(admin && { role: r.role ?? "view" }),
+        active: !r.banned,
+        ...contactOf(r.banned ? null : r),
+      }),
+    ),
+  );
+});
 
 export const users = new Hono<AppEnv>()
   .use(requireRole("admin"))
@@ -152,9 +198,14 @@ export const users = new Hono<AppEnv>()
     return c.json({ url: await createLink(c.env, "invite", email, role, null, c.get("user").id) }, 201);
   })
   .delete("/invites/:email", async (c) => {
-    await c.env.DB.prepare("update links set used_at = ? where kind = 'invite' and email = ? and used_at is null")
-      .bind(nowIso(), c.req.param("email").toLowerCase())
-      .run();
+    const email = c.req.param("email").toLowerCase();
+    await c.env.DB.batch([
+      c.env.DB.prepare("update links set used_at = ? where kind = 'invite' and email = ? and used_at is null").bind(
+        nowIso(),
+        email,
+      ),
+      audit(c.env.DB, c.get("user").id, "revoke-invite-link", "user", email),
+    ]);
     return c.body(null, 204);
   })
   .post("/:id/reset-link", async (c) => {
@@ -205,13 +256,14 @@ export const links = new Hono<AppEnv>()
     return link ? c.json({ kind: link.kind, email: link.email }) : fail(404, EXPIRED);
   })
   .post("/accept", validate("json", linkAccept), async (c) => {
-    const { token, name, username, password } = c.req.valid("json");
+    const { token, name, username, password, contact } = c.req.valid("json");
     const link = await openLink(c.env.DB, token);
     if (!link) return fail(404, EXPIRED);
     const ctx = await c.get("auth").$context;
     if (link.kind === "invite") {
       // Cheap checks before the (deliberately slow) password hash.
       if (!name) fail(400, "Add your name");
+      if (!contact) fail(400, "Add your phone number");
       if (username) {
         const taken = await c.env.DB.prepare(`select 1 from "user" where username = ?`).bind(username).first();
         if (taken) fail(409, "That username is taken");
@@ -235,6 +287,7 @@ export const links = new Hono<AppEnv>()
         await c.env.DB.prepare("update links set used_at = null where token_hash = ?").bind(link.token_hash).run();
         throw err;
       }
+      await saveContact(c.env.DB, user.id, contact as ContactFields).run();
     } else {
       // Claim the reset link atomically, so it can't be used twice at once.
       const claim = await c.env.DB.prepare("update links set used_at = ? where token_hash = ? and used_at is null")
@@ -248,6 +301,8 @@ export const links = new Hono<AppEnv>()
       else
         await ctx.internalAdapter.linkAccount({ userId, providerId: "credential", accountId: userId, password: hash });
       await ctx.internalAdapter.deleteUserSessions(userId); // sign out everywhere else
+      // …and stop notifications to every device: a lost phone shouldn't keep getting them
+      await c.env.DB.prepare("delete from push_subscriptions where user_id = ?").bind(userId).run();
     }
     return c.body(null, 204);
   });

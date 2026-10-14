@@ -125,7 +125,7 @@ export function dryingRate(se: Series, i: number): number {
 
 type RoadState = "Dry" | "Drying" | "Wet";
 type Level = 0 | 1 | 2; // none, amber, red
-export interface Road {
+interface Road {
   state: RoadState;
   rainIn: number; // rain in the look-back window
   rained: boolean;
@@ -261,7 +261,7 @@ export interface Alert {
   level: 1 | 2; // warning = red, advisory or watch = amber
 }
 
-/** A condition that needs attention; the client turns it into text in the rider's units. */
+/** A condition that needs attention; the client turns it into text in the person's units. */
 export type Warning = { level: 1 | 2 } & (
   | { kind: "alert"; event: string; headline: string }
   | { kind: "lowLight"; sunrise: number }

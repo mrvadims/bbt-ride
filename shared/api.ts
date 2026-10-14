@@ -1,6 +1,7 @@
 // JSON shapes exchanged between the Worker (/api/*) and the React app, plus request schemas the Worker validates.
 import { z } from "zod";
 import type { KitBand } from "./kit.ts";
+import { cleanName, MAX_MENTIONS, mentionIds, normalizePhone } from "./people.ts";
 import type { RideRoute } from "./ride.ts";
 import { HHMM, type Settings } from "./settings.ts";
 import { ICON_KEYS, type Icon } from "./sport-icons.ts";
@@ -22,6 +23,20 @@ export interface Me {
   vapidPublicKey: string;
   mutedSports: Sport[]; // no "new activity" notifications for these
   calendarUrl: string | null; // the private calendar link, once made
+  phone: string | null; // null: the app asks for it before anything else
+  emergencyName: string | null;
+  emergencyPhone: string | null;
+}
+
+/** GET /api/team: everyone on the team who isn't disabled, for the Team page, contact cards and @mentions. */
+export interface TeamMember {
+  id: string;
+  name: string;
+  role?: Role; // only for Admins: other people's roles are theirs to see
+  active: boolean; // false: disabled; kept so mentions still show the name, but without contact details
+  phone: string | null;
+  emergencyName: string | null;
+  emergencyPhone: string | null;
 }
 
 export interface TeamSettings {
@@ -107,7 +122,6 @@ export interface ActivityDetail extends Activity {
   rsvps: Rsvp[];
   messages: Message[];
   history: HistoryEntry[]; // newest first
-  seenBefore?: string | null; // GET /api/activities/:id only: when the viewer last caught up (null: it's new to them)
 }
 
 export interface UserRow {
@@ -203,11 +217,16 @@ export const rsvpInput = z.object({
   status: z.enum(["in", "out"]).nullable(),
   routeLabel: z.string().max(30).nullable(),
 });
-export const messageInput = z.object({
-  body: z.string().trim().min(1).max(2000),
-  parentId: z.string().max(64).nullable().default(null),
-});
-export const messageEdit = z.object({ body: z.string().trim().min(1).max(2000) });
+// Stored text, where a mention is its <@id> token: the app counts that length before sending.
+export const MESSAGE_MAX = 2000;
+const messageBody = z
+  .string()
+  .trim()
+  .min(1)
+  .max(MESSAGE_MAX, "That message is too long")
+  .refine((b) => mentionIds(b).length <= MAX_MENTIONS, `Mention at most ${MAX_MENTIONS} people in one message`);
+export const messageInput = z.object({ body: messageBody, parentId: z.string().max(64).nullable().default(null) });
+export const messageEdit = z.object({ body: messageBody });
 
 export const spotInput = z.object({
   name: z.string().trim().min(1).max(80),
@@ -226,6 +245,44 @@ export const userEdit = z.object({
 });
 export const mutedChange = z.object({ off: z.boolean() }); // PUT /api/me/muted/:sport
 
+const phone = (label: string) =>
+  z
+    .string()
+    .trim()
+    .max(30)
+    .transform((v, ctx) => {
+      const n = normalizePhone(v);
+      if (!n) ctx.addIssue({ code: "custom", message: `${label}: enter a phone number like (914) 555-0142` });
+      return n ?? "";
+    });
+/** Phone (required) and an emergency contact (optional, but a name needs a number and the other way round). */
+export const contactFields = z
+  .object({
+    phone: phone("Phone"),
+    // Optional: empty or null (what this schema itself outputs, so a checked value can be sent as is).
+    emergencyName: z
+      .string()
+      .trim()
+      .max(80)
+      .nullish()
+      .transform((v) => cleanName(v ?? "")),
+    emergencyPhone: z
+      .string()
+      .trim()
+      .max(30)
+      .nullish()
+      .transform((v) => v ?? ""),
+  })
+  .transform((v, ctx) => {
+    const ep = v.emergencyPhone ? normalizePhone(v.emergencyPhone) : null;
+    if (v.emergencyPhone && !ep)
+      ctx.addIssue({ code: "custom", message: "Emergency phone: enter a phone number like (914) 555-0142" });
+    if (Boolean(v.emergencyName) !== Boolean(v.emergencyPhone))
+      ctx.addIssue({ code: "custom", message: "Add both the emergency contact's name and phone, or neither" });
+    return { phone: v.phone, emergencyName: v.emergencyName || null, emergencyPhone: ep };
+  });
+export type ContactFields = z.output<typeof contactFields>;
+
 // Link tokens travel in request bodies, never in API URLs (which end up in request logs).
 export const linkToken = z.object({ token: z.string().min(8).max(100) });
 export const linkAccept = linkToken.extend({
@@ -237,6 +294,7 @@ export const linkAccept = linkToken.extend({
     .regex(/^[a-z0-9_.]{3,30}$/, "3–30 letters, digits, dots or underscores")
     .optional(),
   password: z.string().min(10).max(128),
+  contact: contactFields.optional(), // invite only
 });
 // Browsers' push services, and only those (the Worker sends signed requests to these hosts): Google (Chrome, Android:
 // fcm.googleapis.com, jmt<N>.google.com), Mozilla (Firefox), Apple (Safari, iOS) and Microsoft (Edge).

@@ -3,7 +3,6 @@
   "files": {
     "includes": [
       "**",
-      "!prototype",
       "!data",
       "!brand",
       "!public/icons",

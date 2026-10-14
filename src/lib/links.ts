@@ -1,5 +1,5 @@
 // Web links in notes and thread messages become tappable (http, https or www.; nothing else, so no javascript: links).
-export type Piece = { text: string } | { text: string; href: string };
+type Piece = { text: string } | { text: string; href: string };
 
 const URL_RE = /\b(?:https?:\/\/|www\.)[^\s<>"]+/gi;
 

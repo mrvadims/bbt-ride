@@ -1,6 +1,14 @@
 // Server data via TanStack Query: cached per endpoint, refetched when stale.
 import { keepPreviousData, QueryClient, useQuery } from "@tanstack/react-query";
-import type { Activity, ActivityDetail, Me, RouteSummary, TeamSettings, WeatherData } from "../../shared/api.ts";
+import type {
+  Activity,
+  ActivityDetail,
+  Me,
+  RouteSummary,
+  TeamMember,
+  TeamSettings,
+  WeatherData,
+} from "../../shared/api.ts";
 import type { Route, Spot } from "../../shared/ride.ts";
 import { type Series, toSeries } from "../../shared/weather.ts";
 import { ApiError, api } from "./api.ts";
@@ -19,7 +27,10 @@ export type SpotWithState = Spot & { archived: boolean };
 
 export const useMe = () =>
   useQuery({ queryKey: ["me"], queryFn: () => api<Me>("/me"), retry: false, staleTime: 5 * 60_000 });
-export const useTeam = () => useQuery({ queryKey: ["settings"], queryFn: () => api<TeamSettings>("/settings") });
+export const useTeamSettings = () =>
+  useQuery({ queryKey: ["settings"], queryFn: () => api<TeamSettings>("/settings") });
+/** The team directory (Team page, contact cards, @mentions). */
+export const useMembers = () => useQuery({ queryKey: ["members"], queryFn: () => api<TeamMember[]>("/team") });
 /** After adding or changing a spot: the list and the forecast (which covers each active spot). */
 export const refreshSpots = (qc: QueryClient) =>
   Promise.all([qc.invalidateQueries({ queryKey: ["spots"] }), qc.invalidateQueries({ queryKey: ["weather"] })]);
@@ -29,14 +40,14 @@ export const useActivities = () =>
 export const usePast = () =>
   useQuery({ queryKey: ["activities", "past"], queryFn: () => api<Activity[]>("/activities/past") });
 
-/** One activity with RSVPs and messages; refreshed every 30 s while the page is open (DESIGN.md → v1 scope → Rides, Who's in). */
+/** One activity with RSVPs and messages; refreshed every 30 s while the page is open (DESIGN.md → v2, Activity page). */
 export const useActivity = (id: string | null | undefined) =>
   useQuery({
     queryKey: ["activity", id],
     queryFn: () => api<ActivityDetail>(`/activities/${id}`),
     enabled: Boolean(id),
     refetchInterval: 30_000,
-    refetchOnMount: "always", // each open records the visit (New and unread markers)
+    refetchOnMount: "always", // opening it shows what's new since, not a copy from earlier
   });
 
 export const useRoute = (id: number | null | undefined) =>
@@ -54,7 +65,7 @@ export const useRouteSearch = (q: string) =>
     placeholderData: keepPreviousData,
   });
 
-export interface Weather {
+interface Weather {
   series: Record<string, Series>;
   alerts: WeatherData["alerts"];
 }

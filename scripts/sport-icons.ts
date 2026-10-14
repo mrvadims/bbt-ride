@@ -19,7 +19,7 @@ const ARGS: Record<string, number> = { m: 2, l: 2, t: 2, h: 1, v: 1, c: 6, s: 4,
 const num = (n: number) => String(Math.round(n * 100) / 100);
 
 /** Scales and moves an SVG path: absolute coordinates get scale and offset, relative ones only the scale. */
-export function movePath(d: string, k: number, dx: number, dy: number): string {
+function movePath(d: string, k: number, dx: number, dy: number): string {
   const out: string[] = [];
   const re = /([MmLlTtHhVvCcSsQqAaZz])|(-?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?)/g;
   const tokens = [...d.matchAll(re)].map((m) => m[0]);

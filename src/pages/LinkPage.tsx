@@ -1,6 +1,7 @@
 // Invite (/invite/:token) and reset (/reset/:token) links: continue with Google, or set a password and then sign in.
 import { useQuery } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
+import { ContactInputs, readContact } from "../components/Contact.tsx";
 import { api } from "../lib/api.ts";
 import { navigate } from "../lib/router.tsx";
 import { continueWithGoogle, GoogleMark } from "./SignIn.tsx";
@@ -19,12 +20,14 @@ export function LinkPage({ kind, token }: { kind: "invite" | "reset"; token: str
     const f = new FormData(e.currentTarget);
     const password = String(f.get("password"));
     if (password !== String(f.get("confirm"))) return setError("The passwords don't match.");
+    const contact = kind === "invite" ? readContact(e.currentTarget) : null;
+    if (contact && "error" in contact) return setError(contact.error);
     setBusy(true);
     setError(null);
     try {
       const body =
         kind === "invite"
-          ? { token, name: f.get("name"), username: f.get("username") || undefined, password }
+          ? { token, name: f.get("name"), username: f.get("username") || undefined, password, contact: contact?.value }
           : { token, password };
       await api("/links/accept", { body });
       navigate("/signin?password=set", true);
@@ -71,13 +74,14 @@ export function LinkPage({ kind, token }: { kind: "invite" | "reset"; token: str
                 {kind === "invite" && (
                   <>
                     <label className="field">
-                      Your name (shown to the team)
+                      First and last name (shown to the team)
                       <input name="name" autoComplete="name" required maxLength={80} />
                     </label>
                     <label className="field">
                       Username (optional; you can always sign in with your email)
                       <input name="username" autoComplete="username" pattern="[A-Za-z0-9_.]{3,30}" maxLength={30} />
                     </label>
+                    <ContactInputs />
                   </>
                 )}
                 <label className="field">
