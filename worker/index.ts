@@ -44,7 +44,8 @@ app.onError((err, c) => {
 });
 app.notFound((c) => c.json({ error: "Not found" }, 404));
 
-app.use(secureHeaders()); // nosniff, frame and referrer protections on API responses
+// nosniff, frame and referrer protections; HSTS as on the static pages (a year, every bbt.team subdomain)
+app.use(secureHeaders({ strictTransportSecurity: "max-age=31536000; includeSubDomains" }));
 // API replies carry people's details (names, phones, emails): never keep them in a browser or app cache.
 app.use(async (c, next) => {
   await next();
