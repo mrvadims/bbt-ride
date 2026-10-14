@@ -6,6 +6,7 @@ import { TopBar } from "./components/TopBar.tsx";
 import { ApiError } from "./lib/api.ts";
 import { useMe } from "./lib/data.ts";
 import { isApp, isIosBrowser, isIosHomeScreen } from "./lib/native.ts";
+import { refreshPush } from "./lib/push.ts";
 import { navigate, useLocation } from "./lib/router.tsx";
 import { ActivityPage } from "./pages/ActivityPage.tsx";
 import { HomePage } from "./pages/HomePage.tsx";
@@ -29,6 +30,13 @@ export function App() {
     const here = window.location.pathname + window.location.search;
     if (signedOut && !isPublic) navigate(here === "/" ? "/signin" : `/signin?next=${encodeURIComponent(here)}`, true);
   }, [signedOut, isPublic]);
+
+  // Once per sign-in on this device: re-register its notifications (the Android app does it in AppExtras).
+  const userId = me.data?.id;
+  const vapid = me.data?.vapidPublicKey ?? "";
+  useEffect(() => {
+    if (userId && !isApp()) refreshPush(vapid).catch(() => undefined);
+  }, [userId, vapid]);
 
   if (isPublic) {
     return (

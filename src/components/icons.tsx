@@ -161,15 +161,16 @@ export const DirectionsIcon = () => (
 const SPORT_PATHS: Record<Sport, ReactNode> = {
   ride: (
     <>
-      <circle cx="5.5" cy="16.5" r="3.5" />
-      <circle cx="18.5" cy="16.5" r="3.5" />
-      <path d="M5.5 16.5 9 9h6l3.5 7.5M9 9l3 7.5h-1M14 6h2l-1 3" />
+      <circle cx="5.5" cy="17.5" r="3.5" />
+      <circle cx="18.5" cy="17.5" r="3.5" />
+      <circle cx="15" cy="5" r="1.6" />
+      <path d="M12 17.5V14l-3-3 4-3 2 3h2" />
     </>
   ),
   run: (
     <>
-      <circle cx="14.5" cy="4.5" r="2" />
-      <path d="M8 21l3-6 3 2v5M6 11l3-3 4 1 2 4 3 1M11 15l1-5" />
+      <circle cx="15" cy="4.5" r="1.8" />
+      <path d="M5 11.5l3-3 4.5.5 2.5 3.5 3 1M12.5 9l-2 5 3.5 2.5V21M10.5 14l-2 3.5H5" />
     </>
   ),
   swim: (
@@ -180,16 +181,21 @@ const SPORT_PATHS: Record<Sport, ReactNode> = {
   ),
   pickleball: (
     <>
-      <rect x="3" y="3" width="11" height="13" rx="5.5" transform="rotate(-30 8.5 9.5)" />
-      <path d="M11 15l4 5" />
-      <circle cx="18.5" cy="6.5" r="2.5" />
+      <rect x="2.5" y="2" width="13" height="14" rx="5.5" transform="rotate(-35 9 9)" />
+      <path d="M13.4 15.2l3.6 5" />
+      <circle cx="19.5" cy="5.5" r="2.2" />
     </>
   ),
-  ski: <path d="M2 19l8-12 4 6 2-3 6 9M3 22l18-4" />,
+  ski: (
+    <>
+      <circle cx="15.5" cy="3.5" r="1.8" />
+      <path d="M13 7.5L9 11l4 2-2 4.4M13 7.5l3 2.5 2.2 8.2M3 15l18 5.5" />
+    </>
+  ),
   other: (
     <>
       <circle cx="12" cy="12" r="9" />
-      <path d="M12 7v5l3 3" />
+      <path d="M8 12h.01M12 12h.01M16 12h.01" strokeWidth={2.6} />
     </>
   ),
 };

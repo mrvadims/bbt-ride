@@ -200,10 +200,16 @@ await shot(page, "home");
 // Settings
 await page.getByTitle("Settings").click();
 await page.getByRole("button", { name: "Users", exact: true }).click();
-await page.getByLabel("Invite by email").fill(`rider-${stamp}@example.test`);
-await page.getByRole("button", { name: "Invite" }).click();
+await page.getByLabel("Invite (email address)").fill(`rider-${stamp}@example.test`);
+await page.getByRole("button", { name: "Create invite link" }).click();
 await page.locator(".notice input").waitFor();
 check((await page.locator(".notice input").inputValue()).includes("/invite/"), "invite link shown to the Admin");
+const mail = (await page.getByRole("link", { name: "Email it" }).getAttribute("href")) ?? "";
+check(
+  mail.startsWith(`mailto:rider-${stamp}%40example.test?`) && decodeURIComponent(mail).includes("/invite/"),
+  "Email it opens a message to the invited address with the link",
+);
+await shot(page, "invite-link");
 
 // Places: add, then edit the notes
 await page.getByRole("button", { name: "Places", exact: true }).click();

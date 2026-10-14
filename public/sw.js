@@ -19,6 +19,28 @@ self.addEventListener("push", (event) => {
   );
 });
 
+// The push service replaced this device's subscription (browsers do this from time to time): register the new one, or
+// notifications would stop while the switch still shows on. Signed out, it fails quietly and the switch shows off.
+self.addEventListener("pushsubscriptionchange", (event) => {
+  const key = event.oldSubscription?.options.applicationServerKey;
+  const next = event.newSubscription
+    ? Promise.resolve(event.newSubscription)
+    : self.registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
+  event.waitUntil(
+    next
+      .then((sub) => {
+        const { endpoint, keys } = sub.toJSON();
+        return fetch("/api/push", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ endpoint, keys }),
+          credentials: "same-origin",
+        });
+      })
+      .catch(() => undefined),
+  );
+});
+
 // A new version takes over at once (a Home Screen app may stay open for days), including pages opened before it, so a
 // tapped notification can navigate them.
 self.addEventListener("install", () => self.skipWaiting());

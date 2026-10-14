@@ -25,8 +25,8 @@
       "id": "7b924a895d8e466aa83b4bffa01159fd"
     }
   ],
-  // Notifications: queued, then sent one batch (up to 5 devices) per consumer run. Each device's failure is logged and
-  // skipped; only a crashed run is retried (once).
+  // Notifications: queued, then sent one batch (up to 5 devices) per consumer run. A device that fails is logged and
+  // re-queued once, a minute later (worker/push.ts); a crashed run is retried once.
   "queues": {
     "producers": [{ "binding": "PUSH", "queue": "bbt-ride-push" }],
     "consumers": [{ "queue": "bbt-ride-push", "max_batch_size": 1, "max_retries": 1 }]

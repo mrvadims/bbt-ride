@@ -19,6 +19,7 @@ interface Sub {
 export interface PushJob {
   data: string;
   subs: Sub[];
+  retry?: boolean; // a second try for devices whose push service failed for a moment
 }
 // Each queue delivery runs in its own invocation. Encrypting and signing a Web Push message takes about 1–2 ms of CPU per
 // device, so a small batch keeps each run inside the free plan's ~10 ms CPU (and far under 50 outbound requests). A
@@ -77,14 +78,16 @@ export async function notifyActivity(
 }
 
 /** Queue consumer: sends one batch. A device the push service reports gone (404/410, or an old app token) is
- * forgotten. */
+ * forgotten. A device that fails for another reason (network, rate limit, a push service error) is logged and tried
+ * once more a minute later, on its own, so the others don't get the notification twice. */
 export async function deliver(batch: MessageBatch<PushJob>, env: Env): Promise<void> {
   const vapid = { subject: env.VAPID_SUBJECT, publicKey: env.VAPID_PUBLIC_KEY, privateKey: env.VAPID_PRIVATE_KEY };
   let auth: Promise<FcmAuth | null> | undefined; // signed once, only if the batch has an app device
   const forget = (endpoint: string) =>
     env.DB.prepare("delete from push_subscriptions where endpoint = ?").bind(endpoint).run();
   for (const msg of batch.messages) {
-    const { data, subs } = msg.body;
+    const { data, subs, retry } = msg.body;
+    const failed: Sub[] = [];
     await Promise.all(
       subs.map(async (s) => {
         try {
@@ -97,13 +100,21 @@ export async function deliver(batch: MessageBatch<PushJob>, env: Env): Promise<v
           const sub = { endpoint: s.endpoint, expirationTime: null, keys: JSON.parse(s.keys_json) };
           const payload = await buildPushPayload({ data, options: { ttl: 24 * 60 * 60, urgency: "high" } }, sub, vapid);
           const res = await fetch(s.endpoint, payload);
-          await res.body?.cancel();
-          if (res.status === 404 || res.status === 410) await forget(s.endpoint);
+          if (res.ok) await res.body?.cancel();
+          else if (res.status === 404 || res.status === 410) {
+            await res.body?.cancel();
+            await forget(s.endpoint);
+          } else
+            throw new Error(
+              `Web Push ${res.status} from ${new URL(s.endpoint).host}: ${(await res.text()).slice(0, 200)}`,
+            );
         } catch (err) {
-          console.error("push failed", err); // one bad device mustn't stop the others, or resend to them
+          console.error(retry ? "push failed again" : "push failed", String(err)); // one bad device mustn't stop the others
+          failed.push(s);
         }
       }),
     );
+    if (failed.length && !retry) await env.PUSH.send({ data, subs: failed, retry: true }, { delaySeconds: 60 });
     msg.ack();
   }
 }

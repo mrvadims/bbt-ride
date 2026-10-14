@@ -265,6 +265,40 @@ describe("Firebase messaging (Android app)", () => {
     expect(acked).toBe(1);
   });
 
+  it("tries a failed device once more, a minute later and on its own", async () => {
+    const { env } = fakeEnv(await account());
+    const queued: { body: PushJob; delay?: number }[] = [];
+    Object.assign(env, {
+      CACHE: { get: async () => "tok", put: async () => undefined, delete: async () => undefined },
+      PUSH: {
+        send: async (body: PushJob, o?: { delaySeconds?: number }) =>
+          void queued.push({ body, delay: o?.delaySeconds }),
+      },
+    });
+    const real = globalThis.fetch;
+    globalThis.fetch = (async (_url: string, init?: RequestInit) =>
+      JSON.parse(String(init?.body)).message.token === "busy-app"
+        ? new Response('{"error":{"status":"UNAVAILABLE"}}', { status: 503 })
+        : Response.json({ name: "m/1" })) as typeof fetch;
+    const run = (job: PushJob) =>
+      deliver({ messages: [{ body: job, ack: () => undefined }] } as unknown as MessageBatch<PushJob>, env);
+    const subs = [
+      { endpoint: "live-app", keys_json: "{}", kind: "fcm" as const },
+      { endpoint: "busy-app", keys_json: "{}", kind: "fcm" as const },
+    ];
+    const error = console.error;
+    console.error = () => undefined;
+    try {
+      await run({ data: "{}", subs });
+      expect(queued).toEqual([{ body: { data: "{}", subs: [subs[1]], retry: true }, delay: 60 }]);
+      await run(queued[0]?.body as PushJob); // fails again: logged, not queued a third time
+      expect(queued).toHaveLength(1);
+    } finally {
+      globalThis.fetch = real;
+      console.error = error;
+    }
+  });
+
   it("is off without a service account", async () => {
     expect(await fcmAuth({ FCM_SERVICE_ACCOUNT: "" } as unknown as Env)).toBeNull();
   });
