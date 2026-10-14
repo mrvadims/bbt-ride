@@ -31,13 +31,12 @@ function Row({ a, spotName }: { a: Activity; spotName: string }) {
           {a.details ? ` · ${a.details}` : ""}
           {a.outdoor ? "" : " · indoor"}
         </span>
-      </span>
-      <span className="arow-r">
-        {a.status === "cancelled" ? (
-          <Pill level={2}>Cancelled</Pill>
-        ) : (
+        {a.status !== "cancelled" && (
           <WarningChips list={chips} u={u} lookback={m && !m.loading ? m.settings.lookback : 12} />
         )}
+      </span>
+      <span className="arow-r">
+        {a.status === "cancelled" && <Pill level={2}>Cancelled</Pill>}
         <span className={`going${a.counts.in ? "" : " none"}`}>
           <b>{a.counts.in}</b> going
         </span>

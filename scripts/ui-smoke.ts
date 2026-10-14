@@ -150,6 +150,27 @@ check(
     "https://example.com/lot",
   "a link in a message is tappable",
 );
+await page
+  .getByPlaceholder("Message the team")
+  .fill(`Sheet: https://docs.google.com/spreadsheets/d/${"x".repeat(160)}/edit?gid=1994446438#gid=1994446438`);
+await page.getByRole("button", { name: "Send" }).click();
+await page.getByRole("link", { name: /^https:\/\/docs\.google\.com/ }).waitFor();
+// Nothing spills past its card (or its own box), except inside a strip meant to scroll sideways (filters, tables).
+const fits = () =>
+  page.evaluate(() =>
+    [...document.querySelectorAll(".arow *, .panel *")].every((el) => {
+      const card = el.closest(".arow, .panel") as Element;
+      if (
+        el.getBoundingClientRect().right <= card.getBoundingClientRect().right + 1 &&
+        el.scrollWidth <= el.clientWidth + 1
+      )
+        return true;
+      for (let a = el.parentElement; a && a !== card; a = a.parentElement)
+        if (/auto|scroll/.test(getComputedStyle(a).overflowX)) return true;
+      return false;
+    }),
+  );
+check(await fits(), "a very long link doesn't widen the activity page");
 check(true, "message posted to the thread");
 await shot(page, "ride");
 
@@ -217,6 +238,7 @@ check(
 );
 await page.getByLabel("BBT home").click();
 await page.getByRole("link", { name: new RegExp(`Doubles ${stamp}`) }).waitFor();
+check(await fits(), "home cards with warning chips fit the phone width");
 {
   const ride = page.locator(".arow", { has: page.locator(".you-in") }).first();
   check((await ride.locator(".going").textContent())?.trim() === "1 going", "home card: 1 going and You're in");

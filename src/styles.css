@@ -384,6 +384,7 @@ tr.now td:first-child {
 }
 .notes {
   white-space: pre-wrap;
+  overflow-wrap: anywhere; /* a long link mustn't widen the page */
   margin: 0;
 }
 .controls {
@@ -912,6 +913,7 @@ dialog.sheet::backdrop {
 .msg p {
   margin: 2px 0 4px;
   white-space: pre-wrap;
+  overflow-wrap: anywhere; /* a long link mustn't widen the page */
 }
 .msg.reply {
   padding: 6px 0 6px 12px;
@@ -1350,6 +1352,9 @@ a.linkbtn {
   gap: 1px;
   min-width: 0;
   flex: 1;
+}
+.arow-b .chips {
+  margin-top: 4px;
 }
 .arow-b b {
   font-size: 16px;
