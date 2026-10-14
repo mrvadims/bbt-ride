@@ -36,6 +36,7 @@ export const useActivity = (id: string | null | undefined) =>
     queryFn: () => api<ActivityDetail>(`/activities/${id}`),
     enabled: Boolean(id),
     refetchInterval: 30_000,
+    refetchOnMount: "always", // each open records the visit (New and unread markers)
   });
 
 export const useRoute = (id: number | null | undefined) =>

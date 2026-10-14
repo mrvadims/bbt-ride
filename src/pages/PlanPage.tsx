@@ -2,7 +2,7 @@
 // Preview → Publish (DESIGN.md → Plan a ride, v2 Plan). The form autosaves as a per-editor draft on the server.
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ActivityDetail, ActivityUpdate, RouteSummary } from "../../shared/api.ts";
+import { type ActivityDetail, type ActivityUpdate, activityName, type RouteSummary } from "../../shared/api.ts";
 import { etaAt, FT_PER_M, M_PER_MI, nearest, type Poi, rideTimes, startDistance } from "../../shared/ride.ts";
 import { ICON_KEYS, ICONS, type Icon, SPORT_ICON } from "../../shared/sport-icons.ts";
 import {
@@ -64,7 +64,7 @@ import {
   useWeather,
 } from "../lib/data.ts";
 import { setPref, usePrefs } from "../lib/prefs.ts";
-import { navigate, useLocation } from "../lib/router.tsx";
+import { Link, navigate, useLocation } from "../lib/router.tsx";
 import { units } from "../lib/units.ts";
 
 interface Form {
@@ -397,13 +397,13 @@ export function PlanPage() {
   const model = useActivityModel(draft);
 
   const publish = useMutation({
-    mutationFn: async (replace: boolean) => {
+    mutationFn: async (replaceId: string | null) => {
       if (!form || !draft) throw new Error(routed ? "Pick a start spot and a route" : "Pick a place");
       if (form.altOn && form.altId && !altRoute) throw new Error("The alternate route hasn't loaded yet");
       const body: ActivityUpdate = {
         ...draft,
         routes: draft.routes.map(({ label, routeId, stop }) => ({ label, routeId, stop })),
-        replace,
+        replaceId,
         baseUpdatedAt: form.base ?? "", // a POST ignores it
       };
       return form.editing
@@ -453,14 +453,11 @@ export function PlanPage() {
   const outdoor = canBeIndoor(form.sport) ? form.outdoor : true;
   const rules = rulesFor(form.sport, form.pace, s.warn);
   const spot = active.find((x) => x.id === form.spotId) ?? spots.find((x) => x.id === form.spotId);
-  // Publishing (or updating a published activity) replaces the same sport's activity that day; editing a cancelled one
-  // replaces nothing (the server keeps it cancelled).
-  const clash =
-    editingAct?.status === "cancelled"
-      ? undefined
-      : acts.find(
-          (a) => a.date === form.date && a.sport === form.sport && a.status === "published" && a.id !== form.editing,
-        );
+  // Other activities that day: listed under the date. Several of a sport may share a day; publishing a new one with the
+  // same sport offers Replace (cancel that one) as well as Publish another.
+  const sameDay = acts.filter((a) => a.date === form.date && a.status === "published" && a.id !== form.editing);
+  const sameSport = form.editing ? [] : sameDay.filter((a) => a.sport === form.sport);
+  const clash = sameSport.length === 1 ? sameSport[0] : undefined;
   const sportName = SPORT_LABEL[form.sport].toLowerCase();
   const pois = route
     ? [...route.pois].sort((a, b) => Number(isCoffee(b)) - Number(isCoffee(a)) || a.route_d_m - b.route_d_m)
@@ -558,7 +555,7 @@ export function PlanPage() {
     );
   })();
 
-  const verb = form.editing ? "Update" : clash ? "Replace" : "Publish";
+  const verb = form.editing ? "Update" : "Publish";
 
   return (
     <>
@@ -648,6 +645,19 @@ export function PlanPage() {
 
           <Section label="When">
             <DatePicker label="Date" value={form.date} min={today} onChange={(date) => set({ date })} />
+            {sameDay.length > 0 && (
+              <p className="tiny" style={{ margin: "6px 0 0" }}>
+                Also that day:{" "}
+                {sameDay.map((a, i) => (
+                  <span key={a.id}>
+                    {i ? " · " : ""}
+                    <Link href={`/a/${a.id}`}>
+                      {activityName(a)} · {fmtTime(hhmmToMin(a.startTime))}
+                    </Link>
+                  </span>
+                ))}
+              </p>
+            )}
             <div className="filters quickdates" role="group" aria-label="Quick pick: the next weekend days">
               {quick.map((d) => (
                 <button key={d} type="button" aria-pressed={d === form.date} onClick={() => set({ date: d })}>
@@ -949,12 +959,18 @@ export function PlanPage() {
             <>
               <ActivityHeader act={draft} m={model} />
               <ActivityBody act={draft} model={model} mode="preview" routeIndex={0} />
-              {clash && (
-                <p className="tiny" style={{ margin: "12px 0 0", color: "var(--cau-fg)" }}>
-                  A {sportName} is already posted for {dayLabel(form.date)}.{" "}
-                  {verb === "Update" ? "Updating" : "Publishing"} replaces it (the old one is cancelled and kept in
-                  history).
-                </p>
+              {sameSport.length > 0 && (
+                <div className="notice" style={{ margin: "12px 0 0" }}>
+                  <b>
+                    {sameSport.length === 1 ? `A ${sportName} is` : `${sameSport.length} ${sportName}s are`} already
+                    posted for {dayLabel(form.date)}
+                  </b>
+                  {sameSport.map((a) => (
+                    <div key={a.id} className="small">
+                      {activityName(a)} · {fmtTime(hhmmToMin(a.startTime))} · {a.counts.in} going
+                    </div>
+                  ))}
+                </div>
               )}
               {error && (
                 <p className="small" role="alert" style={{ color: "var(--no-fg)" }}>
@@ -966,10 +982,24 @@ export function PlanPage() {
                   type="button"
                   className="btn btn-primary"
                   disabled={publish.isPending}
-                  onClick={() => publish.mutate(Boolean(clash))}
+                  onClick={() => publish.mutate(null)}
                 >
-                  {verb === "Publish" ? "Publish" : `${verb} ${sportName}`}
+                  {sameSport.length
+                    ? `Publish another ${sportName}`
+                    : verb === "Publish"
+                      ? "Publish"
+                      : `${verb} ${sportName}`}
                 </button>
+                {clash && (
+                  <button
+                    type="button"
+                    className="btn btn-outline"
+                    disabled={publish.isPending}
+                    onClick={() => publish.mutate(clash.id)}
+                  >
+                    Replace {activityName(clash)}
+                  </button>
+                )}
                 {editingAct && (
                   <button
                     type="button"
@@ -981,6 +1011,11 @@ export function PlanPage() {
                   </button>
                 )}
               </div>
+              {clash && (
+                <p className="tiny muted" style={{ margin: "8px 0 0" }}>
+                  Replace cancels {activityName(clash)} and tells the {clash.counts.in} going.
+                </p>
+              )}
               {editingAct && (
                 <div style={{ marginTop: 16 }}>
                   <History act={editingAct} id="plan-history" />

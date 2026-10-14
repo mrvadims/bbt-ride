@@ -21,6 +21,7 @@ import { hasRoute, minPerMile, SPORT_LABEL, type Sport } from "../../shared/spor
 import { dayLabel, fmtTime, hhmmToMin, nyNow } from "../../shared/time.ts";
 import { type AppEnv, can, requireRole } from "../app.ts";
 import { notifyActivity } from "../push.ts";
+import { markers, visit } from "../seen.ts";
 import { audit, fail, newId, nowIso } from "../util.ts";
 import { validate } from "../validate.ts";
 import { loadSettings } from "./settings.ts";
@@ -216,12 +217,16 @@ function history(
   return out.sort((a, b) => b.at.localeCompare(a.at)).slice(0, HISTORY_MAX);
 }
 
-/** The same sport's published activity on that day (one per sport per day), other than `except`. */
-const publishedOn = (db: D1Database, date: string, sport: Sport, except = "") =>
-  db
-    .prepare("select id from activities where date = ? and sport = ? and status = 'published' and id != ?")
-    .bind(date, sport, except)
+/** The activity Plan's "Replace" names: published, the same sport and day as the new plan, and not the one being edited.
+ * Several activities of a sport may share a day; Replace is the editor's choice, never automatic. */
+async function replaceTarget(db: D1Database, id: string | null, date: string, sport: Sport, except = "") {
+  if (!id) return null;
+  const t = await db
+    .prepare("select id from activities where id = ? and date = ? and sport = ? and status = 'published' and id != ?")
+    .bind(id, date, sport, except)
     .first<{ id: string }>();
+  return t ?? fail(409, "The activity to replace isn't posted for that day any more");
+}
 
 /** What people need to know when a published activity changes (DESIGN.md → Editing a published ride). */
 async function changes(db: D1Database, a: Activity, b: ActivityValues): Promise<string[]> {
@@ -295,16 +300,16 @@ async function checkInput(db: D1Database, input: ActivityValues, currentSpot?: s
   if (!spot || (spot.archived && input.spotId !== currentSpot)) fail(400, "Unknown place");
 }
 
-/** Replacing an activity cancels the same sport's one already posted that day; it keeps its RSVPs and messages. */
+const REPLACED_NOTE = "Cancelled: replaced by a new plan.";
+/** Replace cancels the activity the editor picked (same sport and day); it keeps its RSVPs and messages. */
 const cancelReplaced = (db: D1Database, id: string, userId: string, now: string) => [
   db
     .prepare("update activities set status = 'cancelled', updated_by = ?, updated_at = ? where id = ?")
     .bind(userId, now, id),
-  systemMessage(db, id, "cancel", "Cancelled: replaced by a new plan."),
+  systemMessage(db, id, "cancel", REPLACED_NOTE),
 ];
 const STALE = "Someone changed this after you opened it. Discard your changes and edit it again.";
 const PAST = "Past activities can't be changed";
-const clashText = (sport: Sport) => `A ${SPORT_LABEL[sport].toLowerCase()} is already posted for that day`;
 const subject = (a: Activity, what: string) => `${what}: ${activityName(a)}, ${dayLabel(a.date)}`;
 
 /** "New ride: Katonah loop" · "Sat, Oct 17 · 8:30 AM · SUNY Purchase", to people following that sport. */
@@ -325,8 +330,14 @@ export const activities = new Hono<AppEnv>()
   // Upcoming activities (today on), published and cancelled, each with the viewer's own answer.
   .get("/", async (c) => {
     const today = nyNow().date;
+    // An activity cancelled by Replace drops off the list: its replacement is there.
     const [acts, mine] = await Promise.all([
-      summaries(c.env.DB, "a.date >= ?", [today]),
+      summaries(
+        c.env.DB,
+        `a.date >= ? and not (a.status = 'cancelled' and exists (select 1 from messages r where r.activity_id = a.id
+           and r.kind = 'cancel' and r.body = '${REPLACED_NOTE}'))`,
+        [today],
+      ),
       c.env.DB.prepare(
         "select v.activity_id, v.status from rsvps v join activities a on a.id = v.activity_id where v.user_id = ? and a.date >= ?",
       )
@@ -334,12 +345,17 @@ export const activities = new Hono<AppEnv>()
         .all<{ activity_id: string; status: "in" | "out" }>(),
     ]);
     const answer = new Map(mine.results.map((r) => [r.activity_id, r.status]));
-    return c.json(acts.map((a) => ({ ...a, mine: answer.get(a.id) ?? null })));
+    const marks = await markers(c.env.DB, c.get("user").id, today);
+    return c.json(acts.map((a) => ({ ...a, mine: answer.get(a.id) ?? null, unseen: marks.get(a.id) ?? null })));
   })
   .get("/past", async (c) =>
     c.json(await summaries(c.env.DB, "a.date < ?", [nyNow().date], "a.date desc, a.start_time desc", 200)),
   )
-  .get("/:id", async (c) => c.json(await detail(c.env.DB, c.req.param("id"))))
+  // Opening an activity records the visit; the reply says when the viewer last caught up, for the "N new" divider.
+  .get("/:id", async (c) => {
+    const act = await detail(c.env.DB, c.req.param("id"));
+    return c.json({ ...act, seenBefore: await visit(c.env.DB, c.get("user").id, act.id) });
+  })
 
   .post("/", requireRole("edit"), validate("json", activityInput), async (c) => {
     const input = c.req.valid("json");
@@ -347,8 +363,7 @@ export const activities = new Hono<AppEnv>()
     if (input.sport !== "other" && !(await loadSettings(c.env.DB)).sports.includes(input.sport))
       fail(400, "That sport is turned off in Settings");
     const user = c.get("user");
-    const clash = await publishedOn(c.env.DB, input.date, input.sport);
-    if (clash && !input.replace) fail(409, clashText(input.sport));
+    const clash = await replaceTarget(c.env.DB, input.replaceId, input.date, input.sport);
     const id = newId();
     const now = nowIso();
     await c.env.DB.batch([
@@ -395,8 +410,8 @@ export const activities = new Hono<AppEnv>()
     if (input.baseUpdatedAt !== cur.updatedAt) fail(409, STALE);
     await checkInput(c.env.DB, input, cur.spotId);
     const user = c.get("user");
-    const clash = cur.status === "published" ? await publishedOn(c.env.DB, input.date, input.sport, id) : null;
-    if (clash && !input.replace) fail(409, clashText(input.sport));
+    const clash =
+      cur.status === "published" ? await replaceTarget(c.env.DB, input.replaceId, input.date, input.sport, id) : null;
     // Only a published activity announces changes; editing a cancelled one stays quiet until it's restored.
     const what = cur.status === "published" ? await changes(c.env.DB, cur, input) : [];
     const now = nowIso();
@@ -470,7 +485,6 @@ export const activities = new Hono<AppEnv>()
     if (!cur) return fail(404, NOT_FOUND);
     if (cur.date < nyNow().date) fail(409, PAST);
     if (cur.status === "published") return c.json(await detail(c.env.DB, id));
-    if (await publishedOn(c.env.DB, cur.date, cur.sport)) fail(409, clashText(cur.sport));
     await c.env.DB.batch([
       c.env.DB.prepare("update activities set status = 'published', updated_by = ?, updated_at = ? where id = ?").bind(
         user.id,

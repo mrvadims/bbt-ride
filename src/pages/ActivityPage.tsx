@@ -1,5 +1,6 @@
 // One activity, upcoming or past (read-only): header card, action row, warnings and panels (DESIGN.md → Rides, v2).
-import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import type { ActivityDetail, Me } from "../../shared/api.ts";
 import { fmtStamp, nyNow } from "../../shared/time.ts";
 import { ActionRow, ActivityBody, ActivityHeader } from "../components/ActivityBody.tsx";
@@ -10,7 +11,7 @@ import { useActivityModel } from "../lib/activityModel.ts";
 import { useActivity } from "../lib/data.ts";
 import { Link, navigate } from "../lib/router.tsx";
 
-function View({ act, me }: { act: ActivityDetail; me: Me }) {
+function View({ act, me, since }: { act: ActivityDetail; me: Me; since?: string | null }) {
   const [routeIndex, setRouteIndex] = useState(0);
   const m = useActivityModel(act, routeIndex);
   const past = act.date < nyNow().date;
@@ -44,7 +45,12 @@ function View({ act, me }: { act: ActivityDetail; me: Me }) {
         !past &&
         last && (
           <div className="notice">
-            <b>Updated {fmtStamp(last.at)}</b> · {last.text}
+            <b>
+              {typeof since === "string" && last.at > since
+                ? "Changed since you last looked"
+                : `Updated ${fmtStamp(last.at)}`}
+            </b>{" "}
+            · {last.text}
           </div>
         )
       )}
@@ -55,7 +61,7 @@ function View({ act, me }: { act: ActivityDetail; me: Me }) {
         mode={past ? "past" : "upcoming"}
         routeIndex={routeIndex}
         onRouteIndex={setRouteIndex}
-        people={<WhoIsIn act={act} me={me} past={past} />}
+        people={<WhoIsIn act={act} me={me} past={past} since={since} />}
         history={<History act={act} id="history" />}
       />
     </>
@@ -64,6 +70,17 @@ function View({ act, me }: { act: ActivityDetail; me: Me }) {
 
 export function ActivityPage({ id, me }: { id: string; me: Me }) {
   const q = useActivity(id);
+  // When the viewer last caught up, from the first reply after opening (it records this visit; later refreshes record
+  // more, so it's kept); then Home's markers refresh.
+  const [since, setSince] = useState<string | null | undefined>(undefined);
+  const qc = useQueryClient();
+  const fresh = q.isFetchedAfterMount && q.data?.seenBefore !== undefined;
+  useEffect(() => {
+    if (fresh && since === undefined) {
+      setSince(q.data?.seenBefore);
+      qc.invalidateQueries({ queryKey: ["activities"] });
+    }
+  }, [fresh, since, q.data?.seenBefore, qc]);
   if (q.isError && !q.data)
     // a failed background refresh keeps showing what loaded (and any half-typed message)
     return (
@@ -71,5 +88,5 @@ export function ActivityPage({ id, me }: { id: string; me: Me }) {
         Couldn't load this activity: {q.error.message}
       </p>
     );
-  return q.data ? <View key={q.data.id} act={q.data} me={me} /> : <p className="muted small">Loading…</p>;
+  return q.data ? <View key={q.data.id} act={q.data} me={me} since={since} /> : <p className="muted small">Loading…</p>;
 }
