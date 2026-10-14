@@ -19,6 +19,14 @@ import { weather } from "./routes/weather.ts";
 
 const app = new Hono<AppEnv>().basePath("/api");
 
+// HTTPS only (Cloudflare's Always Use HTTPS redirects first; this is the backstop): nothing, the private calendar feed
+// included, is ever served over plain HTTP. Local development runs on http://localhost.
+app.use(async (c, next) => {
+  const url = new URL(c.req.url);
+  if (url.protocol === "http:" && url.hostname !== "localhost") return c.json({ error: "Use https://" }, 403);
+  await next();
+});
+
 // Read any request body a handler (or an early rejection) left unread before replying: a half-read body can leave the
 // connection unusable for the next request.
 app.use(async (c, next) => {

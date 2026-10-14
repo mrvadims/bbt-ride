@@ -141,13 +141,19 @@ check(riderMe?.emergencyPhone === "+12035550177", "anyone updates their own cont
   const t = (await rider("/api/team")).json as Json[];
   const a = t?.find((m) => m.id === me.id);
   check(
-    a?.phone === "+19145550142" && a.emergencyName === "Chris Admin" && a.role === "admin",
-    "everyone sees the team directory, emergency contacts included",
+    a?.phone === "+19145550142" && a.emergencyName === "Chris Admin" && !("role" in a),
+    "everyone sees the team directory, emergency contacts included, but not other people's roles",
   );
+  const asAdmin = ((await admin("/api/team")).json as Json[]).find((m) => m.id === me.id);
+  check(asAdmin?.role === "admin", "Admins see roles in the directory");
 }
 await rider("/api/activities"); // the rider's markers start here: anything posted later is new to them
 check((await rider("/api/users")).status === 403, "rider can't list users");
 check((await anon("/api/me")).status === 401, "no session → 401");
+check(
+  (await fetch(`${BASE.replace("localhost", "127.0.0.1")}/api/health`)).status === 403,
+  "plain HTTP is refused (anywhere but local development)",
+);
 check(
   (await admin("/api/settings", { method: "PUT", body: { pace: 18 }, origin: null })).status === 403,
   "write without Origin refused",

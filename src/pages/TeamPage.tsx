@@ -44,7 +44,7 @@ export function TeamPage({ me }: { me: Me }) {
                     {m.id === me.id && <span className="muted"> (you)</span>}
                   </b>
                   <span className="muted small">
-                    {m.role !== "view" && `${ROLE_LABEL[m.role]} · `}
+                    {m.role && m.role !== "view" && `${ROLE_LABEL[m.role]} · `}
                     {m.phone ? fmtPhone(m.phone) : "No phone yet"}
                   </span>
                 </span>

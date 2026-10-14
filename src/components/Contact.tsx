@@ -150,7 +150,7 @@ export function ContactCard({ member, onClose }: { member: TeamMember; onClose: 
           <Initials name={m.name} />
           <div>
             <h2>{m.name}</h2>
-            <span className="muted small">{ROLE_LABEL[m.role]}</span>
+            {m.role && <span className="muted small">{ROLE_LABEL[m.role]}</span>}
           </div>
           <button type="button" className="linkbtn" onClick={onClose}>
             Close

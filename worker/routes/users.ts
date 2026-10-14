@@ -140,18 +140,19 @@ export const me = new Hono<AppEnv>()
     return c.json(await meOf(c.env, c.get("user")));
   });
 
-// The team directory, for every member: names, roles, phones and emergency contacts. Disabled accounts come with their
-// name only (so mentions of them still read right); the app leaves them out of Team and the mention list.
+// The team directory, for every member: names, phones and emergency contacts; roles only for Admins. Disabled accounts
+// come with their name only (so mentions of them still read right); the app leaves them out of Team and the mention list.
 export const team = new Hono<AppEnv>().get("/", async (c) => {
   const { results } = await c.env.DB.prepare(
     `select id, name, role, banned, ${CONTACT} from "user" order by name collate nocase`,
   ).all<ContactRow & { id: string; name: string; role: Role | null; banned: number | null }>();
+  const admin = c.get("user").role === "admin";
   return c.json(
     results.map(
       (r): TeamMember => ({
         id: r.id,
         name: r.name,
-        role: r.role ?? "view",
+        ...(admin && { role: r.role ?? "view" }),
         active: !r.banned,
         ...contactOf(r.banned ? null : r),
       }),

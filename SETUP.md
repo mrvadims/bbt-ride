@@ -177,3 +177,13 @@ The public home page is a separate Worker, `bbt-www`, with static files only (`w
 3. Open https://www.bbt.team: **Open BBT** goes to the app's sign-in.
 
 Cloudflare creates the DNS records. There's nothing to add to Google sign-in: the home page has no sign-in of its own.
+
+## 9. HTTPS only
+
+The code is HTTPS-only (the API refuses plain HTTP; every page sends HSTS; the Android app allows no cleartext). These zone settings make Cloudflare redirect any plain-HTTP request before it reaches BBT. Once, for the `bbt.team` zone:
+
+1. dash.cloudflare.com → **bbt.team → SSL/TLS → Edge Certificates**.
+2. **Always Use HTTPS**: On.
+3. **Minimum TLS Version**: TLS 1.2. **TLS 1.3**: On. **Automatic HTTPS Rewrites**: On.
+4. Check from a computer: `curl -sI http://app.bbt.team` and `curl -sI http://www.bbt.team` answer `301` with `Location: https://…`.
+5. iPhone, after subscribing with **Apple Calendar** in BBT's account menu: Settings → Apps → Calendar → Calendar Accounts → the BBT subscription: **Use SSL** is on (turn it on if not).
