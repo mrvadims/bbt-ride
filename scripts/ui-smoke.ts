@@ -84,6 +84,8 @@ await shot(page, "ride-empty");
 // Plan and publish a ride
 await page.getByTitle("Plan an activity").click();
 await page.waitForURL("**/plan");
+await page.getByRole("radiogroup", { name: "Sport" }).getByRole("radio", { name: "Triathlon" }).waitFor();
+check(true, "Plan offers Triathlon");
 // Other offers an icon: three dots until an editor picks one
 await page.getByRole("radiogroup", { name: "Sport" }).getByRole("radio", { name: "Other", exact: true }).click();
 const icons = page.getByRole("radiogroup", { name: "Icon" });

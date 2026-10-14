@@ -501,7 +501,7 @@ const GROUP_HINT: Record<Group, string> = {
   ride: "Roads: Drying = amber, Wet = red. Low light: meet time within 30 min of sunrise.",
   run: "Low light: meet time within 30 min of sunrise.",
   ski: "For ski days.",
-  outdoor: "Open-water swims, outdoor pickleball and other outdoor activities.",
+  outdoor: "Triathlons, open-water swims, outdoor pickleball and other outdoor activities.",
 };
 
 export function SettingsPage({ me }: { me: Me }) {
