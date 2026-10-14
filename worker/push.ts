@@ -29,17 +29,20 @@ const BATCH = 5;
 /** Queues a notification about an activity for every opted-in device of members who aren't disabled; delivery runs in
  * `deliver`. Tapping it opens the activity.
  * - `newPost`: a new activity of that sport, sent only to people who didn't mute the sport, and not to its author.
- * - `answer`: people who are in get Still in / I'm out buttons (Android; other platforms just open the activity). */
+ * - `answer`: people who are in get Still in / I'm out buttons (Android; other platforms just open the activity).
+ * - `to`: only these people (a mention, or those going to a deleted activity), whatever sports they muted.
+ * - `url`: where tapping it goes, when the activity itself is gone. */
 export async function notifyActivity(
   env: Env,
   id: string,
   title: string,
   body: string,
-  opts: { newPost?: { sport: Sport; author: string }; answer?: boolean } = {},
+  opts: { newPost?: { sport: Sport; author: string }; answer?: boolean; to?: string[]; url?: string } = {},
 ): Promise<void> {
   const web = Boolean(env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY);
   const app = Boolean(env.FCM_SERVICE_ACCOUNT);
   if (!web && !app) return; // push not configured (local development)
+  if (opts.to?.length === 0) return;
   const post = opts.newPost;
   const { results } = await env.DB.prepare(
     `select p.endpoint, p.keys_json, p.kind,
@@ -47,15 +50,23 @@ export async function notifyActivity(
      from push_subscriptions p join "user" u on u.id = p.user_id
      where coalesce(u.banned, 0) = 0 and (p.kind = 'web' and ?4 or p.kind = 'fcm' and ?5)
        and (?2 is null or (p.user_id != ?3
-            and not exists (select 1 from notify_off n where n.user_id = p.user_id and n.sport = ?2)))`,
+            and not exists (select 1 from notify_off n where n.user_id = p.user_id and n.sport = ?2)))
+       and (?6 is null or p.user_id in (select value from json_each(?6)))`,
   )
-    .bind(id, post?.sport ?? null, post?.author ?? "", web ? 1 : 0, app ? 1 : 0)
+    .bind(
+      id,
+      post?.sport ?? null,
+      post?.author ?? "",
+      web ? 1 : 0,
+      app ? 1 : 0,
+      opts.to ? JSON.stringify(opts.to) : null,
+    )
     .all<Sub & { is_in: number }>();
   const message = (actions: boolean) =>
     JSON.stringify({
       title,
       body,
-      url: `/a/${id}`,
+      url: opts.url ?? `/a/${id}`,
       ...(actions
         ? {
             activityId: id,

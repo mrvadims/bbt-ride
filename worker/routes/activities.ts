@@ -15,6 +15,7 @@ import {
   type Rsvp,
   rsvpInput,
 } from "../../shared/api.ts";
+import { mentionIds, plainMentions } from "../../shared/people.ts";
 import type { RideRoute } from "../../shared/ride.ts";
 import type { Icon } from "../../shared/sport-icons.ts";
 import { hasRoute, minPerMile, SPORT_LABEL, type Sport } from "../../shared/sports.ts";
@@ -326,6 +327,27 @@ async function notifyReplaced(env: Env, id: string) {
   if (old) await notifyActivity(env, id, subject(old, "Cancelled"), "Replaced by a new plan.");
 }
 
+/** Tells the people a message newly mentions (not its author), even if they muted the sport or aren't going. */
+async function notifyMentions(env: Env, activityId: string, authorId: string, body: string, before = "") {
+  const already = new Set(mentionIds(before));
+  const ids = mentionIds(body).filter((id) => id !== authorId && !already.has(id));
+  if (!ids.length) return;
+  const all = [...new Set([...mentionIds(body), authorId])];
+  const [{ results }, [act]] = await Promise.all([
+    env.DB.prepare(`select id, name from "user" where id in (select value from json_each(?))`)
+      .bind(JSON.stringify(all))
+      .all<{ id: string; name: string }>(),
+    summaries(env.DB, "a.id = ?", [activityId]),
+  ]);
+  if (!act) return;
+  const names = new Map(results.map((r) => [r.id, r.name]));
+  const who = (names.get(authorId) ?? "Someone").split(" ")[0];
+  const text = plainMentions(body, (id) => names.get(id));
+  await notifyActivity(env, activityId, `${who} mentioned you · ${activityName(act)}`, text.slice(0, 300), {
+    to: ids.filter((id) => names.has(id)),
+  });
+}
+
 export const activities = new Hono<AppEnv>()
   // Upcoming activities (today on), published and cancelled, each with the viewer's own answer.
   .get("/", async (c) => {
@@ -498,6 +520,45 @@ export const activities = new Hono<AppEnv>()
     return c.json(await detail(c.env.DB, id));
   })
 
+  // Admins only: removes the activity with its routes, RSVPs and messages for good. People going to an upcoming one
+  // are told; the audit log keeps what it was.
+  .delete("/:id", requireRole("admin"), async (c) => {
+    const id = c.req.param("id");
+    const user = c.get("user");
+    const [cur] = await summaries(c.env.DB, "a.id = ?", [id]);
+    if (!cur) return fail(404, NOT_FOUND);
+    const { results: going } = await c.env.DB.prepare(
+      "select user_id from rsvps where activity_id = ? and status = 'in' and user_id != ?",
+    )
+      .bind(id, user.id)
+      .all<{ user_id: string }>();
+    const db = c.env.DB;
+    await db.batch([
+      db.prepare("delete from activity_seen where activity_id = ?").bind(id),
+      db.prepare("delete from messages where activity_id = ? and parent_id is not null").bind(id),
+      db.prepare("delete from messages where activity_id = ?").bind(id),
+      db.prepare("delete from rsvps where activity_id = ?").bind(id),
+      db.prepare("delete from activity_routes where activity_id = ?").bind(id),
+      db.prepare("delete from activities where id = ?").bind(id),
+      // Anyone's autosaved Plan form that was editing it would only fail to update
+      db.prepare("delete from drafts where json_extract(form_json, '$.editing') = ?").bind(id),
+      audit(db, user.id, "delete", "activity", id, {
+        sport: cur.sport,
+        title: activityName(cur),
+        date: cur.date,
+        startTime: cur.startTime,
+      }),
+    ]);
+    if (cur.status === "published" && cur.date >= nyNow().date)
+      c.executionCtx.waitUntil(
+        notifyActivity(c.env, id, subject(cur, "Deleted"), "Removed by a team admin.", {
+          to: going.map((g) => g.user_id),
+          url: "/",
+        }),
+      );
+    return c.body(null, 204);
+  })
+
   // RSVP: In / Out (route label only for In with an alternate route), or null to clear.
   .put("/:id/rsvp", validate("json", rsvpInput), async (c) => {
     const id = c.req.param("id");
@@ -538,11 +599,13 @@ export const activities = new Hono<AppEnv>()
         .first<{ parent_id: string | null }>();
       if (!parent || parent.parent_id) fail(400, "Replies go to a top-level message");
     }
+    const user = c.get("user");
     await c.env.DB.prepare(
       "insert into messages (id, activity_id, user_id, parent_id, body, created_at) values (?, ?, ?, ?, ?, ?)",
     )
-      .bind(newId(), id, c.get("user").id, parentId, body, nowIso())
+      .bind(newId(), id, user.id, parentId, body, nowIso())
       .run();
+    c.executionCtx.waitUntil(notifyMentions(c.env, id, user.id, body));
     return c.json(await detail(c.env.DB, id), 201);
   });
 
@@ -550,13 +613,14 @@ export const activities = new Hono<AppEnv>()
 export const messages = new Hono<AppEnv>()
   .patch("/:id", validate("json", messageEdit), async (c) => {
     const m = await c.env.DB.prepare(
-      `select m.activity_id, m.user_id, m.deleted_at, a.date, a.status from messages m
+      `select m.activity_id, m.user_id, m.body, m.deleted_at, a.date, a.status from messages m
        join activities a on a.id = m.activity_id where m.id = ?`,
     )
       .bind(c.req.param("id"))
       .first<{
         activity_id: string;
         user_id: string | null;
+        body: string;
         deleted_at: string | null;
         date: string;
         status: string;
@@ -565,9 +629,11 @@ export const messages = new Hono<AppEnv>()
     if (m.user_id !== c.get("user").id) fail(403, "Only the author can edit a message");
     if (m.date < nyNow().date) fail(409, "Messages on past activities can't be edited");
     if (m.status !== "published") fail(409, "Messages on cancelled activities can't be edited"); // as for posting
+    const { body } = c.req.valid("json");
     await c.env.DB.prepare("update messages set body = ?, edited_at = ? where id = ?")
-      .bind(c.req.valid("json").body, nowIso(), c.req.param("id"))
+      .bind(body, nowIso(), c.req.param("id"))
       .run();
+    c.executionCtx.waitUntil(notifyMentions(c.env, m.activity_id, c.get("user").id, body, m.body)); // only newly mentioned
     return c.json(await detail(c.env.DB, m.activity_id));
   })
   .delete("/:id", async (c) => {

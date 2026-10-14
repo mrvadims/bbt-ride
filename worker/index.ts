@@ -14,7 +14,7 @@ import { drafts } from "./routes/drafts.ts";
 import { routes } from "./routes/routes.ts";
 import { settings } from "./routes/settings.ts";
 import { spots } from "./routes/spots.ts";
-import { links, me, users } from "./routes/users.ts";
+import { links, me, team, users } from "./routes/users.ts";
 import { weather } from "./routes/weather.ts";
 
 const app = new Hono<AppEnv>().basePath("/api");
@@ -57,6 +57,7 @@ app.route("/links", links);
 // Signed in
 app.use(requireSession);
 app.route("/me", me);
+app.route("/team", team);
 app.route("/weather", weather);
 app.route("/routes", routes);
 app.route("/spots", spots);

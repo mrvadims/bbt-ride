@@ -43,6 +43,7 @@ import {
 } from "../components/ActivityBody.tsx";
 import { RainBars } from "../components/charts.tsx";
 import { DatePicker } from "../components/DatePicker.tsx";
+import { DeleteActivity } from "../components/DeleteActivity.tsx";
 import { History } from "../components/History.tsx";
 import { HourTable } from "../components/HourTable.tsx";
 import { SportIcon, SymbolIcon } from "../components/icons.tsx";
@@ -57,6 +58,7 @@ import {
   type SpotWithState,
   useActivities,
   useActivity,
+  useMe,
   useRoute,
   useRouteSearch,
   useSpots,
@@ -204,6 +206,7 @@ export function PlanPage() {
   const qc = useQueryClient();
   const prefs = usePrefs();
   const team = useTeam().data;
+  const me = useMe().data;
   const spots = useSpots().data;
   const wq = useWeather();
   const weather = wq.data ?? NO_WEATHER; // planning never waits on the forecast
@@ -1015,6 +1018,13 @@ export function PlanPage() {
                 <p className="tiny muted" style={{ margin: "8px 0 0" }}>
                   Replace cancels {activityName(clash)} and tells the {clash.counts.in} going.
                 </p>
+              )}
+              {editingAct && me?.role === "admin" && (
+                <DeleteActivity
+                  act={editingAct}
+                  sportName={sportName}
+                  onCancelInstead={() => toggleCancel.mutate(editingAct)}
+                />
               )}
               {editingAct && (
                 <div style={{ marginTop: 16 }}>

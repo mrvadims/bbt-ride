@@ -1,4 +1,4 @@
-// Top bar (the only navigation): logo home, Plan and Settings icons for roles that have them, and the account menu.
+// Top bar (the only navigation): logo home, Team for everyone, Plan and Settings for roles that have them, and the account menu.
 import { useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 import { type Me, ROLE_LABEL } from "../../shared/api.ts";
@@ -10,7 +10,9 @@ import { type Prefs, setPref, usePrefs } from "../lib/prefs.ts";
 import { currentSubscription, disablePush, enablePush, pushSupported } from "../lib/push.ts";
 import { Link, navigate, useLocation } from "../lib/router.tsx";
 import { CalendarLink } from "./CalendarLink.tsx";
-import { GearIcon, Logo, PlanIcon } from "./icons.tsx";
+import { ContactForm } from "./Contact.tsx";
+import { GearIcon, Logo, PeopleIcon, PlanIcon } from "./icons.tsx";
+import { Sheet } from "./Sheet.tsx";
 
 function Seg<T extends string>({
   label,
@@ -198,6 +200,7 @@ export function TopBar({ me }: { me: Me | null }) {
   const prefs = usePrefs();
   const { parts } = useLocation();
   const [open, setOpen] = useState(false);
+  const [contact, setContact] = useState(false);
   const menu = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
   const qc = useQueryClient();
@@ -241,6 +244,10 @@ export function TopBar({ me }: { me: Me | null }) {
         {me && (
           <>
             <nav className="topnav" aria-label="Main">
+              <Link className="navbtn" href="/team" title="Team" aria-current={page === "team" ? "page" : undefined}>
+                <PeopleIcon />
+                <span>Team</span>
+              </Link>
               {me.role !== "view" && (
                 <Link
                   className="navbtn"
@@ -287,6 +294,16 @@ export function TopBar({ me }: { me: Me | null }) {
               {ROLE_LABEL[me.role]} · signed in with {method}
             </span>
           </div>
+          <button
+            type="button"
+            className="btn btn-outline btn-sm"
+            onClick={() => {
+              setOpen(false);
+              setContact(true);
+            }}
+          >
+            My contact info
+          </button>
           <Seg<Prefs["theme"]>
             label="Theme"
             value={prefs.theme}
@@ -326,6 +343,11 @@ export function TopBar({ me }: { me: Me | null }) {
             Sign out
           </button>
         </div>
+      )}
+      {me && contact && (
+        <Sheet label="My contact info" onClose={() => setContact(false)}>
+          <ContactForm me={me} onDone={() => setContact(false)} />
+        </Sheet>
       )}
     </header>
   );

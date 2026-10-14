@@ -1,9 +1,17 @@
 import { describe, expect, it } from "vitest";
 import fallback from "../data/raw/om_purchase.json";
 import seed from "../data/seed.json";
-import { activityInput, activityUpdate } from "../shared/api.ts";
+import { activityInput, activityUpdate, contactFields } from "../shared/api.ts";
 import { fold, icsCalendar } from "../shared/ics.ts";
 import { DEFAULT_KIT, kitAdvice, kitBand } from "../shared/kit.ts";
+import {
+  encodeMentions,
+  fmtPhone,
+  mentionIds,
+  normalizePhone,
+  plainMentions,
+  splitMentions,
+} from "../shared/people.ts";
 import { parseLatLng, type Route, rideTimes } from "../shared/ride.ts";
 import { DEFAULT_SETTINGS as S, settingsProblem } from "../shared/settings.ts";
 import { activityIcon, ICON_KEYS, SPORT_ICON } from "../shared/sport-icons.ts";
@@ -387,5 +395,65 @@ describe("quick-pick dates", () => {
   it("lists the next four weekend days, today included on a weekend", () => {
     expect(nextWeekendDays("2026-10-14")).toEqual(["2026-10-17", "2026-10-18", "2026-10-24", "2026-10-25"]);
     expect(nextWeekendDays("2026-10-18")).toEqual(["2026-10-18", "2026-10-24", "2026-10-25", "2026-10-31"]);
+  });
+});
+
+describe("phones", () => {
+  it("normalizes US numbers typed any common way, and international ones with +", () => {
+    for (const v of [
+      "(914) 555-0142",
+      "914-555-0142",
+      "914.555.0142",
+      "9145550142",
+      "1 914 555 0142",
+      "+1 914 555 0142",
+    ])
+      expect(normalizePhone(v)).toBe("+19145550142");
+    expect(normalizePhone("+44 20 7946 0958")).toBe("+442079460958");
+    for (const v of ["", "555-0142", "call me", "+12", "914 555 0142 ext 3", "12345678901234567"])
+      expect(normalizePhone(v)).toBeNull();
+  });
+  it("formats US numbers for people and leaves others as stored", () => {
+    expect(fmtPhone("+19145550142")).toBe("(914) 555-0142");
+    expect(fmtPhone("+442079460958")).toBe("+442079460958");
+  });
+  it("requires a phone, and both or neither of the emergency name and phone", () => {
+    expect(contactFields.parse({ phone: "914 555 0142" })).toEqual({
+      phone: "+19145550142",
+      emergencyName: null,
+      emergencyPhone: null,
+    });
+    const both = { phone: "9145550142", emergencyName: " Chris Park ", emergencyPhone: "(914) 555-0190" };
+    expect(contactFields.parse(both)).toEqual({
+      phone: "+19145550142",
+      emergencyName: "Chris Park",
+      emergencyPhone: "+19145550190",
+    });
+    expect(contactFields.parse(contactFields.parse(both))).toEqual(contactFields.parse(both)); // output re-validates
+    expect(contactFields.safeParse({ phone: "" }).success).toBe(false);
+    expect(contactFields.safeParse({ phone: "9145550142", emergencyName: "Chris" }).success).toBe(false);
+    expect(contactFields.safeParse({ phone: "9145550142", emergencyPhone: "9145550190" }).success).toBe(false);
+    expect(contactFields.safeParse({ phone: "9145550142", emergencyName: "C", emergencyPhone: "x" }).success).toBe(
+      false,
+    );
+  });
+});
+
+describe("mentions", () => {
+  const team = [
+    { id: "u1", name: "Jo Park" },
+    { id: "u2", name: "Jo" },
+  ];
+  it("stores picked names as tokens, longer names first", () => {
+    const body = encodeMentions("Thanks @Jo Park and @Jo! @Sam stays text", team);
+    expect(body).toBe("Thanks <@u1> and <@u2>! @Sam stays text");
+    expect(mentionIds(`${body} <@u1>`)).toEqual(["u1", "u2"]);
+  });
+  it("shows tokens as names, and unknown people as a former member", () => {
+    const names = new Map(team.map((t) => [t.id, t.name]));
+    expect(plainMentions("Hi <@u1>, <@gone>", (id) => names.get(id))).toBe("Hi @Jo Park, @Former member");
+    expect(splitMentions("a <@u1> b")).toEqual([{ text: "a " }, { mention: "u1" }, { text: " b" }]);
+    expect(splitMentions("<@u1>")).toEqual([{ mention: "u1" }]);
+    expect(splitMentions("no mentions <@ bad>")).toEqual([{ text: "no mentions <@ bad>" }]);
   });
 });

@@ -91,6 +91,10 @@ Every open question from the design review, with what was decided. Details live 
 | Who created and changed an activity | A quiet, closed History panel at the end of the activity page and the Edit screen (design H of three rounds), built from the audit log; chosen over bylines and chips so the record doesn't compete with the activity | 2026-10-14 |
 | Several activities per sport per day | Allowed for every sport (was one per sport per day). Plan says what's already posted and offers Publish another (main) or Replace (cancels the one named) | 2026-10-14 |
 | New and unread markers | Design K1: a dot or message count on the sport icon plus a reason line; tracked per person on the server (synced across devices), with a baseline so existing activities start as seen | 2026-10-14 |
+| Team directory | A **Team** icon in the top bar for everyone, plus names in Who's in that open a contact card with Call and Text (designs A + C; the account-menu link B not used) | 2026-10-14 |
+| Contact details | Mobile phone required (asked once before anything else), emergency contact optional; everyone on the team sees both | 2026-10-14 |
+| Mentions | @ plus a name picker; names only (no usernames); stored as user ids; the person mentioned is notified even if they muted the sport | 2026-10-14 |
+| Deleting activities | Admins only, with a confirm sheet; RSVPs and messages go too; people going are told; the audit log keeps a record. Cancel stays for everyone else | 2026-10-14 |
 | Firebase key | A service account with only "Firebase Cloud Messaging API Admin", not the Admin SDK key | 2026-10-13 |
 
 ## Notes

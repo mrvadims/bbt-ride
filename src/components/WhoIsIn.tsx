@@ -5,7 +5,9 @@ import { useState } from "react";
 import type { ActivityDetail, Me, Message } from "../../shared/api.ts";
 import { fmtStamp } from "../../shared/time.ts";
 import { api } from "../lib/api.ts";
-import { Linkified } from "./Linkified.tsx";
+import { useMembers } from "../lib/data.ts";
+import { PersonButton } from "./Contact.tsx";
+import { bodyDraft, type Draft, draftBody, EMPTY_DRAFT, MentionBox, MessageText } from "./Mentions.tsx";
 import { Panel } from "./Panel.tsx";
 
 export function WhoIsIn({
@@ -20,10 +22,11 @@ export function WhoIsIn({
   since?: string | null; // when the viewer last caught up; undefined: no "new" divider
 }) {
   const qc = useQueryClient();
-  const [draft, setDraft] = useState("");
+  const members = useMembers().data;
+  const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
   const [replyTo, setReplyTo] = useState<string | null>(null);
-  const [replyText, setReplyText] = useState("");
-  const [editing, setEditing] = useState<{ id: string; body: string } | null>(null);
+  const [replyText, setReplyText] = useState<Draft>(EMPTY_DRAFT);
+  const [editing, setEditing] = useState<{ id: string; body: Draft } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const done = (data: ActivityDetail) => {
     qc.setQueryData(["activity", act.id], data);
@@ -85,19 +88,20 @@ export function WhoIsIn({
         </div>
         {editing?.id === m.id ? (
           <div className="compose">
-            <textarea
-              aria-label="Edit message"
+            <MentionBox
+              label="Edit message"
+              meId={me.id}
               value={editing.body}
-              onChange={(e) => setEditing({ id: m.id, body: e.target.value })}
+              onChange={(d) => setEditing({ id: m.id, body: d })}
             />
             <div className="btnrow">
               <button
                 type="button"
                 className="btn btn-primary btn-sm"
-                disabled={!editing.body.trim() || call.isPending}
+                disabled={!editing.body.text.trim() || call.isPending}
                 onClick={() =>
                   call.mutate(
-                    { path: `/messages/${m.id}`, method: "PATCH", body: { body: editing.body } },
+                    { path: `/messages/${m.id}`, method: "PATCH", body: { body: draftBody(editing.body) } },
                     { onSuccess: () => setEditing(null) }, // a failed save keeps the text
                   )
                 }
@@ -111,7 +115,7 @@ export function WhoIsIn({
           </div>
         ) : (
           <p className={m.deleted ? "muted" : undefined}>
-            {m.deleted ? "Message deleted." : <Linkified text={m.body} />}
+            {m.deleted ? "Message deleted." : m.kind === "user" ? <MessageText body={m.body} meId={me.id} /> : m.body}
           </p>
         )}
         <div className="btnrow msg-actions">
@@ -121,7 +125,11 @@ export function WhoIsIn({
             </button>
           )}
           {canEdit && editing?.id !== m.id && (
-            <button type="button" className="linkbtn" onClick={() => setEditing({ id: m.id, body: m.body })}>
+            <button
+              type="button"
+              className="linkbtn"
+              onClick={() => setEditing({ id: m.id, body: bodyDraft(m.body, members) })}
+            >
               Edit
             </button>
           )}
@@ -142,23 +150,27 @@ export function WhoIsIn({
             {replies.length > 0 && <div className="replies">{replies.map((r) => msg(r, true))}</div>}
             {replyTo === m.id && (
               <div className="compose">
-                <textarea
-                  aria-label={`Reply to ${author(m)}`}
+                <MentionBox
+                  label={`Reply to ${author(m)}`}
                   placeholder={`Reply to ${author(m)}`}
+                  meId={me.id}
                   value={replyText}
-                  onChange={(e) => setReplyText(e.target.value)}
+                  onChange={setReplyText}
                 />
                 <div className="btnrow">
                   <button
                     type="button"
                     className="btn btn-primary btn-sm"
-                    disabled={!replyText.trim() || call.isPending}
+                    disabled={!replyText.text.trim() || call.isPending}
                     onClick={() =>
                       call.mutate(
-                        { path: `/activities/${act.id}/messages`, body: { body: replyText, parentId: m.id } },
+                        {
+                          path: `/activities/${act.id}/messages`,
+                          body: { body: draftBody(replyText), parentId: m.id },
+                        },
                         {
                           onSuccess: () => {
-                            setReplyText("");
+                            setReplyText(EMPTY_DRAFT);
                             setReplyTo(null);
                           },
                         },
@@ -245,13 +257,14 @@ export function WhoIsIn({
       <div className="people">
         <div>
           <div className="sub-h">In ({ins.length})</div>
+          {ins.length > 0 && <p className="tiny muted plist-hint">Tap a name to call or text.</p>}
           <div className="plist">
             {ins.length ? (
               ins.map((p) => (
-                <span key={p.userId} className={`person${p.userId === me.id ? " me" : ""}`}>
+                <PersonButton key={p.userId} userId={p.userId} className={`person${p.userId === me.id ? " me" : ""}`}>
                   {p.name}
                   {alt && p.routeLabel ? <span className="muted"> · {p.routeLabel}</span> : null}
-                </span>
+                </PersonButton>
               ))
             ) : (
               <span className="muted small">No one yet</span>
@@ -263,9 +276,9 @@ export function WhoIsIn({
             <div className="sub-h">Out ({outs.length})</div>
             <div className="plist">
               {outs.map((p) => (
-                <span key={p.userId} className={`person${p.userId === me.id ? " me" : ""}`}>
+                <PersonButton key={p.userId} userId={p.userId} className={`person${p.userId === me.id ? " me" : ""}`}>
                   {p.name}
-                </span>
+                </PersonButton>
               ))}
             </div>
           </div>
@@ -276,22 +289,22 @@ export function WhoIsIn({
         {top.length ? top.map((m) => msg(m, false)) : <p className="muted small">No messages yet.</p>}
         {open && (
           <div className="compose">
-            <textarea
-              aria-label="Message the team"
-              placeholder="Message the team"
+            <MentionBox
+              label="Message the team"
+              placeholder="Message the team · @ to mention"
+              meId={me.id}
               value={draft}
-              maxLength={2000}
-              onChange={(e) => setDraft(e.target.value)}
+              onChange={setDraft}
             />
             <div className="btnrow">
               <button
                 type="button"
                 className="btn btn-primary btn-sm"
-                disabled={!draft.trim() || call.isPending}
+                disabled={!draft.text.trim() || call.isPending}
                 onClick={() =>
                   call.mutate(
-                    { path: `/activities/${act.id}/messages`, body: { body: draft } },
-                    { onSuccess: () => setDraft("") },
+                    { path: `/activities/${act.id}/messages`, body: { body: draftBody(draft) } },
+                    { onSuccess: () => setDraft(EMPTY_DRAFT) },
                   )
                 }
               >

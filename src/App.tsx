@@ -1,6 +1,7 @@
 // Routes and the sign-in gate. Public: /signin, /invite/:token, /reset/:token (and the static /privacy page).
 import { lazy, type ReactNode, Suspense, useEffect } from "react";
 import { AppExtras } from "./components/AppExtras.tsx";
+import { ContactForm } from "./components/Contact.tsx";
 import { InstallHint } from "./components/InstallHint.tsx";
 import { TopBar } from "./components/TopBar.tsx";
 import { ApiError } from "./lib/api.ts";
@@ -13,6 +14,7 @@ import { HomePage } from "./pages/HomePage.tsx";
 import { LinkPage } from "./pages/LinkPage.tsx";
 import { PastList } from "./pages/PastPage.tsx";
 import { SignIn } from "./pages/SignIn.tsx";
+import { TeamPage } from "./pages/TeamPage.tsx";
 
 // Editor and admin screens load on demand; most members never open them.
 const PlanPage = lazy(() => import("./pages/PlanPage.tsx").then((m) => ({ default: m.PlanPage })));
@@ -51,6 +53,14 @@ export function App() {
   let content: ReactNode;
   if (me.isPending || signedOut) content = <p className="muted small">Loading…</p>;
   else if (!user) content = <p role="alert">Couldn't load your account: {me.error?.message}</p>;
+  // A phone number first (DESIGN.md → Team and contacts): new Google accounts and members from before contacts.
+  else if (!user.phone)
+    content = (
+      <section className="panel contact-first">
+        <ContactForm me={user} first />
+      </section>
+    );
+  else if (page === "team") content = <TeamPage me={user} />;
   else if (page === "plan")
     content =
       user.role === "view" ? <Restricted text="Planning is for editors." /> : <PlanPage key={`${path}?${query}`} />;

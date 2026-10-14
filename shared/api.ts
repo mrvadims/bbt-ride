@@ -1,6 +1,7 @@
 // JSON shapes exchanged between the Worker (/api/*) and the React app, plus request schemas the Worker validates.
 import { z } from "zod";
 import type { KitBand } from "./kit.ts";
+import { normalizePhone } from "./people.ts";
 import type { RideRoute } from "./ride.ts";
 import { HHMM, type Settings } from "./settings.ts";
 import { ICON_KEYS, type Icon } from "./sport-icons.ts";
@@ -22,6 +23,19 @@ export interface Me {
   vapidPublicKey: string;
   mutedSports: Sport[]; // no "new activity" notifications for these
   calendarUrl: string | null; // the private calendar link, once made
+  phone: string | null; // null: the app asks for it before anything else
+  emergencyName: string | null;
+  emergencyPhone: string | null;
+}
+
+/** GET /api/team: everyone on the team who isn't disabled, for the Team page, contact cards and @mentions. */
+export interface TeamMember {
+  id: string;
+  name: string;
+  role: Role;
+  phone: string | null;
+  emergencyName: string | null;
+  emergencyPhone: string | null;
 }
 
 export interface TeamSettings {
@@ -226,6 +240,44 @@ export const userEdit = z.object({
 });
 export const mutedChange = z.object({ off: z.boolean() }); // PUT /api/me/muted/:sport
 
+const phone = (label: string) =>
+  z
+    .string()
+    .trim()
+    .max(30)
+    .transform((v, ctx) => {
+      const n = normalizePhone(v);
+      if (!n) ctx.addIssue({ code: "custom", message: `${label}: enter a phone number like (914) 555-0142` });
+      return n ?? "";
+    });
+/** Phone (required) and an emergency contact (optional, but a name needs a number and the other way round). */
+export const contactFields = z
+  .object({
+    phone: phone("Phone"),
+    // Optional: empty or null (what this schema itself outputs, so a checked value can be sent as is).
+    emergencyName: z
+      .string()
+      .trim()
+      .max(80)
+      .nullish()
+      .transform((v) => v ?? ""),
+    emergencyPhone: z
+      .string()
+      .trim()
+      .max(30)
+      .nullish()
+      .transform((v) => v ?? ""),
+  })
+  .transform((v, ctx) => {
+    const ep = v.emergencyPhone ? normalizePhone(v.emergencyPhone) : null;
+    if (v.emergencyPhone && !ep)
+      ctx.addIssue({ code: "custom", message: "Emergency phone: enter a phone number like (914) 555-0142" });
+    if (Boolean(v.emergencyName) !== Boolean(v.emergencyPhone))
+      ctx.addIssue({ code: "custom", message: "Add both the emergency contact's name and phone, or neither" });
+    return { phone: v.phone, emergencyName: v.emergencyName || null, emergencyPhone: ep };
+  });
+export type ContactFields = z.output<typeof contactFields>;
+
 // Link tokens travel in request bodies, never in API URLs (which end up in request logs).
 export const linkToken = z.object({ token: z.string().min(8).max(100) });
 export const linkAccept = linkToken.extend({
@@ -237,6 +289,7 @@ export const linkAccept = linkToken.extend({
     .regex(/^[a-z0-9_.]{3,30}$/, "3–30 letters, digits, dots or underscores")
     .optional(),
   password: z.string().min(10).max(128),
+  contact: contactFields.optional(), // invite only
 });
 // Browsers' push services, and only those (the Worker sends signed requests to these hosts): Google (Chrome, Android:
 // fcm.googleapis.com, jmt<N>.google.com), Mozilla (Firefox), Apple (Safari, iOS) and Microsoft (Edge).

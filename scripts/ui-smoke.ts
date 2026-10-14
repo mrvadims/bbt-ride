@@ -68,8 +68,11 @@ check(
 await shot(page, "signin");
 
 await page.goto(`${BASE}/invite/${token}`);
-await page.getByLabel("Your name").fill("Captain Test");
+await page.getByLabel("First and last name").fill("Captain Test");
 await page.getByLabel("Username").fill(`cap${stamp}`);
+await page.getByLabel("Mobile phone").fill("(914) 555-0142");
+await page.getByLabel("Name", { exact: true }).fill("Chris Captain");
+await page.getByLabel("Phone", { exact: true }).fill("914 555 0190");
 await page.getByLabel("Password (at least").fill("pedal pedal pedal");
 await page.getByLabel("Password again").fill("pedal pedal pedal");
 await shot(page, "invite");
@@ -144,7 +147,7 @@ await page.getByRole("button", { name: "In", exact: true }).click();
 await page.getByText("1 in").waitFor();
 check(true, "RSVP In updates the count");
 await page.getByRole("button", { name: "Who's in", exact: true }).click();
-await page.getByPlaceholder("Message the team").fill("See you at 8:30! Parking: https://example.com/lot.");
+await page.getByPlaceholder(/Message the team/).fill("See you at 8:30! Parking: https://example.com/lot.");
 await page.getByRole("button", { name: "Send" }).click();
 await page.getByText("See you at 8:30!").waitFor();
 check(
@@ -238,12 +241,13 @@ check(
   !(await page.getByRole("button", { name: "Weather", exact: true }).count()),
   "indoor activity has no Weather panel",
 );
+const pkUrl = page.url();
 // A teammate posts on the captain's ride: Home marks it, opening it shows where the new messages start, then it clears.
 {
   const rideId = rideUrl.split("/a/")[1];
   const now = new Date().toISOString();
   sql(
-    `insert into "user" (id, name, email, emailVerified, createdAt, updatedAt, role) values ('mate-${stamp}', 'Teammate ${stamp}', 'mate-${stamp}@example.test', 1, '${now}', '${now}', 'view'); insert into messages (id, activity_id, kind, user_id, body, created_at) values ('msg-${stamp}', '${rideId}', 'user', 'mate-${stamp}', 'Count me in', '${new Date(Date.now() + 1000).toISOString()}')`,
+    `insert into "user" (id, name, email, emailVerified, createdAt, updatedAt, role, phone) values ('mate-${stamp}', 'Teammate ${stamp}', 'mate-${stamp}@example.test', 1, '${now}', '${now}', 'view', '+12035550119'); insert into messages (id, activity_id, kind, user_id, body, created_at) values ('msg-${stamp}', '${rideId}', 'user', 'mate-${stamp}', 'Count me in', '${new Date(Date.now() + 1000).toISOString()}')`,
   );
   await page.getByLabel("BBT home").click();
   const card = page.locator(`a.arow[href="/a/${rideId}"]`);
@@ -262,6 +266,36 @@ check(
   check((await page.getByRole("separator").textContent()) === "1 new", "the thread shows where new messages start");
   await page.getByRole("separator").scrollIntoViewIfNeeded();
   if (shots) await page.screenshot({ path: `${shots}/thread-new.png` });
+
+  // @mentions: type @ and pick from the team; the message shows the name
+  await page.reload(); // the team list is cached for a minute; the teammate was added behind the app's back
+  await page.getByRole("button", { name: "Who's in", exact: true }).waitFor();
+  await page.waitForTimeout(500);
+  if (!(await page.getByPlaceholder(/Message the team/).count()))
+    await page.getByRole("button", { name: "Who's in", exact: true }).click();
+  const box = page.getByPlaceholder(/Message the team/);
+  await box.fill(`Thanks @tea ${stamp.slice(0, 5)}`); // first letters of each name; local runs leave many teammates
+  await page.getByRole("option", { name: `Teammate ${stamp}` }).waitFor();
+  if (shots) await page.screenshot({ path: `${shots}/mention-pick.png` });
+  await page.getByRole("option", { name: `Teammate ${stamp}` }).click();
+  check((await box.inputValue()) === `Thanks @Teammate ${stamp} `, "picking a teammate puts their name in the message");
+  await box.pressSequentially("bring the pump?");
+  await page.getByRole("button", { name: "Send" }).click();
+  await page.locator(".mention", { hasText: `@Teammate ${stamp}` }).waitFor();
+  check(true, "the sent message shows the mention");
+
+  // Who's in: a name opens the contact card with Call, Text and the emergency contact
+  await page.locator(".plist").getByRole("button", { name: "Captain Renamed" }).click();
+  const cardDlg = page.getByRole("dialog", { name: "Contact Captain Renamed" });
+  await cardDlg.waitFor();
+  check(
+    (await cardDlg.getByRole("link", { name: "Call", exact: true }).getAttribute("href")) === "tel:+19145550142" &&
+      (await cardDlg.getByRole("link", { name: "Text" }).getAttribute("href")) === "sms:+19145550142" &&
+      (await cardDlg.getByText("Chris Captain").isVisible()),
+    "a name in Who's in opens Call, Text and the emergency contact",
+  );
+  if (shots) await page.screenshot({ path: `${shots}/contact-card.png` });
+  await cardDlg.getByRole("button", { name: "Close" }).click();
   await page.getByLabel("BBT home").click();
   await page.getByRole("link", { name: new RegExp(`Doubles ${stamp}`) }).waitFor();
   await page.waitForTimeout(500);
@@ -277,6 +311,58 @@ check(await page.getByRole("button", { name: "Pickleball", exact: true }).isVisi
 await page.getByRole("button", { name: "Pickleball", exact: true }).click();
 check(!(await page.getByRole("link", { name: /Katonah/ }).count()), "the filter hides other sports");
 await shot(page, "home");
+
+// Team: everyone, with Call and Text
+await page.getByTitle("Team").click();
+await page.waitForURL("**/team");
+await page.getByRole("link", { name: `Call Teammate ${stamp}` }).waitFor();
+check(
+  (await page.getByRole("link", { name: `Call Teammate ${stamp}` }).getAttribute("href")) === "tel:+12035550119" &&
+    (await page.getByRole("link", { name: `Text Teammate ${stamp}` }).getAttribute("href")) === "sms:+12035550119",
+  "Team lists teammates with Call and Text",
+);
+check(await fits(), "the Team page fits the phone width");
+await shot(page, "team");
+
+// Members from before contacts are asked for a phone once
+sql(`update "user" set phone = null where email = 'captain-${stamp}@example.test'`);
+await page.reload();
+await page.getByRole("heading", { name: /One more thing/ }).waitFor();
+check(
+  !(await page.getByRole("link", { name: `Call Teammate ${stamp}` }).count()),
+  "no phone → the app asks for one first",
+);
+await shot(page, "contact-first");
+await page.getByLabel("Mobile phone").fill("12");
+await page.getByRole("button", { name: "Save" }).click();
+check(
+  await page
+    .getByRole("alert")
+    .getByText(/phone number like/)
+    .isVisible(),
+  "a bad number is explained",
+);
+await page.getByLabel("Mobile phone").fill("914-555-0142");
+await page.getByRole("button", { name: "Save" }).click();
+await page.getByRole("link", { name: `Call Teammate ${stamp}` }).waitFor();
+check(true, "saving the phone opens the app");
+
+// Admins delete an activity for good
+await page.goto(pkUrl);
+await page.getByLabel("Edit", { exact: true }).click();
+await page.waitForURL("**/plan?edit=*");
+await page.getByRole("button", { name: "Delete pickleball" }).click();
+const del = page.getByRole("dialog", { name: /^Delete / });
+await del.waitFor();
+await shot(page, "delete");
+await del.getByRole("button", { name: "Delete for everyone" }).click();
+await page.waitForURL(`${BASE}/`);
+await page.getByLabel("BBT home").waitFor();
+await page.waitForTimeout(800);
+check(
+  !(await page.getByRole("link", { name: new RegExp(`Doubles ${stamp}`) }).count()),
+  "the deleted activity is gone",
+);
 
 // Settings
 await page.getByTitle("Settings").click();

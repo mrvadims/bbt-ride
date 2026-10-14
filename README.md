@@ -45,8 +45,8 @@ No network for the weather and route APIs? `npm run dev:seed` loads the saved Op
 npm run lint        # Biome
 npm run typecheck   # TypeScript, strict
 npm test            # unit tests, including the worked examples in DESIGN.md
-npm run smoke       # 93 API checks against the local dev server (creates test data locally)
-npm run ui-smoke    # 50 browser checks against the local dev server (after npm run dev:seed)
+npm run smoke       # 118 API checks against the local dev server (creates test data locally)
+npm run ui-smoke    # 59 browser checks against the local dev server (after npm run dev:seed)
 ```
 
 Other scripts: `npm run build` (typecheck + production build), `npm run format`, `npm run icons` (re-render the app icons from `brand/web/bbt-logo.svg`), `npm run auth:schema` (regenerate `migrations/0001_auth.sql` after a Better Auth upgrade), `npm run cf-typegen` (refresh `worker/worker-configuration.d.ts` after changing `wrangler.jsonc` or secrets).
