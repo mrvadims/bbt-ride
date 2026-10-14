@@ -19,7 +19,7 @@ function Row({ a, spotName }: { a: Activity; spotName: string }) {
   return (
     <Link className="arow" href={`/a/${a.id}`}>
       <span className="arow-icon">
-        <SportIcon sport={a.sport} />
+        <SportIcon sport={a.sport} icon={a.icon} />
       </span>
       <span className="arow-b">
         <span className="kicker">

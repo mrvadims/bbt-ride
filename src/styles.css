@@ -1432,6 +1432,28 @@ a.tile[aria-label="Open in RideWithGPS"] {
   border-color: var(--primary);
   color: #fff;
 }
+.icongrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+  gap: 6px;
+}
+.icongrid button {
+  appearance: none;
+  height: 44px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.icongrid button[aria-checked="true"] {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
 .route-row {
   display: flex;
   gap: 10px;

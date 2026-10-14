@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { KitBand } from "./kit.ts";
 import type { RideRoute } from "./ride.ts";
 import { HHMM, type Settings } from "./settings.ts";
+import { ICON_KEYS, type Icon } from "./sport-icons.ts";
 import { canBeIndoor, hasRoute, PACE_RANGE, SPORT_LABEL, SPORTS, type Sport } from "./sports.ts";
 import { hhmmToMin } from "./time.ts";
 import type { Alert, OpenMeteoResponse } from "./weather.ts";
@@ -46,6 +47,7 @@ export interface RecordedWeather {
 export interface Activity {
   id: string;
   sport: Sport;
+  icon: Icon | null; // Other only: the icon an editor picked; null shows the sport's icon
   title: string; // empty: the route's name (ride, run) or the sport's name
   date: string;
   startTime: string; // "08:30"; the meet time for ride and run
@@ -116,6 +118,7 @@ const hhmm = z.string().regex(HHMM);
 
 const activityFields = z.object({
   sport: z.enum(SPORTS),
+  icon: z.enum(ICON_KEYS).nullable().default(null),
   title: z.string().trim().max(60).default(""),
   date,
   startTime: hhmm,
@@ -155,6 +158,7 @@ function checkSport(a: ActivityFields, ctx: z.RefinementCtx) {
 /** Fields that don't apply to the sport are stored empty. */
 const normalize = <T extends ActivityFields>(a: T): T => ({
   ...a,
+  icon: a.sport === "other" && a.icon !== "pending" ? a.icon : null,
   endTime: hasRoute(a.sport) ? null : a.endTime,
   pace: hasRoute(a.sport) ? a.pace : 0,
   details: hasRoute(a.sport) ? "" : a.details,

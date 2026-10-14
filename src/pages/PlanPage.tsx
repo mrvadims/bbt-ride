@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ActivityDetail, ActivityUpdate, RouteSummary } from "../../shared/api.ts";
 import { etaAt, FT_PER_M, M_PER_MI, nearest, type Poi, rideTimes, startDistance } from "../../shared/ride.ts";
+import { ICON_KEYS, ICONS, type Icon, SPORT_ICON } from "../../shared/sport-icons.ts";
 import {
   canBeIndoor,
   DETAILS_HINT,
@@ -42,7 +43,7 @@ import {
 import { RainBars } from "../components/charts.tsx";
 import { DatePicker } from "../components/DatePicker.tsx";
 import { HourTable } from "../components/HourTable.tsx";
-import { SportIcon } from "../components/icons.tsx";
+import { SportIcon, SymbolIcon } from "../components/icons.tsx";
 import { EmptyPanel, Panel, Section } from "../components/Panel.tsx";
 import { SpotForm } from "../components/SpotForm.tsx";
 import { WarningChips } from "../components/Warnings.tsx";
@@ -68,6 +69,7 @@ interface Form {
   editing: string | null; // id of the published activity being edited
   base: string | null; // its updatedAt when editing began (the server refuses the update if it changed since)
   sport: Sport;
+  icon: Icon; // Other only: the icon it shows
   title: string;
   date: string;
   time: string; // start (meet time for ride and run)
@@ -106,6 +108,7 @@ function fromActivity(a: ActivityDetail, date: string, editing: string | null): 
     editing,
     base: editing ? a.updatedAt : null,
     sport: a.sport,
+    icon: a.icon ?? SPORT_ICON[a.sport],
     title: a.title,
     date,
     time: a.startTime,
@@ -240,6 +243,7 @@ export function PlanPage() {
     editing: null,
     base: null,
     sport,
+    icon: SPORT_ICON.other,
     title: "",
     date: dateParam ?? nextFreeDay(sport),
     spotId: null,
@@ -350,6 +354,7 @@ export function PlanPage() {
     form?.spotId && (!routed || (form.routeId && route))
       ? {
           sport: form.sport,
+          icon: form.sport === "other" && form.icon !== SPORT_ICON.other ? form.icon : null,
           title: form.title.trim(),
           date: form.date,
           startTime: form.time,
@@ -579,6 +584,26 @@ export function PlanPage() {
                 </button>
               ))}
             </div>
+            {form.sport === "other" && (
+              <div className="row2">
+                <span className="tiny muted">Icon · {ICONS[form.icon]}</span>
+                <div className="icongrid" role="radiogroup" aria-label="Icon">
+                  {ICON_KEYS.map((k) => (
+                    <button
+                      key={k}
+                      type="button"
+                      role="radio"
+                      aria-checked={form.icon === k}
+                      aria-label={ICONS[k]}
+                      title={ICONS[k]}
+                      onClick={() => set({ icon: k })}
+                    >
+                      <SymbolIcon icon={k} size={24} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             {indoorLabels && (
               <div className="seg" role="group" aria-label="Setting">
                 <button type="button" aria-pressed={!form.outdoor} onClick={() => set({ outdoor: false })}>

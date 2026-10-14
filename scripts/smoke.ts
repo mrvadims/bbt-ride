@@ -306,6 +306,13 @@ check(
   pk.status === 201 && pk.json.sport === "pickleball" && pk.json.outdoor === false && pk.json.pace === 0,
   `another sport can share the day (${pk.status} ${pk.status === 201 ? "" : JSON.stringify(pk.json)})`,
 );
+const kayak = await admin("/api/activities", { body: { ...pickle, sport: "other", icon: "kayaking", details: "" } });
+check(kayak.status === 201 && kayak.json.icon === "kayaking", "an Other activity keeps the icon an editor picked");
+check(
+  (await admin("/api/activities", { body: { ...pickle, sport: "other", icon: "rocket", date: addDays(day, 1) } }))
+    .status === 400,
+  "an icon that isn't on the list is refused",
+);
 check(
   (await admin("/api/activities", { body: { ...pickle, endTime: "18:00", date: addDays(day, 1) } })).status === 400,
   "an end time before the start is refused",

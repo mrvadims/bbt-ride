@@ -15,6 +15,7 @@ import {
   rsvpInput,
 } from "../../shared/api.ts";
 import type { RideRoute } from "../../shared/ride.ts";
+import type { Icon } from "../../shared/sport-icons.ts";
 import { hasRoute, minPerMile, SPORT_LABEL, type Sport } from "../../shared/sports.ts";
 import { dayLabel, fmtTime, hhmmToMin, nyNow } from "../../shared/time.ts";
 import { type AppEnv, can, requireRole } from "../app.ts";
@@ -26,6 +27,7 @@ import { loadSettings } from "./settings.ts";
 interface ActivityRow {
   id: string;
   sport: Sport;
+  icon: Icon | null;
   title: string;
   date: string;
   start_time: string;
@@ -53,7 +55,7 @@ export async function summaries(
   const pick = `from activities a where ${where} order by ${order}, a.id${limit ? ` limit ${limit}` : ""}`;
   const { results: rows } = await db
     .prepare(
-      `select a.id, a.sport, a.title, a.date, a.start_time, a.end_time, a.spot_id, a.outdoor, a.pace_mph, a.details,
+      `select a.id, a.sport, a.icon, a.title, a.date, a.start_time, a.end_time, a.spot_id, a.outdoor, a.pace_mph, a.details,
               a.notes, a.status, a.updated_at, a.observed_json ${pick}`,
     )
     .bind(...binds)
@@ -95,6 +97,7 @@ export async function summaries(
     return {
       id: r.id,
       sport: r.sport,
+      icon: r.icon,
       title: r.title,
       date: r.date,
       startTime: r.start_time,
@@ -300,12 +303,13 @@ export const activities = new Hono<AppEnv>()
     await c.env.DB.batch([
       ...(clash ? cancelReplaced(c.env.DB, clash.id, user.id, now) : []),
       c.env.DB.prepare(
-        `insert into activities (id, sport, title, date, start_time, end_time, spot_id, outdoor, pace_mph, details, notes,
+        `insert into activities (id, sport, icon, title, date, start_time, end_time, spot_id, outdoor, pace_mph, details, notes,
                                  status, created_by, updated_by, created_at, updated_at)
-         values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'published', ?, ?, ?, ?)`,
+         values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'published', ?, ?, ?, ?)`,
       ).bind(
         id,
         input.sport,
+        input.icon,
         input.title,
         input.date,
         input.startTime,
@@ -352,9 +356,10 @@ export const activities = new Hono<AppEnv>()
       ).bind(id, cur.updatedAt),
       ...(clash ? cancelReplaced(c.env.DB, clash.id, user.id, now) : []),
       c.env.DB.prepare(
-        `update activities set title = ?, date = ?, start_time = ?, end_time = ?, spot_id = ?, outdoor = ?, pace_mph = ?,
+        `update activities set icon = ?, title = ?, date = ?, start_time = ?, end_time = ?, spot_id = ?, outdoor = ?, pace_mph = ?,
                                details = ?, notes = ?, updated_by = ?, updated_at = ? where id = ?`,
       ).bind(
+        input.icon,
         input.title,
         input.date,
         input.startTime,

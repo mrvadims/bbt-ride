@@ -1,7 +1,10 @@
 // Sky icons (24px grid, stroked; clear and mostly clear switch to a moon at night), level icons and UI icons.
+
 import type { ReactNode } from "react";
 import logoSvg from "../../brand/web/bbt-logo.svg?raw";
+import { activityIcon, type Icon } from "../../shared/sport-icons.ts";
 import type { Sport } from "../../shared/sports.ts";
+import { ICON_PATHS } from "../lib/icon-paths.ts";
 
 export function wxLabel(c: number | null | undefined): string {
   if (c == null) return "–";
@@ -158,51 +161,15 @@ export const DirectionsIcon = () => (
   </svg>
 );
 
-const SPORT_PATHS: Record<Sport, ReactNode> = {
-  ride: (
-    <>
-      <circle cx="5.5" cy="17.5" r="3.5" />
-      <circle cx="18.5" cy="17.5" r="3.5" />
-      <circle cx="15" cy="5" r="1.6" />
-      <path d="M12 17.5V14l-3-3 4-3 2 3h2" />
-    </>
-  ),
-  run: (
-    <>
-      <circle cx="15" cy="4.5" r="1.8" />
-      <path d="M5 11.5l3-3 4.5.5 2.5 3.5 3 1M12.5 9l-2 5 3.5 2.5V21M10.5 14l-2 3.5H5" />
-    </>
-  ),
-  swim: (
-    <>
-      <circle cx="16" cy="7" r="2" />
-      <path d="M5 12l5-3 3 3M2 16c2 0 2-1.5 4-1.5s2 1.5 4 1.5 2-1.5 4-1.5 2 1.5 4 1.5 2-1.5 4-1.5M2 20c2 0 2-1.5 4-1.5s2 1.5 4 1.5 2-1.5 4-1.5 2 1.5 4 1.5 2-1.5 4-1.5" />
-    </>
-  ),
-  pickleball: (
-    <>
-      <rect x="2.5" y="2" width="13" height="14" rx="5.5" transform="rotate(-35 9 9)" />
-      <path d="M13.4 15.2l3.6 5" />
-      <circle cx="19.5" cy="5.5" r="2.2" />
-    </>
-  ),
-  ski: (
-    <>
-      <circle cx="15.5" cy="3.5" r="1.8" />
-      <path d="M13 7.5L9 11l4 2-2 4.4M13 7.5l3 2.5 2.2 8.2M3 15l18 5.5" />
-    </>
-  ),
-  other: (
-    <>
-      <circle cx="12" cy="12" r="9" />
-      <path d="M8 12h.01M12 12h.01M16 12h.01" strokeWidth={2.6} />
-    </>
-  ),
-};
-export const SportIcon = ({ sport, size = 26 }: { sport: Sport; size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" {...stroke} strokeWidth={1.8}>
-    {SPORT_PATHS[sport]}
+/** A Material Symbols icon (shared/sport-icons.ts), filled with the text colour. */
+export const SymbolIcon = ({ icon, size = 26 }: { icon: Icon; size?: number }) => (
+  <svg width={size} height={size} viewBox="0 -960 960 960" aria-hidden="true" fill="currentColor">
+    <path d={ICON_PATHS[icon]} />
   </svg>
+);
+/** An activity's icon: its sport's, or the one an editor picked for an Other activity. */
+export const SportIcon = ({ sport, icon, size = 26 }: { sport: Sport; icon?: Icon | null; size?: number }) => (
+  <SymbolIcon icon={activityIcon({ sport, icon })} size={size} />
 );
 
 export const Chevron = () => (

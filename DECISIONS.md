@@ -85,7 +85,7 @@ Every open question from the design review, with what was decided. Details live 
 | Members edit their own name | **Edit name** in the account menu (one display name, 1–80 characters; checked by the server). Invites carry only the email, and Google sign-ups start with their Google name | 2026-10-13 |
 | Invite links, no email service | Kept: the Admin sends each link. Settings says so and offers **Email it** (their own mail app, message ready) and **Share…**. An email service (e.g. Resend) stays an option | 2026-10-14 |
 | Notification delivery | Devices re-register on every app start; a failed send is retried once after a minute and logged with the push service's status | 2026-10-14 |
-| Sport icons | One 24px stroke set: rider on a bike, runner, swimmer, paddle and ball, skier with a pole, Other as three dots (was a clock); same shapes on www.bbt.team | 2026-10-14 |
+| Sport icons | Google Material Symbols (Rounded, Apache 2.0), copied in as SVG paths rather than custom drawings: every BBT sport has one, including pickleball, and about 40 more cover future sports. Other is a circle with three dots; an editor can pick another icon for an Other activity (stored per activity). Same shapes on www.bbt.team | 2026-10-14 |
 | Firebase key | A service account with only "Firebase Cloud Messaging API Admin", not the Admin SDK key | 2026-10-13 |
 
 ## Notes

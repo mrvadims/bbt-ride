@@ -6,7 +6,8 @@ import { fold, icsCalendar } from "../shared/ics.ts";
 import { DEFAULT_KIT, kitAdvice, kitBand } from "../shared/kit.ts";
 import { parseLatLng, type Route, rideTimes } from "../shared/ride.ts";
 import { DEFAULT_SETTINGS as S, settingsProblem } from "../shared/settings.ts";
-import { minPerMile, mphFromMinPerMile, rulesFor } from "../shared/sports.ts";
+import { activityIcon, ICON_KEYS, SPORT_ICON } from "../shared/sport-icons.ts";
+import { minPerMile, mphFromMinPerMile, rulesFor, SPORTS } from "../shared/sports.ts";
 import { fmtDur, fmtTime, isDate, nyToUTC, weekendDates } from "../shared/time.ts";
 import {
   bikeFeel,
@@ -20,6 +21,7 @@ import {
   warnings,
   windChill,
 } from "../shared/weather.ts";
+import { ICON_PATHS } from "../src/lib/icon-paths.ts";
 
 /** Fails the test when a value is unexpectedly missing. */
 function must<T>(v: T | null | undefined): T {
@@ -335,6 +337,21 @@ describe("activity input", () => {
     expect(r).toMatchObject({ endTime: null, outdoor: true, details: "" });
     expect(activityInput.parse({ ...swim, pace: 5 }).pace).toBe(0);
     expect(activityInput.parse({ ...swim, sport: "ski", outdoor: false }).outdoor).toBe(true);
+  });
+  it("keeps a picked icon only on Other activities", () => {
+    expect(activityInput.parse({ ...swim, sport: "other", icon: "hiking" }).icon).toBe("hiking");
+    expect(activityInput.parse({ ...swim, sport: "other", icon: "pending" }).icon).toBeNull(); // the default
+    expect(activityInput.parse({ ...swim, icon: "hiking" }).icon).toBeNull();
+    expect(activityInput.parse(swim).icon).toBeNull();
+    expect(activityInput.safeParse({ ...swim, sport: "other", icon: "rocket" }).success).toBe(false);
+  });
+  it("has a shape for every icon and an icon for every sport", () => {
+    for (const k of ICON_KEYS) expect(ICON_PATHS[k]).toMatch(/^[Mm][\d.-]/);
+    expect(Object.keys(ICON_PATHS).toSorted()).toEqual([...ICON_KEYS].toSorted());
+    for (const s of SPORTS) expect(ICON_KEYS).toContain(SPORT_ICON[s]);
+    expect(activityIcon({ sport: "other", icon: "kayaking" })).toBe("kayaking");
+    expect(activityIcon({ sport: "ride", icon: "kayaking" })).toBe("directions_bike");
+    expect(activityIcon({ sport: "other", icon: null })).toBe("pending");
   });
   it("needs the base version on an update", () => {
     expect(activityUpdate.safeParse(ride).success).toBe(false);

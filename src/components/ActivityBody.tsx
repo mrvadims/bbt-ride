@@ -163,7 +163,7 @@ export function ActivityHeader({ act, m, onEdit }: { act: ActivityLike; m: Activ
   return (
     <section className="panel ahead">
       <span className="ahead-icon">
-        <SportIcon sport={act.sport} size={30} />
+        <SportIcon sport={act.sport} icon={act.icon} size={30} />
       </span>
       <div className="ahead-b">
         <span className="kicker">{sportLine(act)}</span>
