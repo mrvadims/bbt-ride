@@ -28,17 +28,60 @@ import { type SpotFields, SpotForm } from "../components/SpotForm.tsx";
 import { api } from "../lib/api.ts";
 import { refreshSpots, type SpotWithState, useSpots, useTeam } from "../lib/data.ts";
 
+type LinkFor = { email: string; kind: "invite" | "reset" };
+
+// BBT sends no email (DESIGN.md → Invites): the Admin sends each link, from their own email or a text.
+const linkMessage = (to: LinkFor, url: string) =>
+  to.kind === "invite"
+    ? {
+        subject: "Your invite to BBT",
+        body: `You're invited to BBT, the team app for rides, runs and more.\n\nOpen this link to join (it works once, within 7 days):\n${url}\n\nOn your phone? After joining, get the app at https://app.bbt.team/download/`,
+      }
+    : {
+        subject: "Your BBT password link",
+        body: `Open this link to choose a new BBT password (it works once, within 24 hours):\n${url}`,
+      };
+
 function useCopyLink() {
-  const [shown, setShown] = useState<{ url: string; copied: boolean } | null>(null);
+  const [shown, setShown] = useState<{ url: string; copied: boolean; to: LinkFor } | null>(null);
   // The link arrives after a network call; Safari may refuse the clipboard then, so say only what happened.
-  const copy = async (url: string) => {
+  const copy = async (url: string, to: LinkFor) => {
     const copied = await (navigator.clipboard?.writeText(url) ?? Promise.reject()).then(
       () => true,
       () => false,
     );
-    setShown({ url, copied });
+    setShown({ url, copied, to });
   };
   return { shown, copy, clear: () => setShown(null) };
+}
+
+function LinkNotice({ url, copied, to, onDone }: { url: string; copied: boolean; to: LinkFor; onDone: () => void }) {
+  const { subject, body } = linkMessage(to, url);
+  const mailto = `mailto:${encodeURIComponent(to.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  return (
+    <div className="notice" role="status">
+      <b>{copied ? "Link copied." : "Copy this link."}</b> BBT doesn't send email: send it to <b>{to.email}</b>{" "}
+      yourself.
+      <input readOnly value={url} onFocus={(e) => e.target.select()} style={{ marginTop: 6 }} />
+      <div className="btnrow" style={{ marginTop: 6 }}>
+        <a className="btn btn-primary btn-sm" href={mailto}>
+          Email it
+        </a>
+        {"share" in navigator && (
+          <button
+            type="button"
+            className="btn btn-outline btn-sm"
+            onClick={() => navigator.share({ title: subject, text: body }).catch(() => undefined)}
+          >
+            Share…
+          </button>
+        )}
+        <button type="button" className="btn btn-outline btn-sm" onClick={onDone}>
+          Done
+        </button>
+      </div>
+    </div>
+  );
 }
 
 function Users({ me }: { me: Me }) {
@@ -50,11 +93,11 @@ function Users({ me }: { me: Me }) {
   const link = useCopyLink();
   const refresh = () => qc.invalidateQueries({ queryKey: ["users"] });
   const act = useMutation({
-    mutationFn: (req: { path: string; method?: string; body?: unknown }) =>
+    mutationFn: (req: { path: string; method?: string; body?: unknown; to?: LinkFor }) =>
       api<{ url?: string } | undefined>(req.path, req),
-    onSuccess: (res) => {
+    onSuccess: (res, req) => {
       setError(null);
-      if (res?.url) link.copy(res.url);
+      if (res?.url && req.to) link.copy(res.url, req.to);
       refresh();
     },
     onError: (e) => setError(e.message),
@@ -69,16 +112,7 @@ function Users({ me }: { me: Me }) {
       collapsed
       summary={`${users.length} users${invites.length ? ` · ${invites.length} invited` : ""} · Google or password`}
     >
-      {link.shown && (
-        <div className="notice">
-          <b>{link.shown.copied ? "Link copied." : "Copy this link."}</b> Send it to the person yourself (it works
-          once):
-          <input readOnly value={link.shown.url} onFocus={(e) => e.target.select()} style={{ marginTop: 6 }} />
-          <button type="button" className="linkbtn" onClick={link.clear}>
-            Done
-          </button>
-        </div>
-      )}
+      {link.shown && <LinkNotice {...link.shown} onDone={link.clear} />}
       {error && (
         <p className="small" role="alert" style={{ color: "var(--no-fg)" }}>
           {error}
@@ -134,7 +168,13 @@ function Users({ me }: { me: Me }) {
                       <button
                         type="button"
                         className="linkbtn"
-                        onClick={() => act.mutate({ path: `/users/${u.id}/reset-link`, method: "POST" })}
+                        onClick={() =>
+                          act.mutate({
+                            path: `/users/${u.id}/reset-link`,
+                            method: "POST",
+                            to: { email: u.email, kind: "reset" },
+                          })
+                        }
                       >
                         Reset link
                       </button>{" "}
@@ -175,7 +215,13 @@ function Users({ me }: { me: Me }) {
                   <button
                     type="button"
                     className="linkbtn"
-                    onClick={() => act.mutate({ path: "/users/invites", body: { email: i.email, role: i.role } })}
+                    onClick={() =>
+                      act.mutate({
+                        path: "/users/invites",
+                        body: { email: i.email, role: i.role },
+                        to: { email: i.email, kind: "invite" },
+                      })
+                    }
                   >
                     New link
                   </button>{" "}
@@ -199,11 +245,14 @@ function Users({ me }: { me: Me }) {
         style={{ margin: "12px 0 0" }}
         onSubmit={(e) => {
           e.preventDefault();
-          act.mutate({ path: "/users/invites", body: { email, role } }, { onSuccess: () => setEmail("") });
+          act.mutate(
+            { path: "/users/invites", body: { email, role }, to: { email, kind: "invite" } },
+            { onSuccess: () => setEmail("") },
+          );
         }}
       >
         <label className="field" style={{ flex: "1 1 220px" }}>
-          Invite by email
+          Invite (email address)
           <input
             type="email"
             required
@@ -224,15 +273,16 @@ function Users({ me }: { me: Me }) {
           </select>
         </label>
         <button className="btn btn-primary" type="submit" disabled={act.isPending}>
-          Invite
+          Create invite link
         </button>
       </form>
       <p className="tiny muted" style={{ margin: "8px 0 0" }}>
         View: see activities, RSVP and post. Edit: also plan, publish, edit and cancel activities, add places and delete
         any message. Admin: also settings, places and users.
         <br />
-        An invite link (7 days, one use) lets the person continue with Google or set a password. A reset link (24 h, one
-        use) lets them choose a new password and signs them out elsewhere.
+        BBT doesn't send email: an invite gives you a link to send yourself (Email it, Share, or paste it into a text).
+        The link (7 days, one use) lets the person continue with Google or set a password. A reset link (24 h, one use)
+        lets them choose a new password and signs them out elsewhere.
       </p>
     </Panel>
   );

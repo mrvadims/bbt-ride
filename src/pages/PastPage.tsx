@@ -77,7 +77,7 @@ export function PastList() {
             {as.map((a) => (
               <Link key={a.id} className="arow" href={`/a/${a.id}`}>
                 <span className="arow-icon">
-                  <SportIcon sport={a.sport} />
+                  <SportIcon sport={a.sport} icon={a.icon} />
                 </span>
                 <span className="arow-b">
                   <span className="kicker">{dayLabel(a.date)}</span>

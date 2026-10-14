@@ -84,7 +84,20 @@ await shot(page, "ride-empty");
 // Plan and publish a ride
 await page.getByTitle("Plan an activity").click();
 await page.waitForURL("**/plan");
-await page.getByRole("radio", { name: "Ride", exact: true }).click();
+// Other offers an icon: three dots until an editor picks one
+await page.getByRole("radiogroup", { name: "Sport" }).getByRole("radio", { name: "Other", exact: true }).click();
+const icons = page.getByRole("radiogroup", { name: "Icon" });
+check(
+  (await icons.getByRole("radio", { name: "Other" }).getAttribute("aria-checked")) === "true",
+  "Other starts with the dots icon",
+);
+await icons.getByRole("radio", { name: "Kayak" }).click();
+check(
+  (await icons.getByRole("radio", { name: "Kayak" }).getAttribute("aria-checked")) === "true",
+  "an editor picks another icon",
+);
+await shot(page, "plan-other");
+await page.getByRole("radiogroup", { name: "Sport" }).getByRole("radio", { name: "Ride", exact: true }).click();
 await page.getByRole("button", { name: /^Date \(any day\)/ }).click();
 check((await page.locator(".cal-wd").first().textContent()) === "Mo", "date picker weeks start on Monday");
 await page.keyboard.press("Escape");
@@ -200,10 +213,16 @@ await shot(page, "home");
 // Settings
 await page.getByTitle("Settings").click();
 await page.getByRole("button", { name: "Users", exact: true }).click();
-await page.getByLabel("Invite by email").fill(`rider-${stamp}@example.test`);
-await page.getByRole("button", { name: "Invite" }).click();
+await page.getByLabel("Invite (email address)").fill(`rider-${stamp}@example.test`);
+await page.getByRole("button", { name: "Create invite link" }).click();
 await page.locator(".notice input").waitFor();
 check((await page.locator(".notice input").inputValue()).includes("/invite/"), "invite link shown to the Admin");
+const mail = (await page.getByRole("link", { name: "Email it" }).getAttribute("href")) ?? "";
+check(
+  mail.startsWith(`mailto:rider-${stamp}%40example.test?`) && decodeURIComponent(mail).includes("/invite/"),
+  "Email it opens a message to the invited address with the link",
+);
+await shot(page, "invite-link");
 
 // Places: add, then edit the notes
 await page.getByRole("button", { name: "Places", exact: true }).click();

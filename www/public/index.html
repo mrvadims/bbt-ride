@@ -1,6 +1,7 @@
 <!doctype html>
 <!-- www.bbt.team: the public home page (DESIGN.md → Public site). Members only: it links to the app and asks for
-     nothing. No scripts, cookies or third-party requests. -->
+     nothing. No scripts, cookies or third-party requests. Sport icons: Google Material Symbols (Apache 2.0), the same
+     shapes as the app (src/lib/icon-paths.ts). -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -38,7 +39,7 @@ h1{margin:0;font-size:clamp(38px,6vw,62px);line-height:1.04;font-weight:800;lett
 @media (max-width:640px){.hero{padding-top:40px}.hero-art{display:none}}
 .sports{display:flex;flex-wrap:wrap;gap:12px;padding-bottom:56px;margin:0 auto;list-style:none}
 .sports li{flex:1 1 150px;min-width:0;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;align-items:center;gap:12px;font-weight:700;font-size:18px}
-.sports svg{flex:none;stroke:var(--blue)}
+.sports svg{flex:none;fill:var(--blue)}
 .how{background:var(--card);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 .how .wrap{padding-top:64px;padding-bottom:72px;display:flex;flex-direction:column;gap:32px}
 h2{margin:0;font-size:34px;font-weight:800}
@@ -79,11 +80,11 @@ footer nav{display:flex;flex-wrap:wrap;gap:20px}
 </section>
 
 <ul class="wrap sports" aria-label="Sports">
-<li><svg width="30" height="30" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="16.5" r="3.5"/><circle cx="18.5" cy="16.5" r="3.5"/><path d="M5.5 16.5 9 9h6l3.5 7.5M9 9l3 7.5h-1M14 6h2l-1 3"/></svg>Ride</li>
-<li><svg width="30" height="30" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="14.5" cy="4.5" r="2"/><path d="M8 21l3-6 3 2v5M6 11l3-3 4 1 2 4 3 1M11 15l1-5"/></svg>Run</li>
-<li><svg width="30" height="30" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="16" cy="7" r="2"/><path d="M5 12l5-3 3 3M2 16c2 0 2-1.5 4-1.5s2 1.5 4 1.5 2-1.5 4-1.5 2 1.5 4 1.5 2-1.5 4-1.5M2 20c2 0 2-1.5 4-1.5s2 1.5 4 1.5 2-1.5 4-1.5 2 1.5 4 1.5 2-1.5 4-1.5"/></svg>Swim</li>
-<li><svg width="30" height="30" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="11" height="13" rx="5.5" transform="rotate(-30 8.5 9.5)"/><path d="M11 15l4 5"/><circle cx="18.5" cy="6.5" r="2.5"/></svg>Pickleball</li>
-<li><svg width="30" height="30" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 19l8-12 4 6 2-3 6 9M3 22l18-4"/></svg>Ski</li>
+<li><svg width="30" height="30" viewBox="0 -960 960 960" aria-hidden="true"><path d="M195-80q-81 0-138-57T0-275q0-81 57-138t138-57q81 0 138 57t57 138q0 81-57 138T195-80Zm96-99q39-39 39-96t-39-96q-39-39-96-39t-96 39q-39 39-39 96t39 96q39 39 96 39t96-39Zm242-481L422-548l72 78q8 8 12 19t4 22v193q0 13-8.5 21.5T480-206q-13 0-21.5-8.5T450-236v-170L315-525q-11-9-16-22t-5-27q0-14 5.5-26t15.5-22l119-119q11-11 24.5-16t28.5-5q15 0 28.5 5t24.5 16l78 78q26 26 58.5 43t68.5 22q12 2 19.5 12t5.5 22q-2 12-12 19.5t-22 5.5q-46-6-88-27t-75-54l-40-40Zm34.5-115.5Q546-797 546-827t21.5-51.5Q589-900 619-900t51.5 21.5Q692-857 692-827t-21.5 51.5Q649-754 619-754t-51.5-21.5ZM765-80q-81 0-138-57t-57-138q0-81 57-138t138-57q81 0 138 57t57 138q0 81-57 138T765-80Zm96-99q39-39 39-96t-39-96q-39-39-96-39t-96 39q-39 39-39 96t39 96q39 39 96 39t96-39Z"/></svg>Ride</li>
+<li><svg width="30" height="30" viewBox="0 -960 960 960" aria-hidden="true"><path d="M535-70v-209l-108-99-36 159q-3 12-13 18.5t-22 4.5l-208-43q-11-2-18-12t-5-22q2-12 12.5-18t21.5-4l171 34 73-369-100 47v104q0 13-8.5 21.5T273-449q-13 0-21.5-8.5T243-479v-125q0-9 5-16.5t13-11.5l146-61q32-14 45.5-17.5T480-714q20 0 35.5 8.5T542-680l42 67q23 37 60 65.5t86 36.5q13 2 21.5 10.5T760-479q0 12-8.5 21t-20.5 7q-57-6-102.5-36.5T543-573l-39 158 81 75q5 5 7.5 10.5T595-318v248q0 13-8.5 21.5T565-40q-13 0-21.5-8.5T535-70Zm-46.5-705.5Q467-797 467-827t21.5-51.5Q510-900 540-900t51.5 21.5Q613-857 613-827t-21.5 51.5Q570-754 540-754t-51.5-21.5Z"/></svg>Run</li>
+<li><svg width="30" height="30" viewBox="0 -960 960 960" aria-hidden="true"><path d="M480-162q-38 0-66.5 21T343-120q-42 0-71-21t-67-21q-28 0-49 12.5T112-128q-11 5-21.5-2.5T80-152q0-14 9-24.5t22-15.5q21-9 40-20t54-11q46 0 75 21.5t67 21.5q38 0 62.5-21.5T480-223q46 0 75 21.5t67 21.5q38 0 63-21.5t71-21.5q35 0 54 11t39 20q13 5 22 15.5t9 24.5q0 14-10.5 21.5T848-128q-23-9-43-21.5T756-162q-38 0-65 21t-69 21q-42 0-73-21t-69-21Zm0-188q-38 0-64.5 21T347-308q-42 0-73-21t-69-21q-29 0-50.5 13T110-315q-11 5-20.5-3T80-338q0-13 9-22.5t21-14.5q21-8 40.5-19.5T205-406q46 0 73 19t65 19q38 0 64.5-19t72.5-19q46 0 73 19t65 19q38 0 65-19t73-19q35 0 54.5 11.5T851-375q12 5 20.5 14.5T880-338q0 12-9 20t-20 3q-23-9-44.5-22T756-350q-38 0-65 21t-69 21q-42 0-73-21t-69-21ZM288-516l135-135-54-54q-27-27-54-39t-64-16q-17-2-28.5-13.5T211-802q0-17 11.5-28t28.5-9q54 5 93 23t76 55l253 253q-11 9-25.5 13t-29.5 4q-38 0-65.5-21T480-533q-45 0-72 21t-65 21q-18 0-32.5-7T288-516Zm447.5-293.5Q763-782 763-742t-27.5 67.5Q708-647 668-647t-67.5-27.5Q573-702 573-742t27.5-67.5Q628-837 668-837t67.5 27.5Z"/></svg>Swim</li>
+<li><svg width="30" height="30" viewBox="0 -960 960 960" aria-hidden="true"><path d="M270-368q20 21 46.5 31.5T370-326q27 0 53.5-10.5T470-368l37-37q21-21 31.5-47.5T549-506q0-27-10.5-53T507-606L351-763q-15-15-36.5-15.5T278-763L115-599q-16 16.09-16 37.55Q99-540 115-525l155 157Zm100 102q-38 0-75.5-15T228-325L72-482q-16-17-24-37.5T40-562q0-22 8-42.5T72-642l163-164q17-17 37.5-25t42.5-8q22 0 42 8t37 25l155 157q29.5 30 44.25 67.5T608-505q0 38-13.97 73.85Q580.06-395.29 551-366l220 222q9 8.8 9 20.9 0 12.1-9.21 21.1-9.22 9-21.5 9Q737-93 728-102L508-323q-29 29-64.5 43T370-266Zm417.5-347q-55.5 0-94-39.14-38.5-39.13-38.5-94.5Q655-802 693.66-841q38.65-39 93.34-39 56 0 94.5 38.95T920-747q0 55.51-38.5 94.76Q843-613 787.5-613Zm-.21-60q30.3 0 51.5-21.62Q860-716.24 860-747.12T838.79-799q-21.2-21-51.5-21Q757-820 736-799t-21 51.88q0 30.88 21 52.5T787.29-673Zm.71-74ZM321-555Z"/></svg>Pickleball</li>
+<li><svg width="30" height="30" viewBox="0 -960 960 960" aria-hidden="true"><path d="M741-40q-24 0-48-4t-47-11L99-254q-8-3-11.5-10.5T87-280q3-8 10.5-11.5t15.5-.5l270 98 70-181-159-166q-23-26-18-59t34-50l155-90q14-8 30-8.5t30 4.5q14 5 25.5 16t16.5 26l13 43q17 54 49.5 87t79.5 49l15-46q2-8 9-11.5t15-1.5q8 2 12 9.5t2 15.5l-33 102q-68-14-119-54t-78-108l-132 76 112 131q5 6 7 14.5t-1 16.5l-79 205 143 52 94-292q10 3 19 5.5t18 4.5l-94 296 41 14q19 7 39 10.5t42 3.5q24 0 46-3.5T830-95q8-3 16-.5T856-85q3 9-1.5 17T841-57q-24 8-49 12.5T741-40ZM616.5-735.5Q595-757 595-787t21.5-51.5Q638-860 668-860t51.5 21.5Q741-817 741-787t-21.5 51.5Q698-714 668-714t-51.5-21.5Z"/></svg>Ski</li>
 </ul>
 
 <section class="how" aria-labelledby="how">

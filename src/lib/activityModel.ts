@@ -13,6 +13,7 @@ import { usePrefs } from "./prefs.ts";
 export type ActivityLike = Pick<
   Activity,
   | "sport"
+  | "icon"
   | "title"
   | "date"
   | "startTime"

@@ -83,6 +83,9 @@ Every open question from the design review, with what was decided. Details live 
 | Public site | One static page at www.bbt.team (and bbt.team) with Open BBT and the phone-app links; no sign-up, request-access form or contact address (invitation only); its own static Worker, separate from the app | 2026-10-13 |
 | iPhone and Android equal | Two equal buttons on the home page, two matching cards on the download page (your phone first), "Install on iPhone / Android" in the account menu | 2026-10-13 |
 | Members edit their own name | **Edit name** in the account menu (one display name, 1–80 characters; checked by the server). Invites carry only the email, and Google sign-ups start with their Google name | 2026-10-13 |
+| Invite links, no email service | Kept: the Admin sends each link. Settings says so and offers **Email it** (their own mail app, message ready) and **Share…**. An email service (e.g. Resend) stays an option | 2026-10-14 |
+| Notification delivery | Devices re-register on every app start; a failed send is retried once after a minute and logged with the push service's status | 2026-10-14 |
+| Sport icons | Google Material Symbols (Rounded, Apache 2.0), copied in as SVG paths rather than custom drawings: every BBT sport has one, including pickleball, and about 40 more cover future sports. Other is a circle with three dots; an editor can pick another icon for an Other activity (stored per activity). Same shapes on www.bbt.team | 2026-10-14 |
 | Firebase key | A service account with only "Firebase Cloud Messaging API Admin", not the Admin SDK key | 2026-10-13 |
 
 ## Notes
