@@ -349,6 +349,13 @@ check(
   d.rsvps.some((r: Json) => r.name === `Rider ${stamp}` && r.routeLabel === "Short"),
   "rider RSVPs In on the Short route",
 );
+{
+  const list = (await rider("/api/activities")).json as Json[];
+  check(
+    list.find((a) => a.id === id)?.mine === "in" && list.every((a) => a.id === id || a.mine !== "in"),
+    "the upcoming list carries the viewer's own answer",
+  );
+}
 
 // Calendar link (DESIGN.md → v2): private feed of what you're In for, readable without a session, revoked by Reset.
 const feed = async (url: string) => {

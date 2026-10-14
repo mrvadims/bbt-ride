@@ -1,5 +1,6 @@
 // Activity page parts (DESIGN.md → Rides, v2): header card, action row (Directions · Calendar · Share · RideWithGPS),
 // warnings and the Meet / Route / Weather / Notes panels. Used by the activity page (upcoming and past) and Plan's preview.
+
 import { lazy, type ReactNode, Suspense, useState } from "react";
 import rwgpsLogo from "../../brand/web/ridewithgps-vertical-logo.svg";
 import { type ActivityDetail, activityName, type RecordedWeather } from "../../shared/api.ts";
@@ -18,6 +19,7 @@ import { CalendarLink } from "./CalendarLink.tsx";
 import { ElevationChart } from "./charts.tsx";
 import { HourTable } from "./HourTable.tsx";
 import { CalendarIcon, DirectionsIcon, EditIcon, ShareIcon, SportIcon, WxIcon, wxLabel } from "./icons.tsx";
+import { Linkified } from "./Linkified.tsx";
 import { EmptyPanel, Panel } from "./Panel.tsx";
 import { Sheet } from "./Sheet.tsx";
 import { WarningBoxes } from "./Warnings.tsx";
@@ -542,7 +544,9 @@ export function ActivityBody(props: {
 
   const notes = act.notes ? (
     <Panel id={`${kp}notes`} label="Notes" summary={<span className="clamp">{act.notes.split("\n")[0]}</span>}>
-      <p className="notes">{act.notes}</p>
+      <p className="notes">
+        <Linkified text={act.notes} />
+      </p>
     </Panel>
   ) : null;
 

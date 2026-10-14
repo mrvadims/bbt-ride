@@ -38,7 +38,10 @@ function Row({ a, spotName }: { a: Activity; spotName: string }) {
         ) : (
           <WarningChips list={chips} u={u} lookback={m && !m.loading ? m.settings.lookback : 12} />
         )}
-        <span className="tiny muted">{a.counts.in} in</span>
+        <span className={`going${a.counts.in ? "" : " none"}`}>
+          <b>{a.counts.in}</b> going
+        </span>
+        {a.mine === "in" && <span className="you-in">You're in</span>}
       </span>
     </Link>
   );

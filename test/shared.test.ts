@@ -8,7 +8,7 @@ import { parseLatLng, type Route, rideTimes } from "../shared/ride.ts";
 import { DEFAULT_SETTINGS as S, settingsProblem } from "../shared/settings.ts";
 import { activityIcon, ICON_KEYS, SPORT_ICON } from "../shared/sport-icons.ts";
 import { minPerMile, mphFromMinPerMile, rulesFor, SPORTS } from "../shared/sports.ts";
-import { fmtDur, fmtTime, isDate, nyToUTC, weekendDates } from "../shared/time.ts";
+import { fmtDur, fmtTime, isDate, nextWeekendDays, nyToUTC, weekendDates } from "../shared/time.ts";
 import {
   bikeFeel,
   dryingRate,
@@ -22,6 +22,7 @@ import {
   windChill,
 } from "../shared/weather.ts";
 import { ICON_PATHS } from "../src/lib/icon-paths.ts";
+import { splitLinks } from "../src/lib/links.ts";
 
 /** Fails the test when a value is unexpectedly missing. */
 function must<T>(v: T | null | undefined): T {
@@ -356,5 +357,35 @@ describe("activity input", () => {
   it("needs the base version on an update", () => {
     expect(activityUpdate.safeParse(ride).success).toBe(false);
     expect(activityUpdate.safeParse({ ...ride, baseUpdatedAt: "2026-10-13T00:00:00Z" }).success).toBe(true);
+  });
+});
+
+describe("links in notes and messages", () => {
+  it("makes http, https and www links tappable and leaves punctuation outside", () => {
+    expect(splitLinks("Hotel: https://example.com/a?b=1. See you")).toEqual([
+      { text: "Hotel: " },
+      { text: "https://example.com/a?b=1", href: "https://example.com/a?b=1" },
+      { text: ". See you" },
+    ]);
+    expect(splitLinks("(www.bbt.team)")).toEqual([
+      { text: "(" },
+      { text: "www.bbt.team", href: "https://www.bbt.team" },
+      { text: ")" },
+    ]);
+    expect(splitLinks("https://en.wikipedia.org/wiki/Bike_(disambiguation)")[0]).toMatchObject({
+      href: "https://en.wikipedia.org/wiki/Bike_(disambiguation)",
+    });
+  });
+  it("links nothing else", () => {
+    expect(splitLinks("javascript:alert(1) ftp://x mailto:a@b.c")).toEqual([
+      { text: "javascript:alert(1) ftp://x mailto:a@b.c" },
+    ]);
+  });
+});
+
+describe("quick-pick dates", () => {
+  it("lists the next four weekend days, today included on a weekend", () => {
+    expect(nextWeekendDays("2026-10-14")).toEqual(["2026-10-17", "2026-10-18", "2026-10-24", "2026-10-25"]);
+    expect(nextWeekendDays("2026-10-18")).toEqual(["2026-10-18", "2026-10-24", "2026-10-25", "2026-10-31"]);
   });
 });

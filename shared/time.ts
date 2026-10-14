@@ -91,3 +91,10 @@ export function weekendDates(today: string): [string, string] {
 }
 
 export const isWeekend = (date: string): boolean => dow(date) === 0 || dow(date) === 6;
+
+/** The next `n` weekend days from today (today included when it's a Saturday or Sunday): Plan's quick-pick dates. */
+export function nextWeekendDays(today: string, n = 4): string[] {
+  const out: string[] = [];
+  for (let d = today; out.length < n; d = addDays(d, 1)) if (isWeekend(d)) out.push(d);
+  return out;
+}

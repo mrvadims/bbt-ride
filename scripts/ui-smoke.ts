@@ -98,7 +98,7 @@ check(
 );
 await shot(page, "plan-other");
 await page.getByRole("radiogroup", { name: "Sport" }).getByRole("radio", { name: "Ride", exact: true }).click();
-await page.getByRole("button", { name: /^Date \(any day\)/ }).click();
+await page.getByRole("button", { name: /^Date: / }).click();
 check((await page.locator(".cal-wd").first().textContent()) === "Mo", "date picker weeks start on Monday");
 await page.keyboard.press("Escape");
 await page.getByRole("button", { name: sundayLabel }).click();
@@ -135,9 +135,14 @@ await page.getByRole("button", { name: "In", exact: true }).click();
 await page.getByText("1 in").waitFor();
 check(true, "RSVP In updates the count");
 await page.getByRole("button", { name: "Who's in", exact: true }).click();
-await page.getByPlaceholder("Message the team").fill("See you at 8:30!");
+await page.getByPlaceholder("Message the team").fill("See you at 8:30! Parking: https://example.com/lot.");
 await page.getByRole("button", { name: "Send" }).click();
 await page.getByText("See you at 8:30!").waitFor();
+check(
+  (await page.getByRole("link", { name: "https://example.com/lot" }).getAttribute("href")) ===
+    "https://example.com/lot",
+  "a link in a message is tappable",
+);
 check(true, "message posted to the thread");
 await shot(page, "ride");
 
@@ -205,6 +210,10 @@ check(
 );
 await page.getByLabel("BBT home").click();
 await page.getByRole("link", { name: new RegExp(`Doubles ${stamp}`) }).waitFor();
+{
+  const ride = page.locator(".arow", { has: page.locator(".you-in") }).first();
+  check((await ride.locator(".going").textContent())?.trim() === "1 going", "home card: 1 going and You're in");
+}
 check(await page.getByRole("button", { name: "Pickleball", exact: true }).isVisible(), "home shows sport filters");
 await page.getByRole("button", { name: "Pickleball", exact: true }).click();
 check(!(await page.getByRole("link", { name: /Katonah/ }).count()), "the filter hides other sports");
