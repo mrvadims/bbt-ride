@@ -27,7 +27,6 @@ export function CalendarLink() {
     }
   };
   const url = me.calendarUrl;
-  // Apple Calendar only subscribes from a webcal: link; Google takes the https link itself, so it never fetches in clear.
   const webcal = url?.replace(/^https:/, "webcal:") ?? "";
   const copy = async () => {
     setNote("");
@@ -53,7 +52,7 @@ export function CalendarLink() {
           )}
           <a
             className="btn btn-outline btn-sm"
-            href={`https://calendar.google.com/calendar/r?cid=${encodeURIComponent(url)}`}
+            href={`https://calendar.google.com/calendar/r?cid=${encodeURIComponent(webcal)}`}
             target="_blank"
             rel="noreferrer"
           >
