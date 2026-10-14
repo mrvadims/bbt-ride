@@ -27,6 +27,7 @@ import {
   hhmmToMin,
   isDate,
   isWeekend,
+  nextWeekendDays,
   nyNow,
   pad,
   weekendDates,
@@ -209,6 +210,7 @@ export function PlanPage() {
   const u = units(prefs.units);
   const [form, setForm] = useState<Form | null>(null);
   const [addingSpot, setAddingSpot] = useState(false);
+  const [spotQ, setSpotQ] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [paceMsg, setPaceMsg] = useState<string | null>(null);
   const editId = query.get("edit");
@@ -443,7 +445,7 @@ export function PlanPage() {
   if (!form || !team || !spots || !acts) return <p className="muted small">Loading…</p>;
   const s = team.settings;
   const active = spots.filter((x) => !x.archived);
-  const weekend = weekendDates(today);
+  const quick = nextWeekendDays(today);
   const startMin = hhmmToMin(form.time);
   const times = routed && route ? rideTimes(route, form.time, form.pace, form.stop ?? null, s) : null;
   const durMin = routed ? (times ? times.end - times.start : s.durationH * 60) : hhmmToMin(form.endTime) - startMin;
@@ -464,6 +466,13 @@ export function PlanPage() {
     : [];
   const far = route && spot ? startDistance(route, spot) : 0;
   const placeLabel = routed ? "Start spot" : "Place";
+  // A long list of places gets a search box; the chosen place always stays in the list.
+  const SEARCH_FROM = 7;
+  const needle = spotQ.trim().toLowerCase();
+  const shown =
+    active.length >= SEARCH_FROM && needle
+      ? active.filter((x) => x.id === form.spotId || `${x.name} ${x.note ?? ""}`.toLowerCase().includes(needle))
+      : active;
   const indoorLabels = INDOOR_LABELS[form.sport];
   const runPace = form.sport === "run";
   const [paceLo, paceHi] = runPace ? PACE_RANGE.run : PACE_RANGE.ride;
@@ -637,20 +646,14 @@ export function PlanPage() {
           </Section>
 
           <Section label="When">
-            <div className="daytabs" role="group" aria-label="Weekend day">
-              {weekend.map((d) => (
-                <button
-                  key={d}
-                  className="tab"
-                  type="button"
-                  aria-pressed={d === form.date}
-                  onClick={() => set({ date: d })}
-                >
+            <DatePicker label="Date" value={form.date} min={today} onChange={(date) => set({ date })} />
+            <div className="filters quickdates" role="group" aria-label="Quick pick: the next weekend days">
+              {quick.map((d) => (
+                <button key={d} type="button" aria-pressed={d === form.date} onClick={() => set({ date: d })}>
                   {dayLabel(d)}
                 </button>
               ))}
             </div>
-            <DatePicker label="Date (any day)" value={form.date} min={today} onChange={(date) => set({ date })} />
             <div className="row">
               <label className="field">
                 {START_LABEL[form.sport]}
@@ -695,24 +698,35 @@ export function PlanPage() {
               {placeLabel}
               {outdoor && durMin > 0 ? ` · weather ${fmtTime(startMin)}–${fmtTime(startMin + durMin)}` : ""}
             </div>
+            {active.length >= SEARCH_FROM && (
+              <input
+                type="search"
+                className="spot-search"
+                aria-label={`Search ${placeLabel.toLowerCase()}s`}
+                placeholder={`Search ${active.length} places`}
+                value={spotQ}
+                onChange={(e) => setSpotQ(e.target.value)}
+              />
+            )}
             <div className="spotlist">
               <div
                 className="spotgroup"
                 role="radiogroup"
                 aria-label={placeLabel}
                 onKeyDown={(e) => {
-                  if (!["ArrowDown", "ArrowUp"].includes(e.key) || !active.length) return;
+                  if (!["ArrowDown", "ArrowUp"].includes(e.key) || !shown.length) return;
                   e.preventDefault();
-                  const i = active.findIndex((x) => x.id === form.spotId);
+                  const i = shown.findIndex((x) => x.id === form.spotId);
                   const step = e.key === "ArrowDown" ? 1 : -1;
-                  const next = active[
-                    i < 0 ? (step > 0 ? 0 : active.length - 1) : (i + step + active.length) % active.length
+                  const next = shown[
+                    i < 0 ? (step > 0 ? 0 : shown.length - 1) : (i + step + shown.length) % shown.length
                   ] as SpotWithState;
                   set({ spotId: next.id });
                   (e.currentTarget.querySelector(`[data-spot="${next.id}"]`) as HTMLElement | null)?.focus();
                 }}
               >
-                {active.map(spotRow)}
+                {shown.map(spotRow)}
+                {needle && shown.length === 0 && <p className="small muted">No place matches "{spotQ.trim()}".</p>}
               </div>
               {addingSpot ? (
                 <AddSpot

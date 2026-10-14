@@ -44,7 +44,7 @@ export function settingsProblem(s: Settings): string | null {
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-  sports: ["ride", "run", "swim", "pickleball", "ski"],
+  sports: ["ride", "run", "swim", "triathlon", "pickleball", "ski"],
   pace: 17,
   meetTime: "08:30",
   durationH: 3,

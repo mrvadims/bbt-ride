@@ -1280,6 +1280,11 @@ a.linkbtn {
   font-weight: 600;
   cursor: pointer;
 }
+.filters.quickdates {
+  flex-wrap: wrap;
+  overflow: visible;
+  margin: 8px 0 0;
+}
 .filters button[aria-pressed="true"] {
   background: var(--text);
   border-color: var(--text);
@@ -1330,6 +1335,23 @@ a.linkbtn {
   justify-items: end;
   gap: 6px;
   flex: none;
+}
+.going {
+  font-size: 13px;
+  color: var(--text);
+  white-space: nowrap;
+}
+.going.none {
+  color: var(--muted);
+}
+.you-in {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--link);
+  background: var(--win);
+  border-radius: 999px;
+  padding: 2px 8px;
+  white-space: nowrap;
 }
 .center {
   text-align: center;
@@ -1431,6 +1453,9 @@ a.tile[aria-label="Open in RideWithGPS"] {
   background: var(--primary);
   border-color: var(--primary);
   color: #fff;
+}
+.spot-search {
+  margin-top: 8px;
 }
 .icongrid {
   display: grid;

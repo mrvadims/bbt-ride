@@ -283,8 +283,20 @@ async function notifyReplaced(env: Env, id: string) {
 }
 
 export const activities = new Hono<AppEnv>()
-  // Upcoming activities (today on), published and cancelled.
-  .get("/", async (c) => c.json(await summaries(c.env.DB, "a.date >= ?", [nyNow().date])))
+  // Upcoming activities (today on), published and cancelled, each with the viewer's own answer.
+  .get("/", async (c) => {
+    const today = nyNow().date;
+    const [acts, mine] = await Promise.all([
+      summaries(c.env.DB, "a.date >= ?", [today]),
+      c.env.DB.prepare(
+        "select v.activity_id, v.status from rsvps v join activities a on a.id = v.activity_id where v.user_id = ? and a.date >= ?",
+      )
+        .bind(c.get("user").id, today)
+        .all<{ activity_id: string; status: "in" | "out" }>(),
+    ]);
+    const answer = new Map(mine.results.map((r) => [r.activity_id, r.status]));
+    return c.json(acts.map((a) => ({ ...a, mine: answer.get(a.id) ?? null })));
+  })
   .get("/past", async (c) =>
     c.json(await summaries(c.env.DB, "a.date < ?", [nyNow().date], "a.date desc, a.start_time desc", 200)),
   )

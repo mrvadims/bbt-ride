@@ -2,7 +2,7 @@
 import { z } from "zod";
 
 /** Sports an Admin can turn off; Other is always offered. */
-export const TOGGLE_SPORTS = ["ride", "run", "swim", "pickleball", "ski"] as const;
+export const TOGGLE_SPORTS = ["ride", "run", "swim", "triathlon", "pickleball", "ski"] as const;
 export const SPORTS = [...TOGGLE_SPORTS, "other"] as const;
 export type Sport = (typeof SPORTS)[number];
 
@@ -10,6 +10,7 @@ export const SPORT_LABEL: Record<Sport, string> = {
   ride: "Ride",
   run: "Run",
   swim: "Swim",
+  triathlon: "Triathlon",
   pickleball: "Pickleball",
   ski: "Ski",
   other: "Other",
@@ -29,6 +30,7 @@ export const START_LABEL: Record<Sport, string> = {
   ride: "Meet time",
   run: "Meet time",
   swim: "Start time",
+  triathlon: "Race start",
   pickleball: "Start time",
   ski: "Carpool leaves",
   other: "Start time",
@@ -37,12 +39,14 @@ export const START_LABEL: Record<Sport, string> = {
 export const defaultLength = (s: Sport): number => (hasRoute(s) ? 120 : DEFAULT_LENGTH_MIN[s]);
 const DEFAULT_LENGTH_MIN: Record<Exclude<Sport, "ride" | "run">, number> = {
   swim: 60,
+  triathlon: 180,
   pickleball: 120,
   ski: 600,
   other: 120,
 };
 export const DETAILS_HINT: Partial<Record<Sport, string>> = {
   swim: "e.g. Lanes 3–4",
+  triathlon: "e.g. Sprint · wave 3 at 7:40",
   pickleball: "e.g. 2 courts",
   ski: "e.g. Carpool from SUNY Purchase",
   other: "Anything people should know at a glance",

@@ -306,6 +306,13 @@ check(
   pk.status === 201 && pk.json.sport === "pickleball" && pk.json.outdoor === false && pk.json.pace === 0,
   `another sport can share the day (${pk.status} ${pk.status === 201 ? "" : JSON.stringify(pk.json)})`,
 );
+const tri = await admin("/api/activities", {
+  body: { ...pickle, sport: "triathlon", outdoor: true, startTime: "07:00", endTime: "10:00", details: "Sprint" },
+});
+check(
+  tri.status === 201 && tri.json.sport === "triathlon" && tri.json.icon === null,
+  `a triathlon can be planned (${tri.status})`,
+);
 const kayak = await admin("/api/activities", { body: { ...pickle, sport: "other", icon: "kayaking", details: "" } });
 check(kayak.status === 201 && kayak.json.icon === "kayaking", "an Other activity keeps the icon an editor picked");
 check(
@@ -349,6 +356,13 @@ check(
   d.rsvps.some((r: Json) => r.name === `Rider ${stamp}` && r.routeLabel === "Short"),
   "rider RSVPs In on the Short route",
 );
+{
+  const list = (await rider("/api/activities")).json as Json[];
+  check(
+    list.find((a) => a.id === id)?.mine === "in" && list.every((a) => a.id === id || a.mine !== "in"),
+    "the upcoming list carries the viewer's own answer",
+  );
+}
 
 // Calendar link (DESIGN.md → v2): private feed of what you're In for, readable without a session, revoked by Reset.
 const feed = async (url: string) => {

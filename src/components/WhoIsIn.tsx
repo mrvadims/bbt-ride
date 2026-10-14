@@ -1,9 +1,11 @@
 // Who's in panel: In / Out (route choice only for In with an alternate route) and the activity's message thread.
+
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import type { ActivityDetail, Me, Message } from "../../shared/api.ts";
 import { fmtStamp } from "../../shared/time.ts";
 import { api } from "../lib/api.ts";
+import { Linkified } from "./Linkified.tsx";
 import { Panel } from "./Panel.tsx";
 
 export function WhoIsIn({ act, me, past }: { act: ActivityDetail; me: Me; past: boolean }) {
@@ -85,7 +87,9 @@ export function WhoIsIn({ act, me, past }: { act: ActivityDetail; me: Me; past: 
             </div>
           </div>
         ) : (
-          <p className={m.deleted ? "muted" : undefined}>{m.deleted ? "Message deleted." : m.body}</p>
+          <p className={m.deleted ? "muted" : undefined}>
+            {m.deleted ? "Message deleted." : <Linkified text={m.body} />}
+          </p>
         )}
         <div className="btnrow msg-actions">
           {!isReply && open && (

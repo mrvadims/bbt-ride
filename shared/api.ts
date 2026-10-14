@@ -62,6 +62,7 @@ export interface Activity {
   routes: (RideRoute & { name: string | null })[]; // name from the route cache
   lastUpdate: { at: string; text: string } | null;
   counts: { in: number; out: number; messages: number };
+  mine?: "in" | "out" | null; // the viewer's own answer (the upcoming list only)
   observed: RecordedWeather | null;
 }
 
