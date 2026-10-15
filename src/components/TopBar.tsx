@@ -348,6 +348,9 @@ export function TopBar({ me }: { me: Me | null }) {
           </Link>
           <div className="row2">
             <span className="tiny muted">Help</span>
+            <Link className="btn btn-outline btn-sm help-link" href="/help" onClick={() => setOpen(false)}>
+              Using BBT <span aria-hidden="true">›</span>
+            </Link>
             <Link className="btn btn-outline btn-sm help-link" href="/help/garmin" onClick={() => setOpen(false)}>
               Routes on your Garmin <span aria-hidden="true">›</span>
             </Link>

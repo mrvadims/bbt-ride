@@ -406,9 +406,23 @@ check(
   "the deleted activity is gone",
 );
 
-// Help: Routes on your Garmin, from the account menu
+// Help: Using BBT, then Routes on your Garmin from its link
 await page.getByLabel("Account menu").click();
-await page.getByRole("link", { name: /Routes on your Garmin/ }).click();
+await page.getByRole("link", { name: /Using BBT/ }).click();
+await page.waitForURL("**/help");
+check(
+  (await page.getByRole("heading", { name: "Using BBT" }).isVisible()) &&
+    (await page.getByRole("heading", { name: "Plan an activity (Editors)" }).isVisible()) &&
+    (await page.getByRole("heading", { name: "Run the team (Admins)" }).isVisible()) &&
+    (await page.getByRole("link", { name: /Plan an activity/ }).getAttribute("href")) === "/plan",
+  "Help → Using BBT: the guide, with Admins' sections and links to do things",
+);
+check(await fits(), "the guide fits the phone width");
+await shot(page, "help-guide");
+await page
+  .locator(".guide")
+  .getByRole("link", { name: /Routes on your Garmin/ })
+  .click();
 await page.waitForURL("**/help/garmin");
 check(
   (await page.getByRole("heading", { name: "Routes on your Garmin" }).isVisible()) &&
