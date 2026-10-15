@@ -1934,6 +1934,18 @@ a.tile[aria-label="Open in RideWithGPS"] {
   display: grid;
   gap: 8px;
 }
+.guide .help-sec ul,
+.guide .help-sec ol {
+  margin: 0;
+  padding-left: 22px;
+  display: grid;
+  gap: 6px;
+}
+.guide .help-sec > .btn,
+.guide .btnrow {
+  justify-self: start;
+  margin-top: 2px;
+}
 .help-sec ol {
   margin: 0;
   padding-left: 22px;
