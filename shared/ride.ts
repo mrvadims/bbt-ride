@@ -27,10 +27,43 @@ export interface Route {
 export interface Spot {
   id: string;
   name: string;
-  lat: number;
+  lat: number; // 0 for an online place
   lng: number;
-  maps_url: string;
+  maps_url: string; // the Google Maps link, or an online place's meeting link
   note: string;
+  online: boolean; // a meeting link instead of a pin: no map, directions or weather (DESIGN.md → Virtual meet-ups)
+}
+
+const MAPS_HOSTS = /^((www\.)?google\.com|maps\.google\.com|maps\.app\.goo\.gl)$/;
+/** Whether a pasted link is Google Maps (a pin to find, or keep as the place's Maps link). */
+export const isMapsHost = (host: string) => MAPS_HOSTS.test(host);
+
+/** A pasted meeting link, cleaned up: any https address that isn't Google Maps or coordinates (Zoom, Google Meet,
+ * Teams…); null otherwise. Makes the place online (DESIGN.md → Virtual meet-ups). */
+export function meetingLink(link: string): string | null {
+  if (parseLatLng(link)) return null;
+  try {
+    const u = new URL(link.trim());
+    if (u.protocol !== "https:" || u.username || u.password || isMapsHost(u.hostname)) return null;
+    return u.toString();
+  } catch {
+    return null;
+  }
+}
+
+/** What an online place's link is: "Zoom", "Google Meet", "Teams", "Webex", or "Online link" for anything else. */
+export function onlineService(url: string): string {
+  let host = "";
+  try {
+    host = new URL(url).hostname.toLowerCase();
+  } catch {
+    return "Online link";
+  }
+  if (/(^|\.)zoom\.(us|com)$/.test(host)) return "Zoom";
+  if (host === "meet.google.com") return "Google Meet";
+  if (/(^|\.)teams\.(microsoft|live)\.com$/.test(host)) return "Teams";
+  if (/(^|\.)webex\.com$/.test(host)) return "Webex";
+  return "Online link";
 }
 
 export interface RideRoute {

@@ -12,6 +12,7 @@ import {
   type UserRow,
 } from "../../shared/api.ts";
 import type { KitBand } from "../../shared/kit.ts";
+import { onlineService } from "../../shared/ride.ts";
 import { type Settings, type SettingsChange, settingsProblem } from "../../shared/settings.ts";
 import {
   GROUP_LABEL,
@@ -394,11 +395,12 @@ function SpotRow({ sp, onEdit, onArchive }: { sp: SpotWithState; onEdit: () => v
     <div className="spot-row">
       <div className="spot-info">
         <b>{sp.name}</b>
+        {sp.online && <span className="small muted">Online · {onlineService(sp.maps_url)}</span>}
         <span className="small muted">{sp.note}</span>
       </div>
       <div className="spot-actions">
         <a className="linkbtn" href={sp.maps_url} target="_blank" rel="noopener noreferrer">
-          Open in Maps
+          {sp.online ? "Open link" : "Open in Maps"}
         </a>
         {!sp.archived && (
           <button type="button" className="linkbtn" onClick={onEdit}>

@@ -433,7 +433,7 @@ await shot(page, "invite-link");
 await page.getByRole("button", { name: "Places", exact: true }).click();
 await page.getByRole("button", { name: "Add a place" }).click();
 await page.getByLabel("Name").fill(`Lot ${stamp}`);
-await page.getByLabel("Google Maps link").fill("41.0454, -73.6973");
+await page.getByLabel("Map or meeting link").fill("41.0454, -73.6973");
 await page.getByLabel("Notes (optional)").fill("North lot.");
 await page.getByRole("button", { name: "Add place" }).click();
 const newRow = page.locator(".spot-row", { hasText: `Lot ${stamp}` });
@@ -488,6 +488,53 @@ await page.getByRole("button", { name: "Account menu" }).click();
 await page.getByRole("link", { name: /Announcements/ }).click();
 await page.getByRole("heading", { name: "Announcements" }).waitFor();
 check(await page.getByText(`Winter rides ${stamp}`).isVisible(), "announcements: still on the Announcements page");
+
+// Online place: a Zoom link instead of a pin; plan a ride there; Join on the activity (DESIGN.md → Virtual meet-ups)
+await page.getByTitle("Settings").click();
+await page.getByRole("button", { name: "Users", exact: true }).waitFor();
+// Panels remember being open; Places was opened above
+if (!(await page.getByRole("button", { name: "Add a place" }).isVisible()))
+  await page.getByRole("button", { name: "Places", exact: true }).click();
+await page.getByRole("button", { name: "Add a place" }).click();
+await page.getByLabel("Name").fill(`Zoom ${stamp}`);
+await page.getByLabel("Map or meeting link").fill("https://us02web.zoom.us/j/81234567890?pwd=abc");
+check(
+  await page.locator(".online-note").getByText("Online · Zoom", { exact: true }).isVisible(),
+  "online: the form recognises a Zoom link",
+);
+await page.getByRole("button", { name: "Add place" }).click();
+await page
+  .locator(".spot-row", { hasText: `Zoom ${stamp}` })
+  .getByRole("link", { name: "Open link" })
+  .waitFor();
+check(true, "online: listed as an online place with Open link");
+await page.getByTitle("Plan an activity").click();
+await page.waitForURL("**/plan");
+await page.getByRole("radio", { name: "Ride", exact: true }).click();
+await page.getByLabel("Title (optional)").fill(`Trainer ${stamp}`);
+const zoomPlace = page.getByRole("radio", { name: new RegExp(`Zoom ${stamp}`) });
+if (!(await zoomPlace.count())) await page.getByPlaceholder(/^Search \d+ places/).fill(`Zoom ${stamp}`);
+await zoomPlace.click();
+await page.getByText("Route (optional)").waitFor();
+check(
+  (await page.getByLabel("Start time").isVisible()) &&
+    (await page.getByLabel("Ends").isVisible()) &&
+    !(await page.getByLabel("Pace (mph)").count()),
+  "online: Plan asks for start and end, an optional route and no pace",
+);
+await page.getByLabel("Start time").fill("19:00");
+await page.getByLabel("Ends").fill("20:00");
+await page.getByRole("button", { name: /^(Publish|Publish another ride)$/ }).click();
+await page.waitForURL("**/a/*");
+const join = page.getByRole("link", { name: "Join" });
+check(
+  (await join.getAttribute("href")) === "https://us02web.zoom.us/j/81234567890?pwd=abc" &&
+    !(await page.getByRole("button", { name: "Directions" }).count()) &&
+    !(await page.getByRole("button", { name: "Weather", exact: true }).count()) &&
+    (await page.getByText("Ride · Online").isVisible()),
+  "online: Join instead of Directions, no Weather, Ride · Online",
+);
+await shot(page, "online");
 
 // Desktop, dark
 await page.setViewportSize({ width: 1280, height: 900 });

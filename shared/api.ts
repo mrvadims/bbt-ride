@@ -5,7 +5,7 @@ import { cleanName, MAX_MENTIONS, mentionIds, normalizePhone } from "./people.ts
 import type { RideRoute } from "./ride.ts";
 import { HHMM, type Settings } from "./settings.ts";
 import { ICON_KEYS, type Icon } from "./sport-icons.ts";
-import { canBeIndoor, hasRoute, PACE_RANGE, SPORT_LABEL, SPORTS, type Sport } from "./sports.ts";
+import { canBeIndoor, hasRoute, PACE_RANGE, SPORT_LABEL, SPORTS, type Sport, timedByRoute } from "./sports.ts";
 import { hhmmToMin } from "./time.ts";
 import type { Alert, OpenMeteoResponse } from "./weather.ts";
 
@@ -81,6 +81,7 @@ export interface Activity {
   unseen?: Unseen | null; // what's new to the viewer since they last opened it (the upcoming list only)
   observed: RecordedWeather | null;
   private: boolean; // only the people invited see it (DESIGN.md → Private activities)
+  online: boolean; // at an online place: Join instead of Directions, start and end times, no weather
   createdBy: string | null; // null once the creator's account is deleted
 }
 
@@ -197,6 +198,7 @@ const activityFields = z.object({
     .refine((r) => new Set(r.map((x) => x.label.toLowerCase())).size === r.length, "Route labels must differ")
     .default([]),
   replaceId: z.string().max(80).nullable().default(null), // cancel this same-sport activity that day (Plan's "Replace")
+  online: z.boolean().default(false), // at an online place (the server checks it against the place)
   // Private: the people invited (the server adds the creator and the person editing). Left out: public when posting,
   // unchanged when editing. A public activity can't become private.
   guests: z.array(z.string().min(1).max(64)).max(GUESTS_MAX).optional(),
@@ -204,27 +206,32 @@ const activityFields = z.object({
 });
 type ActivityFields = z.output<typeof activityFields>;
 
-/** Ride and run need a route and a pace in range; other sports an end time after the start and no route. */
+/** Ride and run at a real place need a route and a pace in range; everything else (other sports, and any sport online)
+ * an end time after the start. Only rides and runs have routes; online, the route is optional. */
 function checkSport(a: ActivityFields, ctx: z.RefinementCtx) {
-  if (a.sport === "ride" || a.sport === "run") {
-    const [lo, hi] = PACE_RANGE[a.sport];
+  if (timedByRoute(a.sport, a.online)) {
+    const [lo, hi] = PACE_RANGE[a.sport as "ride" | "run"];
     if (!a.routes.length) ctx.addIssue({ code: "custom", message: "Pick a route", path: ["routes"] });
     if (a.pace < lo || a.pace > hi) ctx.addIssue({ code: "custom", message: "Pace is out of range", path: ["pace"] });
   } else {
-    if (a.routes.length) ctx.addIssue({ code: "custom", message: "Only rides and runs have routes", path: ["routes"] });
+    if (a.routes.length && !hasRoute(a.sport))
+      ctx.addIssue({ code: "custom", message: "Only rides and runs have routes", path: ["routes"] });
     if (!a.endTime || hhmmToMin(a.endTime) <= hhmmToMin(a.startTime))
       ctx.addIssue({ code: "custom", message: "The end time must be after the start", path: ["endTime"] });
   }
 }
-/** Fields that don't apply to the sport are stored empty. */
-const normalize = <T extends ActivityFields>(a: T): T => ({
-  ...a,
-  icon: a.sport === "other" && a.icon !== "pending" ? a.icon : null,
-  endTime: hasRoute(a.sport) ? null : a.endTime,
-  pace: hasRoute(a.sport) ? a.pace : 0,
-  details: hasRoute(a.sport) ? "" : a.details,
-  outdoor: canBeIndoor(a.sport) ? a.outdoor : true,
-});
+/** Fields that don't apply to the sport are stored empty; an online activity is never outdoors (no weather). */
+const normalize = <T extends ActivityFields>(a: T): T => {
+  const timed = timedByRoute(a.sport, a.online);
+  return {
+    ...a,
+    icon: a.sport === "other" && a.icon !== "pending" ? a.icon : null,
+    endTime: timed ? null : a.endTime,
+    pace: timed ? a.pace : 0,
+    details: timed ? "" : a.details,
+    outdoor: a.online ? false : canBeIndoor(a.sport) ? a.outdoor : true,
+  };
+};
 
 export const activityInput = activityFields.superRefine(checkSport).transform(normalize);
 export type ActivityValues = z.output<typeof activityInput>;

@@ -8,7 +8,7 @@ export interface CalEvent {
   end: number;
   title: string;
   location: string;
-  geo: { lat: number; lng: number };
+  geo: { lat: number; lng: number } | null; // null: an online place
   details: string;
   url?: string;
   cancelled?: boolean;
@@ -24,7 +24,7 @@ export function activityEvent(p: {
   start: number;
   end: number;
   meet: boolean; // ride and run say "Meet at"
-  spot: { name: string; lat: number; lng: number; maps_url: string; note: string };
+  spot: { name: string; lat: number; lng: number; maps_url: string; note: string; online: boolean };
   routes: { label: string; name: string; url: string }[];
   details: string;
   notes: string;
@@ -35,11 +35,14 @@ export function activityEvent(p: {
     start: p.start,
     end: p.end,
     title: `BBT ${p.sport}: ${p.name}`,
-    // Coordinates, so calendar apps open the exact pin in Maps and car navigation can route to it.
-    location: `${p.spot.lat}, ${p.spot.lng}`,
-    geo: { lat: p.spot.lat, lng: p.spot.lng },
+    // Coordinates, so calendar apps open the exact pin in Maps and car navigation can route to it; online, the meeting
+    // link, which calendar apps show as a link to join from.
+    location: p.spot.online ? p.spot.maps_url : `${p.spot.lat}, ${p.spot.lng}`,
+    geo: p.spot.online ? null : { lat: p.spot.lat, lng: p.spot.lng },
     details: [
-      `${p.meet ? "Meet at" : "At"} ${p.spot.name}: ${p.spot.maps_url}`,
+      p.spot.online
+        ? `Join ${p.spot.name}: ${p.spot.maps_url}`
+        : `${p.meet ? "Meet at" : "At"} ${p.spot.name}: ${p.spot.maps_url}`,
       p.spot.note ? `Notes: ${p.spot.note}` : "",
       p.details,
       ...p.routes.map((r) => `${r.label}: ${r.name} — ${r.url}`),
@@ -137,7 +140,7 @@ export function icsCalendar(events: CalEvent[], feed = false): string {
       `DTEND:${icsTime(e.date, e.end)}`,
       `SUMMARY:${esc(e.cancelled ? `Cancelled: ${e.title}` : e.title)}`,
       `LOCATION:${esc(e.location)}`,
-      `GEO:${e.geo.lat};${e.geo.lng}`,
+      ...(e.geo ? [`GEO:${e.geo.lat};${e.geo.lng}`] : []),
       `DESCRIPTION:${esc(e.details)}`,
       ...(e.url ? [`URL:${e.url}`] : []),
       `STATUS:${e.cancelled ? "CANCELLED" : "CONFIRMED"}`,
