@@ -343,6 +343,9 @@ export function TopBar({ me }: { me: Me | null }) {
           <Link className="btn btn-outline btn-sm help-link" href="/announcements" onClick={() => setOpen(false)}>
             Announcements <span aria-hidden="true">›</span>
           </Link>
+          <Link className="btn btn-outline btn-sm help-link" href="/updates" onClick={() => setOpen(false)}>
+            What's new <span aria-hidden="true">›</span>
+          </Link>
           <div className="row2">
             <span className="tiny muted">Help</span>
             <Link className="btn btn-outline btn-sm help-link" href="/help/garmin" onClick={() => setOpen(false)}>

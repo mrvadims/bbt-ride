@@ -66,6 +66,9 @@ check(
   "signed out → sign-in page with Google",
 );
 await shot(page, "signin");
+await page.goto(`${BASE}/updates/2026-10-15`);
+await page.waitForURL(/\/signin\?next=%2Fupdates%2F2026-10-15/);
+check(!(await page.getByText("What's new in BBT").count()), "updates: signed out, a link to one asks to sign in first");
 
 await page.goto(`${BASE}/invite/${token}`);
 await page.getByLabel("First and last name").fill("Captain Test");
@@ -488,6 +491,16 @@ await page.getByRole("button", { name: "Account menu" }).click();
 await page.getByRole("link", { name: /Announcements/ }).click();
 await page.getByRole("heading", { name: "Announcements" }).waitFor();
 check(await page.getByText(`Winter rides ${stamp}`).isVisible(), "announcements: still on the Announcements page");
+await page.getByRole("button", { name: "Account menu" }).click();
+await page.getByRole("link", { name: /What's new/ }).click();
+await page.getByRole("link", { name: /Private activities, announcements/ }).click();
+await page.getByRole("heading", { name: "What's new in BBT" }).waitFor();
+check(
+  (await page.getByRole("heading", { name: "Virtual meet-ups" }).isVisible()) &&
+    page.url().endsWith("/updates/2026-10-15"),
+  "updates: members open What's new from the account menu, each update at its own dated address",
+);
+await shot(page, "updates");
 
 // Online place: a Zoom link instead of a pin; plan a ride there; Join on the activity (DESIGN.md → Virtual meet-ups)
 await page.getByTitle("Settings").click();

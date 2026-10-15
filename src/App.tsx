@@ -17,6 +17,7 @@ import { LinkPage } from "./pages/LinkPage.tsx";
 import { PastList } from "./pages/PastPage.tsx";
 import { SignIn } from "./pages/SignIn.tsx";
 import { TeamPage } from "./pages/TeamPage.tsx";
+import { UpdatesPage } from "./pages/Updates.tsx";
 
 // Editor and admin screens load on demand; most members never open them.
 const PlanPage = lazy(() => import("./pages/PlanPage.tsx").then((m) => ({ default: m.PlanPage })));
@@ -65,6 +66,7 @@ export function App() {
   else if (page === "team") content = <TeamPage me={user} />;
   else if (page === "help" && arg === "garmin") content = <HelpGarmin />;
   else if (page === "announcements") content = <AnnouncementsPage />;
+  else if (page === "updates") content = <UpdatesPage date={arg} />;
   else if (page === "plan")
     content =
       user.role === "view" ? <Restricted text="Planning is for editors." /> : <PlanPage key={`${path}?${query}`} />;
