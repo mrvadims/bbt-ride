@@ -18,7 +18,7 @@ const UPDATES: Update[] = [
     date: "2026-10-15",
     label: "October 15, 2026",
     title: "Private activities, announcements and Zoom meet-ups",
-    summary: "Plus Garmin help, new icons for Other and a few smaller improvements.",
+    summary: "Plus a user guide, Garmin help, What's new, new icons for Other and a few smaller improvements.",
     sections: [
       {
         h: "Private activities",
@@ -57,11 +57,11 @@ const UPDATES: Update[] = [
         items: [
           <>
             Admins post team announcements from <b>Settings → Announcements</b>, with an optional end date and an
-            optional notification.
+            optional notification. Each one shows how many people tapped Got it, and who hasn't yet.
           </>,
           <>
-            An announcement shows as a <b>banner</b> on every page until you tap <b>Got it</b>. Dismissing it on one
-            device clears it on all of them.
+            An announcement shows as a <b>banner</b> on every page until you tap <b>Got it</b>, including for the person
+            who posted it. Dismissing it on one device clears it on all of them.
           </>,
           <>
             Read recent ones again in the account menu under <b>Announcements</b>.
@@ -85,11 +85,17 @@ const UPDATES: Update[] = [
         ],
       },
       {
-        h: "Help: routes on your Garmin",
+        h: "Help and What's new",
         items: [
           <>
-            New in the account menu under <b>Help → Routes on your Garmin</b>: one-time setup, sending a ride's route, a
-            checklist for when a route doesn't arrive, and copying a route over by cable.
+            <b>Help → Using BBT</b>: a quick guide to everything the app does, with a button to go and do each thing.
+          </>,
+          <>
+            <b>Help → Routes on your Garmin</b>: one-time setup, sending a ride's route, a checklist for when a route
+            doesn't arrive, and copying a route over by cable.
+          </>,
+          <>
+            <b>What's new</b> in the account menu: these release notes, each at its own link to share.
           </>,
         ],
       },
