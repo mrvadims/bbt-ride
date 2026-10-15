@@ -364,6 +364,18 @@ check(
   "the deleted activity is gone",
 );
 
+// Help: Routes on your Garmin, from the account menu
+await page.getByLabel("Account menu").click();
+await page.getByRole("link", { name: /Routes on your Garmin/ }).click();
+await page.waitForURL("**/help/garmin");
+check(
+  (await page.getByRole("heading", { name: "Routes on your Garmin" }).isVisible()) &&
+    (await page.getByRole("heading", { name: "Route not on your Garmin?" }).isVisible()),
+  "Help → Routes on your Garmin opens the guide",
+);
+check(await fits(), "the help page fits the phone width");
+await shot(page, "help-garmin");
+
 // Settings
 await page.getByTitle("Settings").click();
 await page.getByRole("button", { name: "Users", exact: true }).click();

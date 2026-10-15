@@ -10,6 +10,7 @@ import { isApp, isIosBrowser, isIosHomeScreen } from "./lib/native.ts";
 import { refreshPush } from "./lib/push.ts";
 import { navigate, useLocation } from "./lib/router.tsx";
 import { ActivityPage } from "./pages/ActivityPage.tsx";
+import { HelpGarmin } from "./pages/HelpGarmin.tsx";
 import { HomePage } from "./pages/HomePage.tsx";
 import { LinkPage } from "./pages/LinkPage.tsx";
 import { PastList } from "./pages/PastPage.tsx";
@@ -61,6 +62,7 @@ export function App() {
       </section>
     );
   else if (page === "team") content = <TeamPage me={user} />;
+  else if (page === "help" && arg === "garmin") content = <HelpGarmin />;
   else if (page === "plan")
     content =
       user.role === "view" ? <Restricted text="Planning is for editors." /> : <PlanPage key={`${path}?${query}`} />;
