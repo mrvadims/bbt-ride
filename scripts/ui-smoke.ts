@@ -491,6 +491,7 @@ await page.getByRole("button", { name: "Account menu" }).click();
 await page.getByRole("link", { name: /Announcements/ }).click();
 await page.getByRole("heading", { name: "Announcements" }).waitFor();
 check(await page.getByText(`Winter rides ${stamp}`).isVisible(), "announcements: still on the Announcements page");
+await shot(page, "announcements-page");
 await page.getByRole("button", { name: "Account menu" }).click();
 await page.getByRole("link", { name: /What's new/ }).click();
 await page.getByRole("link", { name: /Private activities, announcements/ }).click();
