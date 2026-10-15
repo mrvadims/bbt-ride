@@ -18,7 +18,16 @@ import { type Units, units } from "../lib/units.ts";
 import { CalendarLink } from "./CalendarLink.tsx";
 import { ElevationChart } from "./charts.tsx";
 import { HourTable } from "./HourTable.tsx";
-import { CalendarIcon, DirectionsIcon, EditIcon, ShareIcon, SportIcon, WxIcon, wxLabel } from "./icons.tsx";
+import {
+  CalendarIcon,
+  DirectionsIcon,
+  EditIcon,
+  PrivateBadge,
+  ShareIcon,
+  SportIcon,
+  WxIcon,
+  wxLabel,
+} from "./icons.tsx";
 import { Linkified } from "./Linkified.tsx";
 import { EmptyPanel, Panel } from "./Panel.tsx";
 import { Sheet } from "./Sheet.tsx";
@@ -160,12 +169,21 @@ function sportLine(a: Pick<ActivityLike, "sport" | "outdoor">): string {
 }
 
 /** Header card: sport, name, day and time, details; the Edit pencil for editors. */
-export function ActivityHeader({ act, m, onEdit }: { act: ActivityLike; m: ActivityModel; onEdit?: () => void }) {
+export function ActivityHeader({
+  act,
+  m,
+  onEdit,
+}: {
+  act: ActivityLike & { private?: boolean };
+  m: ActivityModel;
+  onEdit?: () => void;
+}) {
   const name = activityName(act);
   return (
     <section className="panel ahead">
       <span className="ahead-icon">
         <SportIcon sport={act.sport} icon={act.icon} size={30} />
+        {act.private && <PrivateBadge />}
       </span>
       <div className="ahead-b">
         <span className="kicker">{sportLine(act)}</span>

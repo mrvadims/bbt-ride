@@ -56,6 +56,9 @@ export function WhoIsIn({
   };
   const ins = act.rsvps.filter((r) => r.status === "in");
   const outs = act.rsvps.filter((r) => r.status === "out");
+  // A private activity lists the people invited who haven't answered, and only they can be mentioned.
+  const invited = act.private ? act.guests.map((g) => g.userId) : undefined;
+  const notYet = act.guests.filter((g) => !act.rsvps.some((r) => r.userId === g.userId));
   const top = act.messages.filter((m) => !m.parentId);
   // Other people's messages since the viewer last caught up; the divider goes before the first of them.
   const fresh =
@@ -90,6 +93,7 @@ export function WhoIsIn({
         {editing?.id === m.id ? (
           <div className="compose">
             <MentionBox
+              only={invited}
               label="Edit message"
               meId={me.id}
               value={editing.body}
@@ -152,6 +156,7 @@ export function WhoIsIn({
             {replyTo === m.id && (
               <div className="compose">
                 <MentionBox
+                  only={invited}
                   label={`Reply to ${author(m)}`}
                   placeholder={`Reply to ${author(m)}`}
                   meId={me.id}
@@ -202,7 +207,8 @@ export function WhoIsIn({
           <b>
             {ins.length} {past ? (act.status === "cancelled" ? "were in" : "joined") : "in"}
           </b>{" "}
-          · {outs.length} out · {nMsg} message{nMsg === 1 ? "" : "s"}
+          · {outs.length} out{!past && notYet.length > 0 ? ` · ${notYet.length} not yet` : ""} · {nMsg} message
+          {nMsg === 1 ? "" : "s"}
           {fresh.length > 0 && <b className="unseen"> · {fresh.length} new</b>}
           {open && (
             <div className="sw">
@@ -284,6 +290,27 @@ export function WhoIsIn({
             </div>
           </div>
         )}
+        {notYet.length > 0 && (
+          <div>
+            <div className="sub-h">Not answered yet ({notYet.length})</div>
+            <div className="plist">
+              {notYet.map((p) => (
+                <PersonButton
+                  key={p.userId}
+                  userId={p.userId}
+                  className={`person quiet${p.userId === me.id ? " me" : ""}`}
+                >
+                  {p.name}
+                </PersonButton>
+              ))}
+            </div>
+          </div>
+        )}
+        {act.private && (
+          <p className="tiny muted" style={{ margin: 0 }}>
+            Private: only the {act.guests.length} people invited see this.
+          </p>
+        )}
       </div>
       <div className="sub">
         <div className="sub-h">Messages</div>
@@ -291,8 +318,9 @@ export function WhoIsIn({
         {open && (
           <div className="compose">
             <MentionBox
-              label="Message the team"
-              placeholder="Message the team · @ to mention"
+              only={invited}
+              label={act.private ? "Message the group" : "Message the team"}
+              placeholder={`Message the ${act.private ? "group" : "team"} · @ to mention`}
               meId={me.id}
               value={draft}
               onChange={setDraft}

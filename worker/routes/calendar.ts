@@ -64,6 +64,7 @@ async function feed(env: Env, userId: string): Promise<string> {
   const acts = (
     await summaries(
       env.DB,
+      userId, // a private activity only while they're invited
       "a.date >= ? and exists (select 1 from rsvps v where v.activity_id = a.id and v.user_id = ? and v.status = 'in')",
       [addDays(nyNow().date, -PAST_DAYS), userId],
       "a.date desc, a.start_time desc",

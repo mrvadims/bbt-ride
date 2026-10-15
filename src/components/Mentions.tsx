@@ -44,12 +44,14 @@ export function MentionBox({
   label,
   placeholder,
   meId,
+  only,
 }: {
   value: Draft;
   onChange: (d: Draft) => void;
   label: string;
   placeholder?: string;
   meId: string;
+  only?: string[]; // a private activity: only the people invited can be mentioned
 }) {
   const members = useMembers().data ?? [];
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -59,7 +61,7 @@ export function MentionBox({
   const words = mention?.query.toLowerCase().split(/\s+/).filter(Boolean) ?? [];
   const matches = mention
     ? members
-        .filter((m) => m.active && m.id !== meId)
+        .filter((m) => m.active && m.id !== meId && (!only || only.includes(m.id)))
         .filter((m) => {
           const parts = m.name.toLowerCase().split(/\s+/);
           return words.every((w, i) => parts.some((p, j) => j >= i && p.startsWith(w)));

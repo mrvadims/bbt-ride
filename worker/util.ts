@@ -39,3 +39,8 @@ export function audit(
     .prepare("insert into audit_log (user_id, action, entity, entity_id, diff_json, at) values (?, ?, ?, ?, ?, ?)")
     .bind(userId, action, entity, entityId, diff === undefined ? null : JSON.stringify(diff), nowIso());
 }
+
+/** Who may see an activity (table alias a, the viewer's id bound to `param`): everyone if it's public; if it's private,
+ * only the people invited, its creator among them. Admins are no exception. */
+export const visible = (param = "?") =>
+  `(a.private = 0 or exists (select 1 from activity_guests g where g.activity_id = a.id and g.user_id = ${param}))`;

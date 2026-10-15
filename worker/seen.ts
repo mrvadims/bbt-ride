@@ -3,7 +3,7 @@
 // existed when markers started counts as seen.
 import type { Unseen } from "../shared/api.ts";
 import { firstName } from "../shared/people.ts";
-import { nowIso, sameBatch } from "./util.ts";
+import { nowIso, sameBatch, visible } from "./util.ts";
 
 /** The person's baseline, made the first time they're asked about. */
 async function baseline(db: D1Database, userId: string): Promise<string> {
@@ -19,11 +19,12 @@ async function baseline(db: D1Database, userId: string): Promise<string> {
 export async function markers(db: D1Database, userId: string, today: string): Promise<Map<string, Unseen>> {
   const since = await baseline(db, userId);
   const seen = `coalesce((select s.seen_at from activity_seen s where s.user_id = ?1 and s.activity_id = a.id), ?2)`;
+  const shown = visible("?1"); // only activities the person may see
   const [made, msgs, notes, mine] = await db.batch<Record<string, unknown>>([
     db
       .prepare(
         `select a.id, a.created_at, a.created_by, u.name from activities a left join "user" u on u.id = a.created_by
-         where a.date >= ?3 and a.created_by is not ?1 and a.created_at > ?2
+         where a.date >= ?3 and ${shown} and a.created_by is not ?1 and a.created_at > ?2
            and not exists (select 1 from activity_seen s where s.user_id = ?1 and s.activity_id = a.id)`,
       )
       .bind(userId, since, today),
@@ -31,14 +32,14 @@ export async function markers(db: D1Database, userId: string, today: string): Pr
       .prepare(
         `select m.activity_id, u.name from messages m join activities a on a.id = m.activity_id
          left join "user" u on u.id = m.user_id
-         where a.date >= ?3 and m.kind = 'user' and m.deleted_at is null and m.user_id is not ?1 and m.created_at > ${seen}
+         where a.date >= ?3 and ${shown} and m.kind = 'user' and m.deleted_at is null and m.user_id is not ?1 and m.created_at > ${seen}
          order by m.created_at`,
       )
       .bind(userId, since, today),
     db
       .prepare(
         `select m.activity_id, m.kind, m.body, m.created_at from messages m join activities a on a.id = m.activity_id
-         where a.date >= ?3 and m.kind != 'user' and m.created_at > ${seen} order by m.created_at`,
+         where a.date >= ?3 and ${shown} and m.kind != 'user' and m.created_at > ${seen} order by m.created_at`,
       )
       .bind(userId, since, today),
     db

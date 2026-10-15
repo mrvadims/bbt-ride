@@ -4,7 +4,7 @@ import { useState } from "react";
 import { type Activity, activityName, type Me, type Unseen } from "../../shared/api.ts";
 import { SPORT_LABEL, type Sport } from "../../shared/sports.ts";
 import { dayLabel, fmtTime, hhmmToMin } from "../../shared/time.ts";
-import { SportIcon } from "../components/icons.tsx";
+import { PrivateBadge, SportIcon } from "../components/icons.tsx";
 import { Pill, WarningChips } from "../components/Warnings.tsx";
 import { useActivityModel } from "../lib/activityModel.ts";
 import { useActivities, useSpots } from "../lib/data.ts";
@@ -32,6 +32,7 @@ function Row({ a, spotName }: { a: Activity; spotName: string }) {
     <Link className="arow" href={`/a/${a.id}`}>
       <span className="arow-icon">
         <SportIcon sport={a.sport} icon={a.icon} />
+        {a.private && <PrivateBadge />}
         {n &&
           (n.messages ? (
             <span className="badge count" aria-hidden="true">
