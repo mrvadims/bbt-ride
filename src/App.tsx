@@ -1,5 +1,6 @@
 // Routes and the sign-in gate. Public: /signin, /invite/:token, /reset/:token (and the static /privacy page).
 import { lazy, type ReactNode, Suspense, useEffect } from "react";
+import { AnnouncementBanner, AnnouncementsPage } from "./components/Announcements.tsx";
 import { AppExtras } from "./components/AppExtras.tsx";
 import { ContactForm } from "./components/Contact.tsx";
 import { InstallHint } from "./components/InstallHint.tsx";
@@ -63,6 +64,7 @@ export function App() {
     );
   else if (page === "team") content = <TeamPage me={user} />;
   else if (page === "help" && arg === "garmin") content = <HelpGarmin />;
+  else if (page === "announcements") content = <AnnouncementsPage />;
   else if (page === "plan")
     content =
       user.role === "view" ? <Restricted text="Planning is for editors." /> : <PlanPage key={`${path}?${query}`} />;
@@ -78,6 +80,7 @@ export function App() {
       <main>
         {user?.phone && (isApp() || isIosHomeScreen()) && <AppExtras me={user} />}
         {user?.phone && isIosBrowser() && <InstallHint />}
+        {user?.phone && page !== "announcements" && <AnnouncementBanner />}
         <Suspense fallback={<p className="muted small">Loading…</p>}>{content}</Suspense>
       </main>
     </>

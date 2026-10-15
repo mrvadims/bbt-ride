@@ -9,6 +9,7 @@ import { type AppEnv, requireSession, sameOrigin, withAuth } from "./app.ts";
 import { scheduled } from "./cron.ts";
 import { deliver, type PushJob, push } from "./push.ts";
 import { activities, messages } from "./routes/activities.ts";
+import { announcements } from "./routes/announcements.ts";
 import { calendar } from "./routes/calendar.ts";
 import { drafts } from "./routes/drafts.ts";
 import { routes } from "./routes/routes.ts";
@@ -82,6 +83,7 @@ app.route("/messages", messages);
 app.route("/push", push);
 app.route("/draft", drafts);
 app.route("/users", users);
+app.route("/announcements", announcements);
 
 export default {
   fetch: app.fetch,

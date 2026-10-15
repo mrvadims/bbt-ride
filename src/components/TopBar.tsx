@@ -340,6 +340,9 @@ export function TopBar({ me }: { me: Me | null }) {
               Install on iPhone
             </a>
           )}
+          <Link className="btn btn-outline btn-sm help-link" href="/announcements" onClick={() => setOpen(false)}>
+            Announcements <span aria-hidden="true">›</span>
+          </Link>
           <div className="row2">
             <span className="tiny muted">Help</span>
             <Link className="btn btn-outline btn-sm help-link" href="/help/garmin" onClick={() => setOpen(false)}>

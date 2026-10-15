@@ -452,6 +452,43 @@ await page.getByText(/^Archived \(\d+\)/).waitFor();
 check(true, "spot archived");
 await shot(page, "settings");
 
+// Announcements: an Admin posts from Settings; the banner shows on every page until Got it
+await page.getByRole("button", { name: "Announcements", exact: true }).click();
+await page.getByLabel("Title").fill(`Winter rides ${stamp}`);
+await page.getByLabel("Message").fill("Zoom rides start Nov 4. Kit: https://example.com/kit");
+await page.getByRole("checkbox", { name: /Also send a notification/ }).uncheck();
+await page.getByRole("button", { name: "Post to everyone" }).click();
+await page
+  .getByText(/^\d+ of \d+ got it$/)
+  .first()
+  .waitFor();
+check(true, "announcements: posted from Settings, with how many got it");
+// The poster has seen their own; as someone who hasn't, the banner shows
+sql(
+  `delete from announcement_seen where announcement_id in (select id from announcements where title = 'Winter rides ${stamp}')`,
+);
+await page.getByLabel("BBT home").click();
+await page.reload();
+const banner = page.getByRole("region", { name: "Announcement" });
+await banner.getByText(`Winter rides ${stamp}`).waitFor();
+check(
+  (await banner.getByRole("link", { name: "https://example.com/kit" }).isVisible()) &&
+    (await banner.evaluate((el) => el.getBoundingClientRect().right <= document.documentElement.clientWidth)),
+  "announcements: the banner shows with a tappable link and fits the phone",
+);
+await shot(page, "announcement");
+await banner.getByRole("button", { name: "Got it" }).click();
+// Earlier local runs may leave other announcements active: the banner then moves on to the next one
+await page.getByText(`Winter rides ${stamp}`).waitFor({ state: "detached" });
+await page.reload();
+await page.getByLabel("BBT home").waitFor();
+await page.waitForTimeout(800);
+check(!(await page.getByText(`Winter rides ${stamp}`).count()), "announcements: Got it hides it, also after a reload");
+await page.getByRole("button", { name: "Account menu" }).click();
+await page.getByRole("link", { name: /Announcements/ }).click();
+await page.getByRole("heading", { name: "Announcements" }).waitFor();
+check(await page.getByText(`Winter rides ${stamp}`).isVisible(), "announcements: still on the Announcements page");
+
 // Desktop, dark
 await page.setViewportSize({ width: 1280, height: 900 });
 await page.emulateMedia({ colorScheme: "dark" });

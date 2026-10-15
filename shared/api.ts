@@ -127,6 +127,24 @@ export interface ActivityDetail extends Activity {
   history: HistoryEntry[]; // newest first
 }
 
+/** GET /api/announcements: active ones and those from the last 90 days, newest first (DESIGN.md → Announcements). */
+export interface Announcement {
+  id: string;
+  title: string;
+  body: string;
+  by: string | null; // who posted it; null once their account is deleted
+  createdAt: string;
+  endsOn: string | null; // last day shown (New York); null: no end date
+  active: boolean; // not ended, and its end date hasn't passed
+  seen: boolean; // the viewer tapped Got it
+}
+/** Admins' list: with how many of the team (members who aren't disabled) tapped Got it. */
+export interface AnnouncementAdmin extends Announcement {
+  endedAt: string | null;
+  seenCount: number;
+  teamCount: number;
+}
+
 export interface UserRow {
   id: string;
   name: string;
@@ -235,6 +253,14 @@ const messageBody = z
   .refine((b) => mentionIds(b).length <= MAX_MENTIONS, `Mention at most ${MAX_MENTIONS} people in one message`);
 export const messageInput = z.object({ body: messageBody, parentId: z.string().max(64).nullable().default(null) });
 export const messageEdit = z.object({ body: messageBody });
+
+const announcementFields = {
+  title: z.string().trim().min(1).max(80),
+  body: z.string().trim().min(1).max(1000),
+  endsOn: date.nullable().default(null),
+};
+export const announcementInput = z.object({ ...announcementFields, notify: z.boolean().default(true) });
+export const announcementEdit = z.object(announcementFields); // editing never notifies again
 
 export const spotInput = z.object({
   name: z.string().trim().min(1).max(80),

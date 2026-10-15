@@ -1918,3 +1918,65 @@ a.tile[aria-label="Open in RideWithGPS"] {
   align-items: center;
   justify-content: space-between;
 }
+
+/* Announcements (DESIGN.md → Announcements): the banner under the top bar, the page and the Admins' panel. */
+.announce {
+  background: var(--card);
+  border: 1px solid var(--win-line);
+  border-radius: 14px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  display: grid;
+  gap: 6px;
+}
+.announce-h {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.announce-h svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: var(--link);
+  stroke-width: 2;
+  flex: none;
+}
+.announce-h .kicker {
+  flex: 1;
+}
+.announce p,
+.announce-item p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.announce .btnrow {
+  justify-content: flex-end;
+}
+.announce-item {
+  display: grid;
+  gap: 4px;
+}
+.announce-form {
+  display: grid;
+  gap: 10px;
+}
+.announce-form p {
+  margin: 0;
+}
+.announce-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 10px;
+  align-items: center;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+.announce-row-b {
+  display: grid;
+  gap: 2px;
+}
+.announce-row .btnrow {
+  grid-column: 1 / -1;
+  margin: 0;
+}

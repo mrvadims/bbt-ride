@@ -23,6 +23,7 @@ import {
   type Warn,
 } from "../../shared/sports.ts";
 import { fmtTime, hhmmToMin } from "../../shared/time.ts";
+import { AnnouncementsAdmin } from "../components/Announcements.tsx";
 import { Panel } from "../components/Panel.tsx";
 import { type SpotFields, SpotForm } from "../components/SpotForm.tsx";
 import { api } from "../lib/api.ts";
@@ -570,6 +571,7 @@ export function SettingsPage({ me }: { me: Me }) {
       )}
       <div className="panels settings-panels">
         <Users me={me} />
+        <AnnouncementsAdmin />
         <Panel
           id="set-sports"
           label="Sports"
