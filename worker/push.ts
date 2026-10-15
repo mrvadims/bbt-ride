@@ -96,13 +96,37 @@ export async function notifyActivity(
         : {}),
     });
   const jobs: { body: PushJob }[] = [];
-  for (const isIn of [true, false]) {
-    const subs = results
-      .filter((r) => Boolean(r.is_in) === isIn)
-      .map(({ endpoint, keys_json, kind }) => ({ endpoint, keys_json, kind }));
-    const data = message(isIn && Boolean(opts.answer));
-    for (let i = 0; i < subs.length; i += BATCH) jobs.push({ body: { data, subs: subs.slice(i, i + BATCH) } });
-  }
+  for (const isIn of [true, false])
+    jobs.push(
+      ...batches(
+        results.filter((r) => Boolean(r.is_in) === isIn),
+        message(isIn && Boolean(opts.answer)),
+      ),
+    );
+  if (jobs.length) await env.PUSH.sendBatch(jobs);
+}
+
+/** Queue jobs of up to BATCH devices each for one notification. */
+const batches = (subs: Sub[], data: string): { body: PushJob }[] => {
+  const devices = subs.map(({ endpoint, keys_json, kind }) => ({ endpoint, keys_json, kind }));
+  const jobs: { body: PushJob }[] = [];
+  for (let i = 0; i < devices.length; i += BATCH) jobs.push({ body: { data, subs: devices.slice(i, i + BATCH) } });
+  return jobs;
+};
+
+/** Queues a notification for every opted-in device of members who aren't disabled, about nothing in particular (an
+ * announcement); tapping it opens `url`. */
+export async function notifyTeam(env: Env, title: string, body: string, url: string): Promise<void> {
+  const web = Boolean(env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY);
+  const app = Boolean(env.FCM_SERVICE_ACCOUNT);
+  if (!web && !app) return;
+  const { results } = await env.DB.prepare(
+    `select p.endpoint, p.keys_json, p.kind from push_subscriptions p join "user" u on u.id = p.user_id
+     where coalesce(u.banned, 0) = 0 and (p.kind = 'web' and ?1 or p.kind = 'fcm' and ?2)`,
+  )
+    .bind(web ? 1 : 0, app ? 1 : 0)
+    .all<Sub>();
+  const jobs = batches(results, JSON.stringify({ title, body, url }));
   if (jobs.length) await env.PUSH.sendBatch(jobs);
 }
 

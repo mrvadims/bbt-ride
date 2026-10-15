@@ -857,6 +857,72 @@ check(
 );
 check((await creator.c(`/api/activities/${pid}`, { method: "DELETE" })).status === 204, "and their private one");
 
+// Announcements (DESIGN.md → Announcements): Admins post; everyone sees the active ones until they tap Got it.
+{
+  const post = {
+    title: `Kit order ${stamp}`,
+    body: "Closes Oct 31: https://bbt.team/kit",
+    endsOn: null,
+    notify: false,
+  };
+  check((await guest.c("/api/announcements", { body: post })).status === 403, "announcements: only Admins post");
+  check(
+    (await admin("/api/announcements", { body: { ...post, endsOn: addDays(nyNow().date, -1) } })).status === 400,
+    "announcements: an end date in the past is refused",
+  );
+  const made = await admin("/api/announcements", { body: post });
+  const aid = made.json?.id as string;
+  check(made.status === 201 && Boolean(aid), "announcements: an Admin posts one");
+  const mine = (await guest.c("/api/announcements")).json.find((a: Json) => a.id === aid);
+  check(mine?.active === true && mine.seen === false, "announcements: a member sees it, not yet seen");
+  check(
+    (await admin("/api/announcements")).json.find((a: Json) => a.id === aid)?.seen === true,
+    "announcements: the Admin who posted it has seen it",
+  );
+  const before = (await admin("/api/announcements/all")).json.find((a: Json) => a.id === aid);
+  check(
+    (await guest.c(`/api/announcements/${aid}/seen`, { method: "POST" })).status === 204 &&
+      (await guest.c("/api/announcements")).json.find((a: Json) => a.id === aid)?.seen === true,
+    "announcements: Got it is remembered",
+  );
+  const after = (await admin("/api/announcements/all")).json.find((a: Json) => a.id === aid);
+  check(
+    after?.seenCount === before?.seenCount + 1 && after.teamCount >= after.seenCount,
+    "announcements: N of M got it",
+  );
+  const unseen = (await admin(`/api/announcements/${aid}/unseen`)).json as Json[];
+  check(
+    !unseen.some((p) => p.id === guest.id) && unseen.some((p) => p.id === outsider.id),
+    "announcements: Admins see who hasn't seen it",
+  );
+  check(
+    (await guest.c("/api/announcements/all")).status === 403 &&
+      (await guest.c(`/api/announcements/${aid}/unseen`)).status === 403 &&
+      (await guest.c(`/api/announcements/${aid}`, { method: "PUT", body: post })).status === 403 &&
+      (await guest.c(`/api/announcements/${aid}/end`, { method: "POST" })).status === 403,
+    "announcements: members can't list counts, edit or end them",
+  );
+  check(
+    (await admin(`/api/announcements/${aid}`, { method: "PUT", body: { ...post, title: `Kit order closes ${stamp}` } }))
+      .status === 204 &&
+      (await guest.c("/api/announcements")).json.find((a: Json) => a.id === aid)?.title === `Kit order closes ${stamp}`,
+    "announcements: an Admin edits one",
+  );
+  check(
+    (await admin(`/api/announcements/${aid}/end`, { method: "POST" })).status === 204 &&
+      (await outsider.c("/api/announcements")).json.find((a: Json) => a.id === aid)?.active === false,
+    "announcements: End now takes it off the banner (it stays on the page)",
+  );
+  check(
+    (await admin(`/api/announcements/${aid}`, { method: "PUT", body: post })).status === 404,
+    "announcements: an ended one can't be edited",
+  );
+  check(
+    (await guest.c("/api/announcements/no-such-id/seen", { method: "POST" })).status === 404,
+    "announcements: Got it on an unknown one is refused",
+  );
+}
+
 // Rate limit on password sign-in
 const brute = client();
 const codes: number[] = [];

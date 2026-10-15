@@ -3,6 +3,7 @@ import { keepPreviousData, QueryClient, useQuery } from "@tanstack/react-query";
 import type {
   Activity,
   ActivityDetail,
+  Announcement,
   Me,
   RouteSummary,
   TeamMember,
@@ -27,6 +28,13 @@ export type SpotWithState = Spot & { archived: boolean };
 
 export const useMe = () =>
   useQuery({ queryKey: ["me"], queryFn: () => api<Me>("/me"), retry: false, staleTime: 5 * 60_000 });
+/** Announcements for the banner and the Announcements page; checked again every 10 minutes while the app is open. */
+export const useAnnouncements = () =>
+  useQuery({
+    queryKey: ["announcements"],
+    queryFn: () => api<Announcement[]>("/announcements"),
+    refetchInterval: 10 * 60_000,
+  });
 export const useTeamSettings = () =>
   useQuery({ queryKey: ["settings"], queryFn: () => api<TeamSettings>("/settings") });
 /** The team directory (Team page, contact cards, @mentions). */
