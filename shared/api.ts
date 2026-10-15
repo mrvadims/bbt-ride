@@ -80,6 +80,8 @@ export interface Activity {
   mine?: "in" | "out" | null; // the viewer's own answer (the upcoming list only)
   unseen?: Unseen | null; // what's new to the viewer since they last opened it (the upcoming list only)
   observed: RecordedWeather | null;
+  private: boolean; // only the people invited see it (DESIGN.md → Private activities)
+  createdBy: string | null; // null once the creator's account is deleted
 }
 
 export interface Message {
@@ -119,6 +121,7 @@ export interface HistoryEntry {
 }
 
 export interface ActivityDetail extends Activity {
+  guests: { userId: string; name: string }[]; // a private activity's invited people, its creator among them; [] if public
   rsvps: Rsvp[];
   messages: Message[];
   history: HistoryEntry[]; // newest first
@@ -148,6 +151,7 @@ export interface RouteSummary {
 }
 
 // ---- request schemas ----
+export const GUESTS_MAX = 100;
 const date = z.iso.date(); // a real calendar date, YYYY-MM-DD
 const hhmm = z.string().regex(HHMM);
 
@@ -175,6 +179,8 @@ const activityFields = z.object({
     .refine((r) => new Set(r.map((x) => x.label.toLowerCase())).size === r.length, "Route labels must differ")
     .default([]),
   replaceId: z.string().max(80).nullable().default(null), // cancel this same-sport activity that day (Plan's "Replace")
+  // Private: the people invited (the server adds the creator). Null: public. A public activity can't become private.
+  guests: z.array(z.string().min(1).max(64)).max(GUESTS_MAX).nullable().default(null),
 });
 type ActivityFields = z.output<typeof activityFields>;
 

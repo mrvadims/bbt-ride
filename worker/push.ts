@@ -30,14 +30,23 @@ const BATCH = 5;
  * `deliver`. Tapping it opens the activity.
  * - `newPost`: a new activity of that sport, sent only to people who didn't mute the sport, and not to its author.
  * - `answer`: people who are in get Still in / I'm out buttons (Android; other platforms just open the activity).
- * - `to`: only these people (a mention, or those going to a deleted activity), whatever sports they muted.
- * - `url`: where tapping it goes, when the activity itself is gone. */
+ * - `to`: only these people (a mention, the people invited, or those going to a deleted activity), whatever sports they
+ *   muted.
+ * - `except`: not these people (they already know).
+ * - `url`: where tapping it goes, when the activity itself is gone.
+ * A private activity only ever notifies the people invited to it, whatever the options say. */
 export async function notifyActivity(
   env: Env,
   id: string,
   title: string,
   body: string,
-  opts: { newPost?: { sport: Sport; author: string }; answer?: boolean; to?: string[]; url?: string } = {},
+  opts: {
+    newPost?: { sport: Sport; author: string };
+    answer?: boolean;
+    to?: string[];
+    except?: string[];
+    url?: string;
+  } = {},
 ): Promise<void> {
   const web = Boolean(env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY);
   const app = Boolean(env.FCM_SERVICE_ACCOUNT);
@@ -51,7 +60,10 @@ export async function notifyActivity(
      where coalesce(u.banned, 0) = 0 and (p.kind = 'web' and ?4 or p.kind = 'fcm' and ?5)
        and (?2 is null or (p.user_id != ?3
             and not exists (select 1 from notify_off n where n.user_id = p.user_id and n.sport = ?2)))
-       and (?6 is null or p.user_id in (select value from json_each(?6)))`,
+       and (?6 is null or p.user_id in (select value from json_each(?6)))
+       and p.user_id not in (select value from json_each(?7))
+       and (coalesce((select private from activities where id = ?1), 0) = 0
+            or exists (select 1 from activity_guests g where g.activity_id = ?1 and g.user_id = p.user_id))`,
   )
     .bind(
       id,
@@ -60,6 +72,7 @@ export async function notifyActivity(
       web ? 1 : 0,
       app ? 1 : 0,
       opts.to ? JSON.stringify(opts.to) : null,
+      JSON.stringify(opts.except ?? []),
     )
     .all<Sub & { is_in: number }>();
   const message = (actions: boolean) =>

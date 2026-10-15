@@ -19,11 +19,13 @@ async function baseline(db: D1Database, userId: string): Promise<string> {
 export async function markers(db: D1Database, userId: string, today: string): Promise<Map<string, Unseen>> {
   const since = await baseline(db, userId);
   const seen = `coalesce((select s.seen_at from activity_seen s where s.user_id = ?1 and s.activity_id = a.id), ?2)`;
+  // Only activities the person may see (routes/activities.ts → VISIBLE, with the user as ?1).
+  const visible = `(a.private = 0 or exists (select 1 from activity_guests g where g.activity_id = a.id and g.user_id = ?1))`;
   const [made, msgs, notes, mine] = await db.batch<Record<string, unknown>>([
     db
       .prepare(
         `select a.id, a.created_at, a.created_by, u.name from activities a left join "user" u on u.id = a.created_by
-         where a.date >= ?3 and a.created_by is not ?1 and a.created_at > ?2
+         where a.date >= ?3 and ${visible} and a.created_by is not ?1 and a.created_at > ?2
            and not exists (select 1 from activity_seen s where s.user_id = ?1 and s.activity_id = a.id)`,
       )
       .bind(userId, since, today),
@@ -31,14 +33,14 @@ export async function markers(db: D1Database, userId: string, today: string): Pr
       .prepare(
         `select m.activity_id, u.name from messages m join activities a on a.id = m.activity_id
          left join "user" u on u.id = m.user_id
-         where a.date >= ?3 and m.kind = 'user' and m.deleted_at is null and m.user_id is not ?1 and m.created_at > ${seen}
+         where a.date >= ?3 and ${visible} and m.kind = 'user' and m.deleted_at is null and m.user_id is not ?1 and m.created_at > ${seen}
          order by m.created_at`,
       )
       .bind(userId, since, today),
     db
       .prepare(
         `select m.activity_id, m.kind, m.body, m.created_at from messages m join activities a on a.id = m.activity_id
-         where a.date >= ?3 and m.kind != 'user' and m.created_at > ${seen} order by m.created_at`,
+         where a.date >= ?3 and ${visible} and m.kind != 'user' and m.created_at > ${seen} order by m.created_at`,
       )
       .bind(userId, since, today),
     db

@@ -312,6 +312,45 @@ await page.getByRole("button", { name: "Pickleball", exact: true }).click();
 check(!(await page.getByRole("link", { name: /Katonah/ }).count()), "the filter hides other sports");
 await shot(page, "home");
 
+// Private: Plan's Visibility, then the lock on the icon and who hasn't answered (DESIGN.md → Private activities)
+await page.getByTitle("Plan an activity").click();
+await page.waitForURL("**/plan");
+await page.getByRole("radio", { name: "Pickleball", exact: true }).click();
+await page.getByRole("button", { name: "Indoor", exact: true }).click();
+await page.getByLabel("Title (optional)").fill(`Private ${stamp}`);
+await page.getByRole("button", { name: sundayLabel }).click();
+await page.getByRole("radio", { name: /SUNY Purchase/ }).click();
+await page.getByRole("radio", { name: /^Private/ }).click();
+const privPublish = page.getByRole("button", { name: /^(Publish|Publish another pickleball)$/ });
+check(await privPublish.isDisabled(), "private: Publish waits until someone is invited");
+await page.getByLabel("Invite people").fill(`Teammate ${stamp}`);
+await page.getByRole("checkbox", { name: `Teammate ${stamp}` }).check();
+check(
+  await page.locator(".vis").evaluate((el) => el.getBoundingClientRect().right <= document.documentElement.clientWidth),
+  "the Visibility panel fits the phone width",
+);
+await page.getByRole("checkbox", { name: `Teammate ${stamp}` }).scrollIntoViewIfNeeded();
+if (shots) await page.screenshot({ path: `${shots}/plan-private.png` });
+await privPublish.click();
+await page.waitForURL("**/a/*");
+const privUrl = page.url();
+check(await page.locator(".ahead-icon .lockbadge").isVisible(), "private: a lock on the activity's icon");
+if (!(await page.getByText(/Not answered yet/).count()))
+  await page.getByRole("button", { name: "Who's in", exact: true }).click();
+check(
+  (await page.getByText("Not answered yet (2)").isVisible()) &&
+    (await page.getByText("Private: only the 2 people invited see this.").isVisible()),
+  "private: Who's in lists who hasn't answered",
+);
+await shot(page, "private");
+await page.getByLabel("Edit", { exact: true }).click();
+await page.waitForURL("**/plan?edit=*");
+await page.getByText("Private · 2 people").waitFor();
+check(await page.getByRole("button", { name: "Make public" }).isVisible(), "private: editing offers Make public");
+await page.getByLabel("BBT home").click();
+await page.locator(`a.arow[href="${new URL(privUrl).pathname}"] .lockbadge`).waitFor();
+check(true, "private: Home shows the lock on its icon");
+
 // Team: everyone, with Call and Text
 await page.getByTitle("Team").click();
 await page.waitForURL("**/team");

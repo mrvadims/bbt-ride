@@ -49,6 +49,7 @@ import { HourTable } from "../components/HourTable.tsx";
 import { SportIcon, SymbolIcon } from "../components/icons.tsx";
 import { EmptyPanel, Panel, Section } from "../components/Panel.tsx";
 import { SpotForm } from "../components/SpotForm.tsx";
+import { nobodyInvited, Visibility } from "../components/Visibility.tsx";
 import { WarningChips } from "../components/Warnings.tsx";
 import { useActivityModel } from "../lib/activityModel.ts";
 import { api } from "../lib/api.ts";
@@ -91,6 +92,7 @@ interface Form {
   notes: string;
   q: string;
   qAlt: string;
+  guests: string[] | null; // private: the people invited; null: public (and drafts saved before private activities)
 }
 
 const isCoffee = (p: Poi) => /coffee|food/.test(p.type);
@@ -130,6 +132,7 @@ function fromActivity(a: ActivityDetail, date: string, editing: string | null): 
     ...(a.pace ? { pace: a.pace } : {}),
     details: a.details,
     notes: a.notes,
+    guests: a.private ? a.guests.map((g) => g.userId) : null,
   };
 }
 
@@ -263,6 +266,7 @@ export function PlanPage() {
     notes: "",
     q: "",
     qAlt: "",
+    guests: null,
     ...defaults(sport),
   });
 
@@ -398,15 +402,21 @@ export function PlanPage() {
         }
       : null;
   const model = useActivityModel(draft);
+  const inviteNeeded =
+    form && me
+      ? nobodyInvited(form.guests ?? null, me.id, form.editing ? (editingAct?.createdBy ?? null) : me.id)
+      : false;
 
   const publish = useMutation({
     mutationFn: async (replaceId: string | null) => {
       if (!form || !draft) throw new Error(routed ? "Pick a start place and a route" : "Pick a place");
       if (form.altOn && form.altId && !altRoute) throw new Error("The alternate route hasn't loaded yet");
+      if (inviteNeeded) throw new Error("Invite at least one person");
       const body: ActivityUpdate = {
         ...draft,
         routes: draft.routes.map(({ label, routeId, stop }) => ({ label, routeId, stop })),
         replaceId,
+        guests: form.guests ?? null,
         baseUpdatedAt: form.base ?? "", // a POST ignores it
       };
       return form.editing
@@ -939,6 +949,18 @@ export function PlanPage() {
               onChange={(e) => set({ notes: e.target.value })}
             />
           </Section>
+
+          {(!form.editing || editingAct?.private) && me && (
+            <Section label="Visibility">
+              <Visibility
+                guests={form.guests ?? null}
+                onChange={(guests) => set({ guests })}
+                meId={me.id}
+                creatorId={form.editing ? (editingAct?.createdBy ?? null) : me.id}
+                original={form.editing && editingAct ? editingAct.guests.map((g) => g.userId) : null}
+              />
+            </Section>
+          )}
         </div>
 
         <div>
@@ -960,7 +982,7 @@ export function PlanPage() {
             />
           ) : (
             <>
-              <ActivityHeader act={draft} m={model} />
+              <ActivityHeader act={{ ...draft, private: Boolean(form.guests) }} m={model} />
               <ActivityBody act={draft} model={model} mode="preview" routeIndex={0} />
               {sameSport.length > 0 && (
                 <div className="notice" style={{ margin: "12px 0 0" }}>
@@ -984,7 +1006,7 @@ export function PlanPage() {
                 <button
                   type="button"
                   className="btn btn-primary"
-                  disabled={publish.isPending}
+                  disabled={publish.isPending || inviteNeeded}
                   onClick={() => publish.mutate(null)}
                 >
                   {sameSport.length
@@ -997,13 +1019,18 @@ export function PlanPage() {
                   <button
                     type="button"
                     className="btn btn-outline"
-                    disabled={publish.isPending}
+                    disabled={publish.isPending || inviteNeeded}
                     onClick={() => publish.mutate(clash.id)}
                   >
                     Replace {activityName(clash)}
                   </button>
                 )}
               </div>
+              {inviteNeeded && (
+                <p className="tiny muted" style={{ margin: "8px 0 0" }}>
+                  A private {sportName} needs at least one person invited (Visibility).
+                </p>
+              )}
               {clash && (
                 <p className="tiny muted" style={{ margin: "8px 0 0" }}>
                   Replace cancels {activityName(clash)}; like any cancellation, everyone is told.
@@ -1024,7 +1051,7 @@ export function PlanPage() {
                   {editingAct.status === "cancelled" ? `Restore ${sportName}` : `Cancel ${sportName}`}
                 </button>
               </div>
-              {me?.role === "admin" && (
+              {me && (me.role === "admin" || editingAct.createdBy === me.id) && (
                 <DeleteActivity
                   act={editingAct}
                   sportName={sportName}

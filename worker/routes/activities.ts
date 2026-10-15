@@ -7,6 +7,7 @@ import {
   activityInput,
   activityName,
   activityUpdate,
+  GUESTS_MAX,
   type HistoryEntry,
   type Message,
   messageEdit,
@@ -20,7 +21,7 @@ import type { RideRoute } from "../../shared/ride.ts";
 import type { Icon } from "../../shared/sport-icons.ts";
 import { hasRoute, minPerMile, SPORT_LABEL, type Sport } from "../../shared/sports.ts";
 import { dayLabel, fmtTime, hhmmToMin, nyNow } from "../../shared/time.ts";
-import { type AppEnv, can, requireRole } from "../app.ts";
+import { type AppEnv, can, requireRole, type SessionUser } from "../app.ts";
 import { notifyActivity } from "../push.ts";
 import { markers, visit } from "../seen.ts";
 import { audit, fail, newId, nowIso, sameBatch } from "../util.ts";
@@ -43,23 +44,32 @@ interface ActivityRow {
   status: "published" | "cancelled";
   updated_at: string;
   observed_json: string | null;
+  private: number;
+  created_by: string | null;
 }
 
-/** Summaries of the activities matching `where` (a condition on table alias a), with routes, counts and the latest
- * update. */
+/** Who may see an activity (table alias a, the viewer's id bound to ?): everyone if it's public; if it's private, only
+ * the people invited, its creator among them. Admins are no exception. */
+export const VISIBLE = `(a.private = 0 or exists (select 1 from activity_guests g where g.activity_id = a.id and g.user_id = ?))`;
+
+/** Summaries of the activities matching `where` (a condition on table alias a) that `viewer` may see, with routes, counts
+ * and the latest update. Only background work about an activity it already holds (notifications) passes viewer null. */
 export async function summaries(
   db: D1Database,
+  viewer: string | null,
   where: string,
-  binds: unknown[],
+  whereBinds: unknown[],
   order = "a.date, a.start_time, a.created_at",
   limit?: number,
 ): Promise<Activity[]> {
+  const binds = viewer === null ? whereBinds : [...whereBinds, viewer];
+  const cond = viewer === null ? where : `(${where}) and ${VISIBLE}`;
   // a.id last: the limited list must come out the same in the subqueries below, even when dates and times tie.
-  const pick = `from activities a where ${where} order by ${order}, a.id${limit ? ` limit ${limit}` : ""}`;
+  const pick = `from activities a where ${cond} order by ${order}, a.id${limit ? ` limit ${limit}` : ""}`;
   const { results: rows } = await db
     .prepare(
       `select a.id, a.sport, a.icon, a.title, a.date, a.start_time, a.end_time, a.spot_id, a.outdoor, a.pace_mph, a.details,
-              a.notes, a.status, a.updated_at, a.observed_json ${pick}`,
+              a.notes, a.status, a.updated_at, a.observed_json, a.private, a.created_by ${pick}`,
     )
     .bind(...binds)
     .all<ActivityRow>();
@@ -123,6 +133,8 @@ export async function summaries(
       },
       lastUpdate: upd ? { at: upd.created_at, text: upd.body } : null,
       observed: r.observed_json ? (JSON.parse(r.observed_json) as RecordedWeather) : null,
+      private: Boolean(r.private),
+      createdBy: r.created_by,
     };
   });
 }
@@ -139,12 +151,25 @@ interface MessageRow {
   deleted_at: string | null;
 }
 
+// The same answer whether the activity doesn't exist or is private and the viewer isn't invited.
 const NOT_FOUND = "Activity not found";
 
-async function detail(db: D1Database, id: string): Promise<ActivityDetail> {
-  const [act] = await summaries(db, "a.id = ?", [id]);
-  if (!act) return fail(404, NOT_FOUND);
-  const [rsvps, messages, made, changes] = await Promise.all([
+/** The activity, if the viewer may see it; else 404. */
+async function load(db: D1Database, viewer: string, id: string): Promise<Activity> {
+  const [act] = await summaries(db, viewer, "a.id = ?", [id]);
+  return act ?? fail(404, NOT_FOUND);
+}
+
+async function detail(db: D1Database, viewer: string, id: string): Promise<ActivityDetail> {
+  const act = await load(db, viewer, id);
+  const [guests, rsvps, messages, made, changes] = await Promise.all([
+    db
+      .prepare(
+        `select g.user_id, u.name from activity_guests g join "user" u on u.id = g.user_id where g.activity_id = ?
+         order by g.user_id = ? desc, u.name`,
+      )
+      .bind(id, act.createdBy)
+      .all<{ user_id: string; name: string }>(),
     db
       .prepare(
         `select v.user_id, u.name, v.status, v.route_label from rsvps v join "user" u on u.id = v.user_id where v.activity_id = ? order by v.updated_at`,
@@ -172,6 +197,7 @@ async function detail(db: D1Database, id: string): Promise<ActivityDetail> {
   ]);
   return {
     ...act,
+    guests: guests.results.map((g) => ({ userId: g.user_id, name: g.name })),
     history: history(made, changes.results, messages.results),
     rsvps: rsvps.results.map(
       (v): Rsvp => ({ userId: v.user_id, name: v.name, status: v.status, routeLabel: v.route_label }),
@@ -221,11 +247,21 @@ function history(
 
 /** The activity Plan's "Replace" names: published, the same sport and day as the new plan, and not the one being edited.
  * Several activities of a sport may share a day; Replace is the editor's choice, never automatic. */
-async function replaceTarget(db: D1Database, id: string | null, date: string, sport: Sport, except = "") {
+async function replaceTarget(
+  db: D1Database,
+  viewer: string,
+  id: string | null,
+  date: string,
+  sport: Sport,
+  except = "",
+) {
   if (!id) return null;
   const t = await db
-    .prepare("select id from activities where id = ? and date = ? and sport = ? and status = 'published' and id != ?")
-    .bind(id, date, sport, except)
+    .prepare(
+      `select a.id from activities a where a.id = ? and a.date = ? and a.sport = ? and a.status = 'published' and a.id != ?
+       and ${VISIBLE}`,
+    )
+    .bind(id, date, sport, except, viewer)
     .first<{ id: string }>();
   return t ?? fail(409, "The activity to replace isn't posted for that day any more");
 }
@@ -314,17 +350,49 @@ const STALE = "Someone changed this after you opened it. Discard your changes an
 const PAST = "Past activities can't be changed";
 const subject = (a: Activity, what: string) => `${what}: ${activityName(a)}, ${dayLabel(a.date)}`;
 
-/** "New ride: Katonah loop" · "Sat, Oct 17 · 8:30 AM · SUNY Purchase", to people following that sport. */
-async function announce(env: Env, a: Activity, author: string) {
+/** "New ride: Katonah loop" · "Sat, Oct 17 · 8:30 AM · SUNY Purchase", to people following that sport (except
+ * `except`, who already know it). A private one goes to the people `invited` instead, whatever sports they muted:
+ * "Dana invited you: Katonah loop". */
+async function announce(
+  env: Env,
+  a: Activity,
+  author: SessionUser,
+  to: { invited: string[] } | { except: string[] } = { except: [] },
+) {
   const spot = await env.DB.prepare("select name from spots where id = ?").bind(a.spotId).first<{ name: string }>();
   const when = `${dayLabel(a.date)} · ${fmtTime(hhmmToMin(a.startTime))}${spot ? ` · ${spot.name}` : ""}`;
-  await notifyActivity(env, a.id, `New ${SPORT_LABEL[a.sport].toLowerCase()}: ${activityName(a)}`, when, {
-    newPost: { sport: a.sport, author },
-  });
+  if ("invited" in to)
+    await notifyActivity(env, a.id, `${firstName(author.name)} invited you: ${activityName(a)}`, when, {
+      to: to.invited.filter((id) => id !== author.id),
+    });
+  else
+    await notifyActivity(env, a.id, `New ${SPORT_LABEL[a.sport].toLowerCase()}: ${activityName(a)}`, when, {
+      newPost: { sport: a.sport, author: author.id },
+      except: to.except,
+    });
 }
 
+/** A private activity's guest list as it will be stored: the creator plus the people picked. Whoever is added must be an
+ * active member; people already invited stay even if they were disabled since. */
+async function guestList(db: D1Database, picked: string[], creator: string | null, current: string[] = []) {
+  const ids = [...new Set([...(creator ? [creator] : []), ...picked])];
+  if (ids.length > GUESTS_MAX) fail(400, `Invite at most ${GUESTS_MAX} people`);
+  if (!ids.some((id) => id !== creator)) fail(400, "Invite at least one person");
+  const added = ids.filter((id) => !current.includes(id));
+  const { results } = await db
+    .prepare(`select id from "user" where coalesce(banned, 0) = 0 and id in (select value from json_each(?))`)
+    .bind(JSON.stringify(added))
+    .all<{ id: string }>();
+  if (results.length !== added.length) fail(400, "Someone on the guest list isn't on the team");
+  return { ids, added, removed: current.filter((id) => !ids.includes(id)) };
+}
+const addGuests = (db: D1Database, id: string, ids: string[]) =>
+  db
+    .prepare("insert into activity_guests (activity_id, user_id) select ?, value from json_each(?)")
+    .bind(id, JSON.stringify(ids));
+
 async function notifyReplaced(env: Env, id: string) {
-  const [old] = await summaries(env.DB, "a.id = ?", [id]);
+  const [old] = await summaries(env.DB, null, "a.id = ?", [id]);
   if (old) await notifyActivity(env, id, subject(old, "Cancelled"), "Replaced by a new plan.");
 }
 
@@ -338,7 +406,7 @@ async function notifyMentions(env: Env, activityId: string, authorId: string, bo
     env.DB.prepare(`select id, name from "user" where id in (select value from json_each(?))`)
       .bind(JSON.stringify(all))
       .all<{ id: string; name: string }>(),
-    summaries(env.DB, "a.id = ?", [activityId]),
+    summaries(env.DB, null, "a.id = ?", [activityId]),
   ]);
   if (!act) return;
   const names = new Map(results.map((r) => [r.id, r.name]));
@@ -349,14 +417,22 @@ async function notifyMentions(env: Env, activityId: string, authorId: string, bo
   });
 }
 
+/** Who may delete an activity they can see: Admins, and its creator while they're still an Editor. */
+const canDelete = (user: SessionUser, a: Activity) =>
+  can(user, "admin") || (a.createdBy === user.id && can(user, "edit"));
+
+// Every route below reads the activity through `load`/`detail` (or VISIBLE in its own query) with the signed-in person
+// as viewer, so a private activity answers 404 to anyone not invited, whatever they ask for.
 export const activities = new Hono<AppEnv>()
   // Upcoming activities (today on), published and cancelled, each with the viewer's own answer.
   .get("/", async (c) => {
     const today = nyNow().date;
+    const user = c.get("user");
     // An activity cancelled by Replace drops off the list: its replacement is there.
     const [acts, mine] = await Promise.all([
       summaries(
         c.env.DB,
+        user.id,
         `a.date >= ? and not (a.status = 'cancelled' and exists (select 1 from messages r where r.activity_id = a.id
            and r.kind = 'cancel' and r.body = ?))`,
         [today, REPLACED_NOTE],
@@ -364,23 +440,24 @@ export const activities = new Hono<AppEnv>()
       c.env.DB.prepare(
         "select v.activity_id, v.status from rsvps v join activities a on a.id = v.activity_id where v.user_id = ? and a.date >= ?",
       )
-        .bind(c.get("user").id, today)
+        .bind(user.id, today)
         .all<{ activity_id: string; status: "in" | "out" }>(),
     ]);
     const answer = new Map(mine.results.map((r) => [r.activity_id, r.status]));
-    const marks = await markers(c.env.DB, c.get("user").id, today);
+    const marks = await markers(c.env.DB, user.id, today);
     return c.json(acts.map((a) => ({ ...a, mine: answer.get(a.id) ?? null, unseen: marks.get(a.id) ?? null })));
   })
   .get("/past", async (c) =>
-    c.json(await summaries(c.env.DB, "a.date < ?", [nyNow().date], "a.date desc, a.start_time desc", 200)),
+    c.json(
+      await summaries(c.env.DB, c.get("user").id, "a.date < ?", [nyNow().date], "a.date desc, a.start_time desc", 200),
+    ),
   )
-  .get("/:id", async (c) => c.json(await detail(c.env.DB, c.req.param("id"))))
+  .get("/:id", async (c) => c.json(await detail(c.env.DB, c.get("user").id, c.req.param("id"))))
   // Opening an activity records the visit; the reply says when the viewer last caught up, for the "N new" divider.
   .post("/:id/seen", async (c) => {
-    const id = c.req.param("id");
-    const act = await c.env.DB.prepare("select 1 from activities where id = ?").bind(id).first();
-    if (!act) return fail(404, NOT_FOUND);
-    return c.json({ seenBefore: await visit(c.env.DB, c.get("user").id, id) });
+    const user = c.get("user");
+    const act = await load(c.env.DB, user.id, c.req.param("id"));
+    return c.json({ seenBefore: await visit(c.env.DB, user.id, act.id) });
   })
 
   .post("/", requireRole("edit"), validate("json", activityInput), async (c) => {
@@ -389,15 +466,16 @@ export const activities = new Hono<AppEnv>()
     if (input.sport !== "other" && !(await loadSettings(c.env.DB)).sports.includes(input.sport))
       fail(400, "That sport is turned off in Settings");
     const user = c.get("user");
-    const clash = await replaceTarget(c.env.DB, input.replaceId, input.date, input.sport);
+    const guests = input.guests ? await guestList(c.env.DB, input.guests, user.id) : null;
+    const clash = await replaceTarget(c.env.DB, user.id, input.replaceId, input.date, input.sport);
     const id = newId();
     const now = nowIso();
     await c.env.DB.batch([
       ...(clash ? cancelReplaced(c.env.DB, clash.id, user.id, now) : []),
       c.env.DB.prepare(
         `insert into activities (id, sport, icon, title, date, start_time, end_time, spot_id, outdoor, pace_mph, details, notes,
-                                 status, created_by, updated_by, created_at, updated_at)
-         values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'published', ?, ?, ?, ?)`,
+                                 status, private, created_by, updated_by, created_at, updated_at)
+         values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'published', ?, ?, ?, ?, ?)`,
       ).bind(
         id,
         input.sport,
@@ -411,84 +489,124 @@ export const activities = new Hono<AppEnv>()
         input.pace,
         input.details,
         input.notes,
+        Number(Boolean(guests)),
         user.id,
         user.id,
         now,
         now,
       ),
+      ...(guests ? [addGuests(c.env.DB, id, guests.ids)] : []),
       ...routeRows(c.env.DB, id, input.routes),
       c.env.DB.prepare("delete from drafts where user_id = ?").bind(user.id),
       audit(c.env.DB, user.id, "publish", "activity", id, input),
     ]);
     if (clash) c.executionCtx.waitUntil(notifyReplaced(c.env, clash.id));
-    const created = await detail(c.env.DB, id);
-    c.executionCtx.waitUntil(announce(c.env, created, user.id));
+    const created = await detail(c.env.DB, user.id, id);
+    c.executionCtx.waitUntil(announce(c.env, created, user, guests ? { invited: guests.ids } : undefined));
     return c.json(created, 201);
   })
 
+  // Any Editor can change a public activity; a private one only the Editors and Admins invited (the rest can't see it).
   .put("/:id", requireRole("edit"), validate("json", activityUpdate), async (c) => {
     const id = c.req.param("id");
     const input = c.req.valid("json");
-    const [cur] = await summaries(c.env.DB, "a.id = ?", [id]);
-    if (!cur) return fail(404, NOT_FOUND);
+    const user = c.get("user");
+    const cur = await load(c.env.DB, user.id, id);
     if (cur.date < nyNow().date) fail(409, PAST);
     if (input.sport !== cur.sport) fail(400, "The sport can't change; post a new activity instead");
     if (input.baseUpdatedAt !== cur.updatedAt) fail(409, STALE);
+    if (!cur.private && input.guests) fail(400, "A public activity can't be made private");
     await checkInput(c.env.DB, input, cur.spotId);
-    const user = c.get("user");
+    // Private stays private with a new guest list, or becomes public (input.guests null). The creator stays invited,
+    // and so does the person editing, who would otherwise lose the activity mid-edit.
+    const current = cur.private
+      ? (
+          await c.env.DB.prepare("select user_id from activity_guests where activity_id = ?")
+            .bind(id)
+            .all<{ user_id: string }>()
+        ).results.map((g) => g.user_id)
+      : [];
+    const guests = cur.private && input.guests ? await guestList(c.env.DB, input.guests, cur.createdBy, current) : null;
+    if (guests && !guests.ids.includes(user.id)) fail(400, "You can't remove yourself");
+    const madePublic = cur.private && !input.guests;
     const clash =
-      cur.status === "published" ? await replaceTarget(c.env.DB, input.replaceId, input.date, input.sport, id) : null;
+      cur.status === "published"
+        ? await replaceTarget(c.env.DB, user.id, input.replaceId, input.date, input.sport, id)
+        : null;
     // Only a published activity announces changes; editing a cancelled one stays quiet until it's restored.
     const what = cur.status === "published" ? await changes(c.env.DB, cur, input) : [];
     const now = nowIso();
-    await c.env.DB.batch([
-      // Re-checked inside the transaction: json('stale') fails, rolling back the batch, if it changed meanwhile.
-      c.env.DB.prepare(
-        "select case when (select updated_at from activities where id = ?) = ? then 1 else json('stale') end",
-      ).bind(id, cur.updatedAt),
-      ...(clash ? cancelReplaced(c.env.DB, clash.id, user.id, now) : []),
-      c.env.DB.prepare(
-        `update activities set icon = ?, title = ?, date = ?, start_time = ?, end_time = ?, spot_id = ?, outdoor = ?, pace_mph = ?,
-                               details = ?, notes = ?, updated_by = ?, updated_at = ? where id = ?`,
-      ).bind(
-        input.icon,
-        input.title,
-        input.date,
-        input.startTime,
-        input.endTime,
-        input.spotId,
-        Number(input.outdoor),
-        input.pace,
-        input.details,
-        input.notes,
-        user.id,
-        now,
-        id,
-      ),
-      ...routeRows(c.env.DB, id, input.routes),
-      ...(what.length ? [systemMessage(c.env.DB, id, "update", what.join(" · "))] : []),
-      c.env.DB.prepare("delete from drafts where user_id = ?").bind(user.id),
-      audit(c.env.DB, user.id, "update", "activity", id, input),
-    ]).catch((e) => {
-      if (/malformed JSON/i.test(String(e))) fail(409, STALE);
-      throw e;
-    });
+    const db = c.env.DB;
+    const dropped = JSON.stringify(guests?.removed ?? []);
+    await db
+      .batch([
+        // Re-checked inside the transaction: json('stale') fails, rolling back the batch, if it changed meanwhile.
+        db
+          .prepare(
+            "select case when (select updated_at from activities where id = ?) = ? then 1 else json('stale') end",
+          )
+          .bind(id, cur.updatedAt),
+        ...(clash ? cancelReplaced(db, clash.id, user.id, now) : []),
+        db
+          .prepare(
+            `update activities set icon = ?, title = ?, date = ?, start_time = ?, end_time = ?, spot_id = ?, outdoor = ?,
+                                   pace_mph = ?, details = ?, notes = ?, private = ?, updated_by = ?, updated_at = ? where id = ?`,
+          )
+          .bind(
+            input.icon,
+            input.title,
+            input.date,
+            input.startTime,
+            input.endTime,
+            input.spotId,
+            Number(input.outdoor),
+            input.pace,
+            input.details,
+            input.notes,
+            Number(cur.private && !madePublic),
+            user.id,
+            now,
+            id,
+          ),
+        ...(madePublic ? [db.prepare("delete from activity_guests where activity_id = ?").bind(id)] : []),
+        // Someone taken off the list loses the activity: their answer and visits go with it (their messages stay).
+        ...(guests?.removed.length
+          ? ["activity_guests", "rsvps", "activity_seen"].map((t) =>
+              db
+                .prepare(`delete from ${t} where activity_id = ? and user_id in (select value from json_each(?))`)
+                .bind(id, dropped),
+            )
+          : []),
+        ...(guests?.added.length ? [addGuests(db, id, guests.added)] : []),
+        ...routeRows(db, id, input.routes),
+        ...(what.length ? [systemMessage(db, id, "update", what.join(" · "))] : []),
+        db.prepare("delete from drafts where user_id = ?").bind(user.id),
+        audit(db, user.id, "update", "activity", id, input),
+      ])
+      .catch((e) => {
+        if (/malformed JSON/i.test(String(e))) fail(409, STALE);
+        throw e;
+      });
     if (clash) c.executionCtx.waitUntil(notifyReplaced(c.env, clash.id));
-    const updated = await detail(c.env.DB, id);
+    const updated = await detail(db, user.id, id);
     if (what.length)
       c.executionCtx.waitUntil(
         notifyActivity(c.env, id, subject(updated, "Updated"), what.join(" · "), { answer: true }),
       );
+    // People newly invited hear about it as a new activity; going public tells the team, except those already invited.
+    if (updated.status === "published" && guests?.added.length)
+      c.executionCtx.waitUntil(announce(c.env, updated, user, { invited: guests.added }));
+    if (updated.status === "published" && madePublic)
+      c.executionCtx.waitUntil(announce(c.env, updated, user, { except: current }));
     return c.json(updated);
   })
 
   .post("/:id/cancel", requireRole("edit"), async (c) => {
     const id = c.req.param("id");
     const user = c.get("user");
-    const [cur] = await summaries(c.env.DB, "a.id = ?", [id]);
-    if (!cur) return fail(404, NOT_FOUND);
+    const cur = await load(c.env.DB, user.id, id);
     if (cur.date < nyNow().date) fail(409, PAST);
-    if (cur.status === "cancelled") return c.json(await detail(c.env.DB, id));
+    if (cur.status === "cancelled") return c.json(await detail(c.env.DB, user.id, id));
     await c.env.DB.batch([
       c.env.DB.prepare("update activities set status = 'cancelled', updated_by = ?, updated_at = ? where id = ?").bind(
         user.id,
@@ -499,16 +617,15 @@ export const activities = new Hono<AppEnv>()
       audit(c.env.DB, user.id, "cancel", "activity", id),
     ]);
     c.executionCtx.waitUntil(notifyActivity(c.env, id, subject(cur, "Cancelled"), "Check Who's in for messages."));
-    return c.json(await detail(c.env.DB, id));
+    return c.json(await detail(c.env.DB, user.id, id));
   })
 
   .post("/:id/restore", requireRole("edit"), async (c) => {
     const id = c.req.param("id");
     const user = c.get("user");
-    const [cur] = await summaries(c.env.DB, "a.id = ?", [id]);
-    if (!cur) return fail(404, NOT_FOUND);
+    const cur = await load(c.env.DB, user.id, id);
     if (cur.date < nyNow().date) fail(409, PAST);
-    if (cur.status === "published") return c.json(await detail(c.env.DB, id));
+    if (cur.status === "published") return c.json(await detail(c.env.DB, user.id, id));
     await c.env.DB.batch([
       c.env.DB.prepare("update activities set status = 'published', updated_by = ?, updated_at = ? where id = ?").bind(
         user.id,
@@ -519,16 +636,16 @@ export const activities = new Hono<AppEnv>()
       audit(c.env.DB, user.id, "restore", "activity", id),
     ]);
     c.executionCtx.waitUntil(notifyActivity(c.env, id, subject(cur, "Back on"), "Happening as planned."));
-    return c.json(await detail(c.env.DB, id));
+    return c.json(await detail(c.env.DB, user.id, id));
   })
 
-  // Admins only: removes the activity with its routes, RSVPs and messages for good. People going to an upcoming one
-  // are told; the audit log keeps what it was.
-  .delete("/:id", requireRole("admin"), async (c) => {
+  // Admins and the activity's creator: removes it with its routes, guests, RSVPs and messages for good. People going to
+  // an upcoming one are told; the audit log keeps what it was.
+  .delete("/:id", async (c) => {
     const id = c.req.param("id");
     const user = c.get("user");
-    const [cur] = await summaries(c.env.DB, "a.id = ?", [id]);
-    if (!cur) return fail(404, NOT_FOUND);
+    const cur = await load(c.env.DB, user.id, id);
+    if (!canDelete(user, cur)) fail(403, "Only its creator or an Admin can delete this");
     const { results: going } = await c.env.DB.prepare(
       "select user_id from rsvps where activity_id = ? and status = 'in' and user_id != ?",
     )
@@ -540,6 +657,7 @@ export const activities = new Hono<AppEnv>()
       db.prepare("delete from messages where activity_id = ? and parent_id is not null").bind(id),
       db.prepare("delete from messages where activity_id = ?").bind(id),
       db.prepare("delete from rsvps where activity_id = ?").bind(id),
+      db.prepare("delete from activity_guests where activity_id = ?").bind(id),
       db.prepare("delete from activity_routes where activity_id = ?").bind(id),
       db.prepare("delete from activities where id = ?").bind(id),
       // Anyone's autosaved Plan form that was editing it would only fail to update
@@ -553,7 +671,7 @@ export const activities = new Hono<AppEnv>()
     ]);
     if (cur.status === "published" && cur.date >= nyNow().date)
       c.executionCtx.waitUntil(
-        notifyActivity(c.env, id, subject(cur, "Deleted"), "Removed by a team admin.", {
+        notifyActivity(c.env, id, subject(cur, "Deleted"), `Removed by ${firstName(user.name)}.`, {
           to: going.map((g) => g.user_id),
           url: "/",
         }),
@@ -565,10 +683,9 @@ export const activities = new Hono<AppEnv>()
   .put("/:id/rsvp", validate("json", rsvpInput), async (c) => {
     const id = c.req.param("id");
     const { status, routeLabel } = c.req.valid("json");
-    const [act] = await summaries(c.env.DB, "a.id = ?", [id]);
-    if (!act) return fail(404, NOT_FOUND);
-    if (act.status !== "published" || act.date < nyNow().date) fail(409, "RSVP is closed");
     const user = c.get("user");
+    const act = await load(c.env.DB, user.id, id);
+    if (act.status !== "published" || act.date < nyNow().date) fail(409, "RSVP is closed");
     if (!status) {
       await c.env.DB.prepare("delete from rsvps where activity_id = ? and user_id = ?").bind(id, user.id).run();
     } else {
@@ -582,17 +699,15 @@ export const activities = new Hono<AppEnv>()
         .bind(id, user.id, status, label, nowIso())
         .run();
     }
-    return c.json(await detail(c.env.DB, id));
+    return c.json(await detail(c.env.DB, user.id, id));
   })
 
-  // Messages: anyone can post or reply (one level) on upcoming published activities.
+  // Messages: anyone who can see an upcoming published activity can post or reply (one level).
   .post("/:id/messages", validate("json", messageInput), async (c) => {
     const id = c.req.param("id");
     const { body, parentId } = c.req.valid("json");
-    const act = await c.env.DB.prepare("select date, status from activities where id = ?")
-      .bind(id)
-      .first<{ date: string; status: string }>();
-    if (!act) return fail(404, NOT_FOUND);
+    const user = c.get("user");
+    const act = await load(c.env.DB, user.id, id);
     if (act.date < nyNow().date) fail(409, "Posting is closed on past activities");
     if (act.status !== "published") fail(409, "Posting is closed on cancelled activities");
     if (parentId) {
@@ -601,52 +716,53 @@ export const activities = new Hono<AppEnv>()
         .first<{ parent_id: string | null }>();
       if (!parent || parent.parent_id) fail(400, "Replies go to a top-level message");
     }
-    const user = c.get("user");
     await c.env.DB.prepare(
       "insert into messages (id, activity_id, user_id, parent_id, body, created_at) values (?, ?, ?, ?, ?, ?)",
     )
       .bind(newId(), id, user.id, parentId, body, nowIso())
       .run();
     c.executionCtx.waitUntil(notifyMentions(c.env, id, user.id, body));
-    return c.json(await detail(c.env.DB, id), 201);
+    return c.json(await detail(c.env.DB, user.id, id), 201);
   });
+
+/** A message on an activity the viewer may see, with what editing and deleting it needs; else 404. */
+async function messageFor(db: D1Database, viewer: string, id: string) {
+  const m = await db
+    .prepare(
+      `select m.activity_id, m.user_id, m.kind, m.deleted_at, a.date, a.status from messages m
+       join activities a on a.id = m.activity_id where m.id = ? and m.kind = 'user' and ${VISIBLE}`,
+    )
+    .bind(id, viewer)
+    .first<{
+      activity_id: string;
+      user_id: string | null;
+      kind: string;
+      deleted_at: string | null;
+      date: string;
+      status: string;
+    }>();
+  return m ?? fail(404, "Message not found");
+}
 
 // Editing and deleting a message: authors edit their own; authors, editors and admins delete (soft delete).
 export const messages = new Hono<AppEnv>()
   .patch("/:id", validate("json", messageEdit), async (c) => {
-    const m = await c.env.DB.prepare(
-      `select m.activity_id, m.user_id, m.body, m.deleted_at, a.date, a.status from messages m
-       join activities a on a.id = m.activity_id where m.id = ?`,
-    )
-      .bind(c.req.param("id"))
-      .first<{
-        activity_id: string;
-        user_id: string | null;
-        body: string;
-        deleted_at: string | null;
-        date: string;
-        status: string;
-      }>();
-    if (!m || m.deleted_at) return fail(404, "Message not found");
-    if (m.user_id !== c.get("user").id) fail(403, "Only the author can edit a message");
+    const user = c.get("user");
+    const m = await messageFor(c.env.DB, user.id, c.req.param("id"));
+    if (m.deleted_at) return fail(404, "Message not found");
+    if (m.user_id !== user.id) fail(403, "Only the author can edit a message");
     if (m.date < nyNow().date) fail(409, "Messages on past activities can't be edited");
     if (m.status !== "published") fail(409, "Messages on cancelled activities can't be edited"); // as for posting
     const { body } = c.req.valid("json");
     await c.env.DB.prepare("update messages set body = ?, edited_at = ? where id = ?")
       .bind(body, nowIso(), c.req.param("id"))
       .run();
-    return c.json(await detail(c.env.DB, m.activity_id));
+    return c.json(await detail(c.env.DB, user.id, m.activity_id));
   })
   .delete("/:id", async (c) => {
     const user = c.get("user");
-    const m = await c.env.DB.prepare(
-      `select m.activity_id, m.user_id, m.kind, m.deleted_at, a.date from messages m
-       join activities a on a.id = m.activity_id where m.id = ?`,
-    )
-      .bind(c.req.param("id"))
-      .first<{ activity_id: string; user_id: string | null; kind: string; deleted_at: string | null; date: string }>();
-    if (m?.kind !== "user") return fail(404, "Message not found");
-    if (m.deleted_at) return c.json(await detail(c.env.DB, m.activity_id)); // already deleted: nothing to do
+    const m = await messageFor(c.env.DB, user.id, c.req.param("id"));
+    if (m.deleted_at) return c.json(await detail(c.env.DB, user.id, m.activity_id)); // already deleted: nothing to do
     // Authors delete their own on upcoming activities; editors and admins can always delete (moderation).
     if (!can(user, "edit") && (m.user_id !== user.id || m.date < nyNow().date))
       fail(403, "You can't delete this message");
@@ -654,5 +770,5 @@ export const messages = new Hono<AppEnv>()
       c.env.DB.prepare("update messages set body = '', deleted_at = ? where id = ?").bind(nowIso(), c.req.param("id")),
       ...(m.user_id !== user.id ? [audit(c.env.DB, user.id, "delete", "message", c.req.param("id"))] : []),
     ]);
-    return c.json(await detail(c.env.DB, m.activity_id));
+    return c.json(await detail(c.env.DB, user.id, m.activity_id));
   });

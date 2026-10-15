@@ -439,6 +439,25 @@ textarea {
   margin-top: 2px;
   flex: none;
 }
+/* Plan → Visibility (DESIGN.md → Private activities) */
+.vis {
+  display: grid;
+  gap: 10px;
+}
+.vis p {
+  margin: 0;
+}
+.vis-list {
+  max-height: 264px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0 10px;
+}
+.vis-list > .small {
+  display: block;
+  padding: 10px 0;
+}
 .settings-grid,
 .row {
   display: grid;
@@ -868,6 +887,10 @@ dialog.sheet::backdrop {
 .person.me {
   border-color: var(--primary);
   font-weight: 600;
+}
+.person.quiet {
+  background: none;
+  color: var(--muted);
 }
 .msg {
   padding: 8px 0;
@@ -1315,8 +1338,37 @@ a.linkbtn {
   display: grid;
   place-items: center;
 }
-.arow-icon {
+.arow-icon,
+.ahead-icon {
   position: relative;
+}
+/* Private activity: a small lock on the icon's lower right corner (DESIGN.md → Private activities). */
+.lockbadge {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--card);
+  box-shadow: 0 0 0 1px var(--line);
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.lockbadge svg {
+  width: 10px;
+  height: 10px;
+  fill: currentColor;
+}
+.ahead-icon .lockbadge {
+  width: 18px;
+  height: 18px;
+}
+.ahead-icon .lockbadge svg {
+  width: 11px;
+  height: 11px;
 }
 /* New / changed / unread marker on the sport icon (DESIGN.md → New and unread). */
 .arow-icon .badge {

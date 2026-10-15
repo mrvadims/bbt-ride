@@ -188,6 +188,15 @@ export const SportIcon = ({ sport, icon, size = 26 }: { sport: Sport; icon?: Ico
   <SymbolIcon icon={activityIcon({ sport, icon })} size={size} />
 );
 
+/** The small lock on a private activity's icon (DESIGN.md → Private activities); Material Symbols "lock". */
+export const PrivateBadge = () => (
+  <span className="lockbadge" role="img" aria-label="Private" title="Private">
+    <svg viewBox="0 -960 960 960" aria-hidden="true">
+      <path d="M240-80q-33 0-56.5-23.5T160-160v-400q0-33 23.5-56.5T240-640h40v-80q0-83 58.5-141.5T480-920q83 0 141.5 58.5T680-720v80h40q33 0 56.5 23.5T800-560v400q0 33-23.5 56.5T720-80H240Zm240-200q33 0 56.5-23.5T560-360q0-33-23.5-56.5T480-440q-33 0-56.5 23.5T400-360q0 33 23.5 56.5T480-280ZM360-640h240v-80q0-50-35-85t-85-35q-50 0-85 35t-35 85v80Z" />
+    </svg>
+  </span>
+);
+
 export const Chevron = () => (
   <svg className="chev" viewBox="0 0 12 12" aria-hidden="true">
     <path d="M3 4.5 6 7.5 9 4.5" fill="none" stroke="currentColor" strokeWidth="1.8" />

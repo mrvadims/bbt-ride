@@ -36,7 +36,7 @@ a{color:var(--link)}
 <ul>
 <li><b>Your account:</b> name, email address, optional username, your team role, and how you sign in. If you use Google sign-in, we keep your name, email address and Google account ID; we discard your profile photo and Google's access tokens, and we never see your Google password or anything else in your Google account. If you set a password, we store only a salted hash of it, never the password itself.</li>
 <li><b>Contact details:</b> your mobile phone number, and, if you add one, an emergency contact's name and phone number. Make sure your emergency contact is happy for the team to have their number.</li>
-<li><b>What you do in the app:</b> your RSVPs (In or Out, and which route), messages and replies you post (including who you mention), and, if you plan activities, the activities and places you create.</li>
+<li><b>What you do in the app:</b> your RSVPs (In or Out, and which route), messages and replies you post (including who you mention), and, if you plan activities, the activities and places you create, and who you invite to a private one.</li>
 <li><b>What you've seen:</b> when you last opened each activity, used only to mark what's new for you. Nobody else sees it.</li>
 <li><b>Sign-in sessions:</b> essential cookies only (one keeps you signed in; Google sign-in briefly sets another to complete the sign-in), plus the device's IP address and browser type for each session, so sessions can be reviewed and ended.</li>
 <li><b>Notifications:</b> if you turn on notifications, the push address your browser gives us for that device (in the Android app, the app's Firebase notification token), and which sports you turned off for new-activity notifications.</li>
@@ -53,18 +53,18 @@ a{color:var(--link)}
 </ul>
 
 <h2>Who can see it</h2>
-<p>Signed-in team members can see your name, your RSVPs and your messages on each activity, and, in the Team directory and from your name on an activity, your phone number and emergency contact, so teammates can reach you or your contact on the day. Team admins can also see your email address, team role and sign-in methods. Your email is never shown to other members. If an admin disables your account, you're hidden from the directory.</p>
+<p>Signed-in team members can see your name, your RSVPs and your messages on each activity (on a private activity, only the people invited to it, who also see that you were invited), and, in the Team directory and from your name on an activity, your phone number and emergency contact, so teammates can reach you or your contact on the day. Team admins can also see your email address, team role and sign-in methods. Your email is never shown to other members. If an admin disables your account, you're hidden from the directory.</p>
 
 <h2>Where it's kept</h2>
 <p>The app runs on Cloudflare, which stores the data and serves the site. Google handles Google sign-in. Push notifications are delivered through your browser's own push service (for example Google, Apple or Mozilla), or, in the Android app, through Google's Firebase Cloud Messaging; they carry the notification's text: an activity's name, day, time and place, what changed, and, when someone mentions you, their first name and the start of their message. Browser notifications are encrypted on the way; Android app notifications pass through Firebase, which Google can read. Weather comes from Open-Meteo and the US National Weather Service, and routes from RideWithGPS; our server fetches these, so they receive nothing about you. Route maps load map images straight from OpenStreetMap and CARTO, which see your IP address like any website you visit.</p>
 
 <h2>How long we keep it</h2>
-<p>We keep your account while you're on the team. Activity history, RSVPs and messages stay with each activity so the team can look back at past ones; a team admin can delete an activity, and its RSVPs and messages go with it. Sessions expire after 30 days without use; sign-in attempt counters after a day. Cloudflare keeps restorable copies of the database for 7 days, so deleted data is fully gone after that.</p>
+<p>We keep your account while you're on the team. Activity history, RSVPs and messages stay with each activity so the team can look back at past ones; its creator or a team admin can delete an activity, and its RSVPs and messages go with it. Sessions expire after 30 days without use; sign-in attempt counters after a day. Cloudflare keeps restorable copies of the database for 7 days, so deleted data is fully gone after that.</p>
 
 <h2>Your choices</h2>
 <ul>
 <li>You can turn notifications off, reset your calendar link, or change your phone number and emergency contact (My contact info) at any time in the account menu.</li>
-<li>To see what we hold about you, have it corrected, or delete your account, write to the contact below or ask a team admin. Deleting your account removes your sign-in, email address, phone numbers, devices, calendar link, notification choices, what you've seen and your RSVPs; mentions of you then show as "@Former member", and messages you posted remain on past activities labeled "Former member".</li>
+<li>To see what we hold about you, have it corrected, or delete your account, write to the contact below or ask a team admin. Deleting your account removes your sign-in, email address, phone numbers, devices, calendar link, notification choices, what you've seen, the private activities you were invited to and your RSVPs; mentions of you then show as "@Former member", and messages you posted remain on past activities labeled "Former member".</li>
 </ul>
 
 <h2>Changes</h2>

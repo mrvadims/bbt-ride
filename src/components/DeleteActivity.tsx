@@ -1,4 +1,4 @@
-// Admins only: delete an activity for good (DESIGN.md → Deleting an activity). Cancel stays the everyday choice.
+// Its creator and Admins: delete an activity for good (DESIGN.md → Deleting an activity). Cancel stays the everyday choice.
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { type ActivityDetail, activityName } from "../../shared/api.ts";
@@ -43,7 +43,7 @@ export function DeleteActivity({
       <button type="button" className="btn btn-danger-outline" onClick={() => setOpen(true)}>
         Delete {sportName}
       </button>
-      <p className="tiny muted">Admins only. Removes it for everyone, with its RSVPs and messages.</p>
+      <p className="tiny muted">Its creator and Admins only. Removes it for everyone, with its RSVPs and messages.</p>
       {open && (
         <Sheet label={`Delete ${activityName(act)}`} onClose={() => setOpen(false)}>
           <div className="confirm">

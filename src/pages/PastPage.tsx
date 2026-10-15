@@ -4,7 +4,7 @@ import { useState } from "react";
 import { activityName } from "../../shared/api.ts";
 import { SPORT_LABEL, type Sport } from "../../shared/sports.ts";
 import { dayLabel } from "../../shared/time.ts";
-import { SportIcon } from "../components/icons.tsx";
+import { PrivateBadge, SportIcon } from "../components/icons.tsx";
 import { Pill } from "../components/Warnings.tsx";
 import { usePast, useSpots } from "../lib/data.ts";
 import { usePrefs } from "../lib/prefs.ts";
@@ -78,6 +78,7 @@ export function PastList() {
               <Link key={a.id} className="arow" href={`/a/${a.id}`}>
                 <span className="arow-icon">
                   <SportIcon sport={a.sport} icon={a.icon} />
+                  {a.private && <PrivateBadge />}
                 </span>
                 <span className="arow-b">
                   <span className="kicker">{dayLabel(a.date)}</span>

@@ -2,7 +2,7 @@
 // Run: node scripts/smoke.ts  — it creates test users and activities in the local database only.
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { addDays } from "../shared/time.ts";
+import { addDays, nyNow } from "../shared/time.ts";
 
 const BASE = "http://localhost:8787";
 const stamp = Date.now().toString(36);
@@ -18,11 +18,12 @@ function check(cond: unknown, what: string) {
   if (!cond) failures++;
 }
 
-/** A client with its own cookie jar (cookies kept by name, as a browser does). */
-function client() {
+/** A client with its own cookie jar (cookies kept by name, as a browser does), from `from` (sign-in is rate-limited per
+ * address). */
+function client(from = ip) {
   const jar = new Map<string, string>();
   return async (path: string, init: { method?: string; body?: unknown; origin?: string | null } = {}) => {
-    const headers: Record<string, string> = { "content-type": "application/json", "cf-connecting-ip": ip };
+    const headers: Record<string, string> = { "content-type": "application/json", "cf-connecting-ip": from };
     if (jar.size) headers.cookie = [...jar].map(([k, v]) => `${k}=${v}`).join("; ");
     if (init.origin !== null) headers.origin = init.origin ?? BASE;
     const res = await fetch(BASE + path, {
@@ -638,6 +639,207 @@ await admin(`/api/users/${riderRow.id}`, { method: "PATCH", body: { disabled: fa
 check((await feed(cal2)).status === 404, "disabling ends the calendar link, even after re-enabling");
 await admin(`/api/users/${riderRow.id}`, { method: "PATCH", body: { disabled: true } });
 check((await rider2("/api/me")).status === 401, "disabling ends the rider's sessions");
+
+// Private activities (DESIGN.md → Private activities): every route, for people invited and not, by role.
+let people = 0;
+/** A new signed-in member with this role, from an address of their own. */
+async function member(role: "view" | "edit") {
+  const n = ++people;
+  const email = `p${n}-${stamp}@example.test`;
+  const link = (await admin("/api/users/invites", { body: { email, role } })).json.url;
+  await anon("/api/links/accept", {
+    body: {
+      token: tokenFromUrl(link),
+      name: `Person${n} ${stamp}`,
+      password: "private private",
+      contact: { phone: "914-555-0100" },
+    },
+  });
+  const c = client(`10.200.${n}.${Math.floor(Math.random() * 250)}`);
+  await login(c, email, "private private");
+  return { c, id: (await c("/api/me")).json.id as string };
+}
+const creator = await member("edit");
+const coEditor = await member("edit"); // invited
+const outEditor = await member("edit"); // not invited
+const guest = await member("view"); // invited
+const outsider = await member("view"); // not invited
+const adminId = me.id as string; // not invited (at first)
+const privDay = addDays(day, 3);
+const privBody = { ...pickle, title: `Secret ${stamp}`, date: privDay, guests: [coEditor.id, guest.id] };
+check(
+  (await guest.c("/api/activities", { body: privBody })).status === 403,
+  "private: a Member can't post (Editors only)",
+);
+check(
+  (await creator.c("/api/activities", { body: { ...privBody, guests: [] } })).status === 400 &&
+    (await creator.c("/api/activities", { body: { ...privBody, guests: [creator.id] } })).status === 400,
+  "private: needs someone invited besides the creator",
+);
+check(
+  (await creator.c("/api/activities", { body: { ...privBody, guests: ["no-such-user"] } })).status === 400 &&
+    (await creator.c("/api/activities", { body: { ...privBody, guests: [riderRow.id] } })).status === 400,
+  "private: can't invite an unknown or disabled account",
+);
+const priv = await creator.c("/api/activities", { body: privBody });
+const pid = priv.json?.id as string;
+check(
+  priv.status === 201 &&
+    priv.json.private === true &&
+    priv.json.createdBy === creator.id &&
+    priv.json.guests
+      .map((g: Json) => g.userId)
+      .sort()
+      .join() === [creator.id, coEditor.id, guest.id].sort().join(),
+  "private: posted, with the creator added to the guest list",
+);
+const note = await guest.c(`/api/activities/${pid}/messages`, { body: { body: "Bringing balls" } });
+const mid = note.json?.messages?.find((m: Json) => m.body === "Bringing balls")?.id as string;
+check(note.status === 201 && Boolean(mid), "private: a guest can post a message");
+check(
+  (await guest.c(`/api/activities/${pid}/rsvp`, { method: "PUT", body: { status: "in", routeLabel: null } })).status ===
+    200,
+  "private: a guest can answer In",
+);
+// Everyone not invited, Admin included, gets the same 404 as for an activity that doesn't exist, on every route.
+const outs = [
+  { who: "Admin", c: admin },
+  { who: "Editor", c: outEditor.c },
+  { who: "Member", c: outsider.c },
+];
+for (const { who, c } of outs) {
+  const upd = { ...privBody, guests: null, baseUpdatedAt: priv.json.updatedAt };
+  const codes = [
+    (await c(`/api/activities/${pid}`)).status,
+    (await c(`/api/activities/${pid}/seen`, { method: "POST" })).status,
+    (await c(`/api/activities/${pid}/rsvp`, { method: "PUT", body: { status: "in", routeLabel: null } })).status,
+    (await c(`/api/activities/${pid}/messages`, { body: { body: "hi" } })).status,
+    (await c(`/api/messages/${mid}`, { method: "PATCH", body: { body: "edited" } })).status,
+    (await c(`/api/messages/${mid}`, { method: "DELETE" })).status,
+  ];
+  const editor = who !== "Member";
+  if (editor)
+    codes.push(
+      (await c(`/api/activities/${pid}`, { method: "PUT", body: upd })).status,
+      (await c(`/api/activities/${pid}/cancel`, { method: "POST" })).status,
+      (await c(`/api/activities/${pid}/restore`, { method: "POST" })).status,
+    );
+  codes.push((await c(`/api/activities/${pid}`, { method: "DELETE" })).status);
+  check(
+    codes.every((x) => x === 404),
+    `private: ${who} not invited gets 404 on every route (${codes.join(",")})`,
+  );
+  check(
+    !(await c("/api/activities")).json.some((a: Json) => a.id === pid),
+    `private: not on the ${who}'s upcoming list`,
+  );
+  if (editor)
+    check(
+      (await c("/api/activities", { body: { ...pickle, date: privDay, replaceId: pid } })).status === 409,
+      `private: an ${who} not invited can't cancel it through Replace`,
+    );
+}
+// Those requests changed nothing.
+const seen = (await guest.c(`/api/activities/${pid}`)).json;
+check(
+  seen.status === "published" &&
+    seen.title === `Secret ${stamp}` &&
+    seen.rsvps.length === 1 &&
+    seen.messages.some((m: Json) => m.id === mid && m.body === "Bringing balls"),
+  "private: nothing changed by people not invited",
+);
+check(
+  (await guest.c("/api/activities")).json.find((a: Json) => a.id === pid)?.private === true,
+  "private: on a guest's upcoming list, marked private",
+);
+const gcal = (await guest.c("/api/me/calendar", { method: "POST" })).json.calendarUrl as string;
+check((await feed(gcal)).text.includes(`UID:${pid}@`), "private: in the calendar of a guest who is In");
+// Invited Members answer and talk; only invited Editors change it, and only the creator (or an Admin) deletes it.
+const pBase = () => creator.c(`/api/activities/${pid}`).then((r) => r.json.updatedAt as string);
+const put = async (c: ReturnType<typeof client>, patch: Json) =>
+  c(`/api/activities/${pid}`, { method: "PUT", body: { ...privBody, baseUpdatedAt: await pBase(), ...patch } });
+check((await put(guest.c, {})).status === 403, "private: an invited Member can't edit it");
+check((await guest.c(`/api/activities/${pid}`, { method: "DELETE" })).status === 403, "private: nor delete it");
+check(
+  (await put(coEditor.c, { title: `Secret two ${stamp}` })).json?.title === `Secret two ${stamp}`,
+  "private: an invited Editor can edit it",
+);
+check(
+  (await coEditor.c(`/api/activities/${pid}`, { method: "DELETE" })).status === 403,
+  "private: an invited Editor who didn't create it can't delete it",
+);
+check(
+  (
+    await put(coEditor.c, {
+      title: `Secret two ${stamp}`,
+      guests: [coEditor.id, guest.id].filter((x) => x !== creator.id),
+    })
+  ).status === 200 && (await guest.c(`/api/activities/${pid}`)).json.guests.some((g: Json) => g.userId === creator.id),
+  "private: the creator stays invited even if left off the list",
+);
+check(
+  (await put(coEditor.c, { title: `Secret two ${stamp}`, guests: [guest.id] })).status === 400,
+  "private: an Editor can't remove themselves",
+);
+// Inviting the Admin, then removing the guest: the guest loses it, with their answer.
+const pMoved = await put(creator.c, { title: `Secret two ${stamp}`, guests: [coEditor.id, adminId] });
+check(
+  pMoved.status === 200 && pMoved.json.rsvps.length === 0 && pMoved.json.guests.length === 3,
+  "private: removing a guest takes their answer with them",
+);
+check(
+  (await guest.c(`/api/activities/${pid}`)).status === 404 &&
+    !(await guest.c("/api/activities")).json.some((a: Json) => a.id === pid) &&
+    !(await feed(gcal)).text.includes(`UID:${pid}@`),
+  "private: a removed guest no longer sees it, on the list or in their calendar",
+);
+check(
+  (await guest.c(`/api/messages/${mid}`, { method: "PATCH", body: { body: "edited" } })).status === 404,
+  "private: nor can they edit their old message",
+);
+check((await admin(`/api/activities/${pid}`)).status === 200, "private: an Admin sees it once invited");
+// Past private activities stay with the people invited.
+sql(`update activities set date = '${addDays(nyNow().date, -1)}' where id = '${pid}'`);
+check(
+  (await admin("/api/activities/past")).json.some((a: Json) => a.id === pid) &&
+    !(await outEditor.c("/api/activities/past")).json.some((a: Json) => a.id === pid) &&
+    !(await outsider.c("/api/activities/past")).json.some((a: Json) => a.id === pid),
+  "private: History shows it to the people invited only",
+);
+sql(`update activities set date = '${privDay}' where id = '${pid}'`);
+// Public is one-way.
+const pPublic = await creator.c("/api/activities", { body: { ...pickle, title: `Open ${stamp}`, date: privDay } });
+check(
+  (
+    await creator.c(`/api/activities/${pPublic.json.id}`, {
+      method: "PUT",
+      body: {
+        ...pickle,
+        title: `Open ${stamp}`,
+        date: privDay,
+        guests: [guest.id],
+        baseUpdatedAt: pPublic.json.updatedAt,
+      },
+    })
+  ).status === 400,
+  "a public activity can't be made private",
+);
+const opened = await put(coEditor.c, { title: `Secret two ${stamp}`, guests: null });
+check(
+  opened.status === 200 && opened.json.private === false && opened.json.guests.length === 0,
+  "private: an invited Editor can make it public",
+);
+check((await outsider.c(`/api/activities/${pid}`)).status === 200, "once public, everyone sees it");
+// Delete: the creator (while an Editor) or an Admin; not another Editor.
+check(
+  (await outEditor.c(`/api/activities/${pPublic.json.id}`, { method: "DELETE" })).status === 403,
+  "an Editor can't delete someone else's activity",
+);
+check(
+  (await creator.c(`/api/activities/${pPublic.json.id}`, { method: "DELETE" })).status === 204,
+  "the creator can delete their own activity",
+);
+check((await creator.c(`/api/activities/${pid}`, { method: "DELETE" })).status === 204, "and their private one");
 
 // Rate limit on password sign-in
 const brute = client();
