@@ -930,8 +930,8 @@ check((await creator.c(`/api/activities/${pid}`, { method: "DELETE" })).status =
   const mine = (await guest.c("/api/announcements")).json.find((a: Json) => a.id === aid);
   check(mine?.active === true && mine.seen === false, "announcements: a member sees it, not yet seen");
   check(
-    (await admin("/api/announcements")).json.find((a: Json) => a.id === aid)?.seen === true,
-    "announcements: the Admin who posted it has seen it",
+    (await admin("/api/announcements")).json.find((a: Json) => a.id === aid)?.seen === false,
+    "announcements: the Admin who posted it sees the banner too",
   );
   const before = (await admin("/api/announcements/all")).json.find((a: Json) => a.id === aid);
   check(
