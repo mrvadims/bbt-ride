@@ -8,7 +8,7 @@ export const firstName = (name: string | null | undefined) => (name ?? FORMER_ME
  * compound emoji together (👨‍👩‍👧, 🏳️‍🌈) and the tag characters of regional flags (🏴󠁧󠁢󠁳󠁣󠁴󠁿) stay. */
 export const cleanName = (name: string) =>
   name
-    .replace(/(?![\u200C\u200D\u{E0020}-\u{E007F}])[\p{Cc}\p{Cf}]/gu, "")
+    .replace(/(?!\u200C|\u200D|[\u{E0020}-\u{E007F}])[\p{Cc}\p{Cf}]/gu, "")
     .trim()
     .replace(/\s+/g, " ");
 
