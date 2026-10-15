@@ -394,6 +394,20 @@ textarea {
   min-height: 80px;
   resize: vertical;
 }
+/* iPhone Safari draws time and date fields its own way: wider than their column, value centred. Make them look like
+   every other field. */
+input[type="time"],
+input[type="date"] {
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  min-width: 0;
+  text-align: left;
+}
+input::-webkit-date-and-time-value {
+  text-align: left;
+  margin: 0;
+}
 .results {
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -461,7 +475,7 @@ textarea {
 .settings-grid,
 .row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); /* halves, whatever a field's own minimum width */
   gap: 10px;
 }
 .chart {
