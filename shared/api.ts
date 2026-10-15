@@ -179,8 +179,10 @@ const activityFields = z.object({
     .refine((r) => new Set(r.map((x) => x.label.toLowerCase())).size === r.length, "Route labels must differ")
     .default([]),
   replaceId: z.string().max(80).nullable().default(null), // cancel this same-sport activity that day (Plan's "Replace")
-  // Private: the people invited (the server adds the creator). Null: public. A public activity can't become private.
-  guests: z.array(z.string().min(1).max(64)).max(GUESTS_MAX).nullable().default(null),
+  // Private: the people invited (the server adds the creator and the person editing). Left out: public when posting,
+  // unchanged when editing. A public activity can't become private.
+  guests: z.array(z.string().min(1).max(64)).max(GUESTS_MAX).optional(),
+  makePublic: z.boolean().default(false), // editing a private activity: show it to everyone (never undone)
 });
 type ActivityFields = z.output<typeof activityFields>;
 

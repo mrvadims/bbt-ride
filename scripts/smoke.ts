@@ -708,7 +708,7 @@ const outs = [
   { who: "Member", c: outsider.c },
 ];
 for (const { who, c } of outs) {
-  const upd = { ...privBody, guests: null, baseUpdatedAt: priv.json.updatedAt };
+  const upd = { ...privBody, guests: undefined, baseUpdatedAt: priv.json.updatedAt };
   const codes = [
     (await c(`/api/activities/${pid}`)).status,
     (await c(`/api/activities/${pid}/seen`, { method: "POST" })).status,
@@ -778,9 +778,25 @@ check(
   "private: the creator stays invited even if left off the list",
 );
 check(
-  (await put(coEditor.c, { title: `Secret two ${stamp}`, guests: [guest.id] })).status === 400,
-  "private: an Editor can't remove themselves",
+  (await put(coEditor.c, { title: `Secret two ${stamp}`, guests: [guest.id] })).json?.guests?.some(
+    (g: Json) => g.userId === coEditor.id,
+  ),
+  "private: the Editor saving stays invited",
 );
+check(
+  (await put(coEditor.c, { title: `Secret two ${stamp}`, guests: undefined })).json?.private === true,
+  "private: an edit that leaves out the guest list keeps it private",
+);
+{
+  const open = await outEditor.c("/api/activities", {
+    body: { ...pickle, title: `Open early ${stamp}`, date: privDay },
+  });
+  check(
+    (await creator.c("/api/activities", { body: { ...privBody, title: `Swap ${stamp}`, replaceId: open.json.id } }))
+      .status === 400 && (await outsider.c(`/api/activities/${open.json.id}`)).json.status === "published",
+    "private: a private plan can't replace a public one",
+  );
+}
 // Inviting the Admin, then removing the guest: the guest loses it, with their answer.
 const pMoved = await put(creator.c, { title: `Secret two ${stamp}`, guests: [coEditor.id, adminId] });
 check(
@@ -824,7 +840,7 @@ check(
   ).status === 400,
   "a public activity can't be made private",
 );
-const opened = await put(coEditor.c, { title: `Secret two ${stamp}`, guests: null });
+const opened = await put(coEditor.c, { title: `Secret two ${stamp}`, makePublic: true });
 check(
   opened.status === 200 && opened.json.private === false && opened.json.guests.length === 0,
   "private: an invited Editor can make it public",

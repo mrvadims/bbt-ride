@@ -33,8 +33,10 @@ const BATCH = 5;
  * - `to`: only these people (a mention, the people invited, or those going to a deleted activity), whatever sports they
  *   muted.
  * - `except`: not these people (they already know).
+ * - `gone`: the activity was just deleted (with `to`: the people who were going, taken while it existed).
  * - `url`: where tapping it goes, when the activity itself is gone.
- * A private activity only ever notifies the people invited to it, whatever the options say. */
+ * A private activity only ever notifies the people invited to it, whatever the options say; an activity that can't be
+ * found notifies no one, unless it's `gone`. */
 export async function notifyActivity(
   env: Env,
   id: string,
@@ -45,6 +47,7 @@ export async function notifyActivity(
     answer?: boolean;
     to?: string[];
     except?: string[];
+    gone?: boolean;
     url?: string;
   } = {},
 ): Promise<void> {
@@ -62,7 +65,8 @@ export async function notifyActivity(
             and not exists (select 1 from notify_off n where n.user_id = p.user_id and n.sport = ?2)))
        and (?6 is null or p.user_id in (select value from json_each(?6)))
        and p.user_id not in (select value from json_each(?7))
-       and (coalesce((select private from activities where id = ?1), 0) = 0
+       and ((?8 and ?6 is not null)
+            or exists (select 1 from activities where id = ?1 and private = 0)
             or exists (select 1 from activity_guests g where g.activity_id = ?1 and g.user_id = p.user_id))`,
   )
     .bind(
@@ -73,6 +77,7 @@ export async function notifyActivity(
       app ? 1 : 0,
       opts.to ? JSON.stringify(opts.to) : null,
       JSON.stringify(opts.except ?? []),
+      opts.gone ? 1 : 0,
     )
     .all<Sub & { is_in: number }>();
   const message = (actions: boolean) =>

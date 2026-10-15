@@ -416,7 +416,8 @@ export function PlanPage() {
         ...draft,
         routes: draft.routes.map(({ label, routeId, stop }) => ({ label, routeId, stop })),
         replaceId,
-        guests: form.guests ?? null,
+        guests: form.guests ?? undefined,
+        makePublic: Boolean(editingAct?.private && !form.guests), // Make public, on Update
         baseUpdatedAt: form.base ?? "", // a POST ignores it
       };
       return form.editing
