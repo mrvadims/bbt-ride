@@ -1537,6 +1537,39 @@ a.linkbtn {
 .tile img {
   display: block;
 }
+/* Join, an online activity's main action (DESIGN.md → Virtual meet-ups). */
+/* Place form: the link was recognised as an online meeting. */
+.online-note {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: -4px 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--win);
+}
+.online-note svg {
+  flex: none;
+  color: var(--link);
+  margin-top: 2px;
+}
+/* The video icon before an online place's name in lists. */
+.arow-b .small svg {
+  vertical-align: -2px;
+  margin-right: 4px;
+}
+.tile.tile-join {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--on-primary);
+  text-decoration: none;
+}
+.tile.tile-join svg {
+  color: var(--on-primary);
+}
+.tile.tile-join:hover {
+  background: var(--primary-hover);
+}
 /* Dark mode: RideWithGPS's logo has black lettering, so its tile stays white. */
 a.tile[aria-label="Open in RideWithGPS"] {
   background: #fff;

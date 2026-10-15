@@ -289,9 +289,9 @@ const noNotes = await admin("/api/spots", { body: { name: `No notes ${stamp}`, l
 await admin(`/api/spots/${noNotes.json?.id}`, { method: "PATCH", body: { archived: true } }); // keep the pick list short
 check(noNotes.status === 201 && noNotes.json.note === "", "notes are optional (pools and courts may need none)");
 check(
-  (await admin("/api/spots", { body: { name: `No pin ${stamp}`, link: "https://example.com", note: "Lot" } }))
+  (await admin("/api/spots", { body: { name: `No pin ${stamp}`, link: "the lot by the lake", note: "Lot" } }))
     .status === 400,
-  "a link without a pin is refused",
+  "text that's neither a pin nor a link is refused",
 );
 const moved = await admin(`/api/spots/${spot.json.id}`, {
   method: "PATCH",
@@ -856,6 +856,60 @@ check(
   "the creator can delete their own activity",
 );
 check((await creator.c(`/api/activities/${pid}`, { method: "DELETE" })).status === 204, "and their private one");
+
+// Online places (DESIGN.md → Virtual meet-ups): a meeting link instead of a pin; any sport, start and end, no weather.
+{
+  const zoomUrl = `https://us02web.zoom.us/j/8${Date.now() % 1e9}?pwd=abc`;
+  const place = await creator.c("/api/spots", {
+    body: { name: `Zoom ${stamp}`, link: zoomUrl, note: "Passcode 4242" },
+  });
+  check(
+    place.status === 201 && place.json.online === true && place.json.maps_url === zoomUrl && place.json.lat === 0,
+    "online: a meeting link makes an online place",
+  );
+  check(
+    (await creator.c("/api/spots", { body: { name: `Bad ${stamp}`, link: "http://zoom.us/j/1", note: "" } })).status ===
+      400,
+    "online: only https meeting links",
+  );
+  const zid = place.json.id as string;
+  const zDay = addDays(day, 5);
+  const zoomRide = { ...plan, date: zDay, spotId: zid, online: true, routes: [], endTime: "20:00", startTime: "19:00" };
+  check(
+    (await creator.c("/api/activities", { body: { ...zoomRide, online: false } })).status === 400,
+    "online: the app must plan it as online",
+  );
+  const zr = await creator.c("/api/activities", { body: zoomRide });
+  check(
+    zr.status === 201 && zr.json.online === true && zr.json.outdoor === false && zr.json.endTime === "20:00",
+    "online: a ride without a route, with start and end, never outdoors",
+  );
+  const pk = await creator.c("/api/activities", {
+    body: { ...pickle, title: `Zoom stretch ${stamp}`, date: zDay, spotId: zid, online: true, outdoor: true },
+  });
+  check(pk.status === 201 && pk.json.online === true && pk.json.outdoor === false, "online: any sport can be online");
+  check(
+    (await creator.c("/api/activities", { body: { ...plan, date: zDay, routes: [] } })).status === 400,
+    "online: a ride at a real place still needs a route",
+  );
+  check(
+    (await admin(`/api/spots/${zid}`, { method: "PATCH", body: { link: "41.0454, -73.6973" } })).status === 409,
+    "online: a place in use can't switch between online and a pin",
+  );
+  check(
+    (await admin(`/api/spots/${zid}`, { method: "PATCH", body: { note: "Passcode 4243" } })).json?.online === true,
+    "online: editing its notes keeps it online",
+  );
+  const forecast = (await creator.c("/api/weather")).json;
+  check(!(zid in (forecast?.forecast ?? {})), "online: no forecast for an online place");
+  await guest.c(`/api/activities/${zr.json.id}/rsvp`, { method: "PUT", body: { status: "in", routeLabel: null } });
+  const cal = await feed((await guest.c("/api/me/calendar", { method: "POST" })).json.calendarUrl);
+  check(
+    cal.text.includes(`UID:${zr.json.id}@`) && cal.text.replace(/\r\n /g, "").includes(`LOCATION:${zoomUrl}`),
+    "online: the calendar event's location is the meeting link",
+  );
+  await admin(`/api/spots/${zid}`, { method: "PATCH", body: { archived: true } }); // keep the test pick lists short
+}
 
 // Announcements (DESIGN.md → Announcements): Admins post; everyone sees the active ones until they tap Got it.
 {

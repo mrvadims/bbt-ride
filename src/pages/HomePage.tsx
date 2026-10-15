@@ -4,7 +4,7 @@ import { useState } from "react";
 import { type Activity, activityName, type Me, type Unseen } from "../../shared/api.ts";
 import { SPORT_LABEL, type Sport } from "../../shared/sports.ts";
 import { dayLabel, fmtTime, hhmmToMin } from "../../shared/time.ts";
-import { PrivateBadge, SportIcon } from "../components/icons.tsx";
+import { PrivateBadge, SportIcon, VideoIcon } from "../components/icons.tsx";
 import { Pill, WarningChips } from "../components/Warnings.tsx";
 import { useActivityModel } from "../lib/activityModel.ts";
 import { useActivities, useSpots } from "../lib/data.ts";
@@ -48,9 +48,10 @@ function Row({ a, spotName }: { a: Activity; spotName: string }) {
         </span>
         <b>{activityName(a)}</b>
         <span className="small muted">
+          {a.online && <VideoIcon size={14} />}
           {spotName}
           {a.details ? ` · ${a.details}` : ""}
-          {a.outdoor ? "" : " · indoor"}
+          {a.online ? " · Online" : a.outdoor ? "" : " · indoor"}
         </span>
         {n && <span className="unseen">{reason(n)}</span>}
         {a.status !== "cancelled" && (

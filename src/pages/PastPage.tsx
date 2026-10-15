@@ -85,6 +85,7 @@ export function PastList() {
                   <b>{activityName(a)}</b>
                   <span className="small muted">
                     {spotName(a.spotId)}
+                    {a.online ? " · Online" : ""}
                     {a.observed
                       ? ` · ${u.temp(a.observed.T)}, feels ${u.temp(a.observed.app)} · wind ${u.speed(a.observed.ws)}`
                       : ""}

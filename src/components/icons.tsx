@@ -177,6 +177,14 @@ export const DirectionsIcon = () => (
   </svg>
 );
 
+/** An online meeting (Join, and "Online" next to a place). */
+export const VideoIcon = ({ size = 22 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" {...stroke}>
+    <rect x="3" y="6" width="13" height="12" rx="2" />
+    <path d="M16 10l5-3v10l-5-3" />
+  </svg>
+);
+
 /** A Material Symbols icon (shared/sport-icons.ts), filled with the text colour. */
 export const SymbolIcon = ({ icon, size = 26 }: { icon: Icon; size?: number }) => (
   <svg width={size} height={size} viewBox="0 -960 960 960" aria-hidden="true" fill="currentColor">

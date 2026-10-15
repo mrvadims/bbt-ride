@@ -3,7 +3,7 @@
 import type { Activity } from "../../shared/api.ts";
 import { kitAdvice } from "../../shared/kit.ts";
 import { type RideRoute, type RideTimes, type Route, rideTimes } from "../../shared/ride.ts";
-import { hasRoute, rulesFor } from "../../shared/sports.ts";
+import { rulesFor, timedByRoute } from "../../shared/sports.ts";
 import { hhmmToMin } from "../../shared/time.ts";
 import { evaluate, warnings } from "../../shared/weather.ts";
 import { type SpotWithState, useRoute, useSpots, useTeamSettings, useWeather } from "./data.ts";
@@ -44,7 +44,8 @@ export function useActivityModel(act: ActivityLike | null, routeIndex = 0) {
   const route = (idx === 1 ? alt : main) ?? null;
   const spot: SpotWithState | undefined = spots.find((s) => s.id === act.spotId);
   // A route that can't be loaded (private, deleted) leaves the page without route details instead of loading forever.
-  const routed = hasRoute(act.sport) && !mainQ.isError;
+  // Online, every sport runs from its start to its end time; a route, if any, is only linked (RideWithGPS tile).
+  const routed = timedByRoute(act.sport, Boolean(spot?.online)) && !mainQ.isError;
   if (!spot || (routed && (!rt || !route))) return { loading: true as const };
   const s = team.settings;
   const ride: RideTimes | null = routed && route && rt ? rideTimes(route, act.startTime, act.pace, rt.stop, s) : null;

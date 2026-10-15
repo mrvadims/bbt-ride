@@ -36,6 +36,10 @@ export const START_LABEL: Record<Sport, string> = {
   other: "Start time",
 };
 /** Default length for sports without a route, minutes (ride and run end when their route says). */
+/** Ride and run at a real place take their times from the route (meet, back about); online, every sport has a start
+ * and an end, and a route is optional (DESIGN.md → Virtual meet-ups). */
+export const timedByRoute = (sport: Sport, online: boolean): boolean => hasRoute(sport) && !online;
+
 export const defaultLength = (s: Sport): number => (hasRoute(s) ? 120 : DEFAULT_LENGTH_MIN[s]);
 const DEFAULT_LENGTH_MIN: Record<Exclude<Sport, "ride" | "run">, number> = {
   swim: 60,

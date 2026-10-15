@@ -6,7 +6,7 @@ import { Hono } from "hono";
 import { type Activity, activityName } from "../../shared/api.ts";
 import { activityEvent, type CalEvent, icsCalendar } from "../../shared/ics.ts";
 import { type Route, rideTimes } from "../../shared/ride.ts";
-import { hasRoute, SPORT_LABEL } from "../../shared/sports.ts";
+import { SPORT_LABEL, timedByRoute } from "../../shared/sports.ts";
 import { addDays, hhmmToMin, nyNow } from "../../shared/time.ts";
 import type { AppEnv } from "../app.ts";
 import { b64url } from "../util.ts";
@@ -74,10 +74,14 @@ async function feed(env: Env, userId: string): Promise<string> {
   if (!acts.length) return icsCalendar([], true);
   // Polled by calendar apps, so it never calls RideWithGPS: the end time comes from cached routes only (distance and
   // stops, extracted by D1), and route links are built from the id.
-  const mains = [...new Set(acts.flatMap((a) => (hasRoute(a.sport) && a.routes[0] ? [a.routes[0].routeId] : [])))];
+  const mains = [
+    ...new Set(acts.flatMap((a) => (timedByRoute(a.sport, a.online) && a.routes[0] ? [a.routes[0].routeId] : []))),
+  ];
   const [s, spots, cached] = await Promise.all([
     loadSettings(env.DB),
-    env.DB.prepare("select id, name, lat, lng, maps_url, note from spots").all<Spot>(),
+    env.DB.prepare("select id, name, lat, lng, maps_url, note, online from spots").all<
+      Omit<Spot, "online"> & { online: number }
+    >(),
     mains.length
       ? env.DB.prepare(
           `select rwgps_route_id as id, json_extract(json, '$.distance_m') as d, json_extract(json, '$.pois') as pois
@@ -95,8 +99,9 @@ async function feed(env: Env, userId: string): Promise<string> {
   );
   const events: CalEvent[] = [];
   for (const a of acts) {
-    const spot = spots.results.find((x) => x.id === a.spotId);
-    if (!spot) continue;
+    const row = spots.results.find((x) => x.id === a.spotId);
+    if (!row) continue;
+    const spot = { ...row, online: row.online === 1 };
     events.push({ ...eventOf(a, spot, s, routes), url: `${env.BETTER_AUTH_URL}/a/${a.id}` });
   }
   return icsCalendar(events, true);
@@ -111,7 +116,7 @@ function eventOf(
   routes: Map<number, Route>,
 ): CalEvent {
   const start = hhmmToMin(a.startTime);
-  const main = hasRoute(a.sport) && a.routes[0] ? routes.get(a.routes[0].routeId) : undefined;
+  const main = timedByRoute(a.sport, a.online) && a.routes[0] ? routes.get(a.routes[0].routeId) : undefined;
   const end = main
     ? rideTimes(main, a.startTime, a.pace, a.routes[0]?.stop ?? null, s).end
     : a.endTime
@@ -125,7 +130,7 @@ function eventOf(
       date: a.date,
       start,
       end,
-      meet: hasRoute(a.sport),
+      meet: timedByRoute(a.sport, a.online),
       spot,
       routes: a.routes.map((r) => ({
         label: r.label,

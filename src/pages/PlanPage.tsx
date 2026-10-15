@@ -3,7 +3,16 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { type ActivityDetail, type ActivityUpdate, activityName, type RouteSummary } from "../../shared/api.ts";
-import { etaAt, FT_PER_M, M_PER_MI, nearest, type Poi, rideTimes, startDistance } from "../../shared/ride.ts";
+import {
+  etaAt,
+  FT_PER_M,
+  M_PER_MI,
+  nearest,
+  onlineService,
+  type Poi,
+  rideTimes,
+  startDistance,
+} from "../../shared/ride.ts";
 import { ICON_KEYS, ICONS, type Icon, SPORT_ICON } from "../../shared/sport-icons.ts";
 import {
   canBeIndoor,
@@ -19,6 +28,7 @@ import {
   SPORTS,
   type Sport,
   START_LABEL,
+  timedByRoute,
 } from "../../shared/sports.ts";
 import {
   addDays,
@@ -321,11 +331,15 @@ export function PlanPage() {
     dirty.current = true;
     setForm((f) => (f ? { ...f, ...patch } : f));
   }, []);
-  const routed = form ? hasRoute(form.sport) : false;
-  const routeQ = useRoute(routed ? form?.routeId : null);
-  const altQ = useRoute(routed && form?.altOn ? form.altId : null);
-  const pastedMainQ = useRoute(form && routed ? routeIdFrom(form.q) : null);
-  const pastedAltQ = useRoute(form && routed ? routeIdFrom(form.qAlt) : null);
+  // Ride and run can have a route; at a real place it's required and sets the times (routed). At an online place every
+  // sport has a start and an end, and a ride's or run's route is optional (DESIGN.md → Virtual meet-ups).
+  const online = Boolean(form?.spotId && spots?.find((x) => x.id === form.spotId)?.online);
+  const routeable = form ? hasRoute(form.sport) : false;
+  const routed = form ? timedByRoute(form.sport, online) : false;
+  const routeQ = useRoute(routeable ? form?.routeId : null);
+  const altQ = useRoute(routeable && form?.altOn ? form.altId : null);
+  const pastedMainQ = useRoute(form && routeable ? routeIdFrom(form.q) : null);
+  const pastedAltQ = useRoute(form && routeable ? routeIdFrom(form.qAlt) : null);
   const route = routeQ.data;
   const altRoute = altQ.data;
   const pastedMainRoute = pastedMainQ.data;
@@ -363,6 +377,7 @@ export function PlanPage() {
   const draft =
     form?.spotId && (!routed || (form.routeId && route))
       ? {
+          online,
           sport: form.sport,
           icon: form.sport === "other" && form.icon !== SPORT_ICON.other ? form.icon : null,
           title: form.title.trim(),
@@ -370,18 +385,18 @@ export function PlanPage() {
           startTime: form.time,
           endTime: routed ? null : form.endTime,
           spotId: form.spotId,
-          outdoor: canBeIndoor(form.sport) ? form.outdoor : true,
+          outdoor: online ? false : canBeIndoor(form.sport) ? form.outdoor : true,
           pace: routed ? form.pace : 0,
           details: routed ? "" : form.details.trim(),
           notes: form.notes,
           status: "published" as const,
           routes:
-            routed && form.routeId && route
+            routeable && form.routeId && route
               ? [
                   {
                     label: form.altOn && form.altId ? form.labelA : "Main",
                     routeId: form.routeId,
-                    stop: form.sport === "ride" ? (form.stop ?? null) : null,
+                    stop: form.sport === "ride" && !online ? (form.stop ?? null) : null,
                     name: route.name,
                   },
                   ...(form.altOn && form.altId && altRoute
@@ -390,7 +405,7 @@ export function PlanPage() {
                           label: form.labelB,
                           routeId: form.altId,
                           stop:
-                            form.sport === "ride" && altRoute.pois.some((p) => p.name === form.stop)
+                            form.sport === "ride" && !online && altRoute.pois.some((p) => p.name === form.stop)
                               ? (form.stop ?? null)
                               : null,
                           name: altRoute.name,
@@ -464,7 +479,7 @@ export function PlanPage() {
   const startMin = hhmmToMin(form.time);
   const times = routed && route ? rideTimes(route, form.time, form.pace, form.stop ?? null, s) : null;
   const durMin = routed ? (times ? times.end - times.start : s.durationH * 60) : hhmmToMin(form.endTime) - startMin;
-  const outdoor = canBeIndoor(form.sport) ? form.outdoor : true;
+  const outdoor = online ? false : canBeIndoor(form.sport) ? form.outdoor : true;
   const rules = rulesFor(form.sport, form.pace, s.warn);
   const spot = active.find((x) => x.id === form.spotId) ?? spots.find((x) => x.id === form.spotId);
   // Other activities that day: listed under the date. Several of a sport may share a day; publishing a new one with the
@@ -506,7 +521,8 @@ export function PlanPage() {
         <span className="radio-dot" aria-hidden="true" />
         <span className="spotrow-b">
           <b>{sp.name}</b>
-          {outdoor && (
+          {sp.online && <span className="small muted">Online · {onlineService(sp.maps_url)} · no weather check</span>}
+          {outdoor && !sp.online && (
             <span className="small">
               {ev && se ? (
                 <>
@@ -625,7 +641,7 @@ export function PlanPage() {
                 </div>
               </div>
             )}
-            {indoorLabels && (
+            {indoorLabels && !online && (
               <div className="seg" role="group" aria-label="Setting">
                 <button type="button" aria-pressed={!form.outdoor} onClick={() => set({ outdoor: false })}>
                   {indoorLabels[0]}
@@ -681,7 +697,7 @@ export function PlanPage() {
             </div>
             <div className="row">
               <label className="field">
-                {START_LABEL[form.sport]}
+                {routeable && !routed ? "Start time" : START_LABEL[form.sport]}
                 <input
                   type="time"
                   value={form.time}
@@ -776,8 +792,14 @@ export function PlanPage() {
             {detail}
           </Section>
 
-          {routed && (
-            <Section label="Route">
+          {routeable && (
+            <Section label={online ? "Route (optional)" : "Route"}>
+              {online && (
+                <p className="tiny muted" style={{ margin: "0 0 8px" }}>
+                  Online, a route is optional: add one if everyone rides the same course; it's linked from the activity.
+                  Times come from Start and Ends.
+                </p>
+              )}
               <div className="route-row">
                 <div className="fieldbox">
                   <label className="field">
@@ -859,7 +881,7 @@ export function PlanPage() {
                   )}
                 </>
               )}
-              {form.sport === "ride" && (
+              {form.sport === "ride" && !online && (
                 <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
                   <legend className="field" style={{ marginBottom: 4 }}>
                     Coffee stop
@@ -897,47 +919,49 @@ export function PlanPage() {
                   )}
                 </fieldset>
               )}
-              <div className="row">
-                {runPace ? (
-                  <label className="field">
-                    Pace (min/mi)
-                    {/* A text keyboard: the iPhone number pad has no ":". */}
-                    <input
-                      inputMode="text"
-                      placeholder="9:00"
-                      defaultValue={minPerMile(form.pace)}
-                      key={form.pace}
-                      onBlur={(e) => {
-                        const mph = mphFromMinPerMile(e.target.value);
-                        setPaceMsg(mph ? null : "Type the pace as minutes per mile, e.g. 9:30");
-                        if (mph) set({ pace: Math.min(paceHi, Math.max(paceLo, mph)) });
-                        else e.target.value = minPerMile(form.pace);
-                      }}
-                    />
-                    {paceMsg && (
-                      <span className="tiny" role="alert" style={{ color: "var(--no-fg)" }}>
-                        {paceMsg}
-                      </span>
-                    )}
-                  </label>
-                ) : (
-                  <label className="field">
-                    Pace (mph)
-                    <input
-                      type="number"
-                      min={paceLo}
-                      max={paceHi}
-                      step={0.5}
-                      defaultValue={form.pace}
-                      key={form.pace}
-                      onBlur={(e) =>
-                        set({ pace: Math.min(paceHi, Math.max(paceLo, Number(e.target.value) || s.pace)) })
-                      }
-                    />
-                  </label>
-                )}
-                <span />
-              </div>
+              {routed && (
+                <div className="row">
+                  {runPace ? (
+                    <label className="field">
+                      Pace (min/mi)
+                      {/* A text keyboard: the iPhone number pad has no ":". */}
+                      <input
+                        inputMode="text"
+                        placeholder="9:00"
+                        defaultValue={minPerMile(form.pace)}
+                        key={form.pace}
+                        onBlur={(e) => {
+                          const mph = mphFromMinPerMile(e.target.value);
+                          setPaceMsg(mph ? null : "Type the pace as minutes per mile, e.g. 9:30");
+                          if (mph) set({ pace: Math.min(paceHi, Math.max(paceLo, mph)) });
+                          else e.target.value = minPerMile(form.pace);
+                        }}
+                      />
+                      {paceMsg && (
+                        <span className="tiny" role="alert" style={{ color: "var(--no-fg)" }}>
+                          {paceMsg}
+                        </span>
+                      )}
+                    </label>
+                  ) : (
+                    <label className="field">
+                      Pace (mph)
+                      <input
+                        type="number"
+                        min={paceLo}
+                        max={paceHi}
+                        step={0.5}
+                        defaultValue={form.pace}
+                        key={form.pace}
+                        onBlur={(e) =>
+                          set({ pace: Math.min(paceHi, Math.max(paceLo, Number(e.target.value) || s.pace)) })
+                        }
+                      />
+                    </label>
+                  )}
+                  <span />
+                </div>
+              )}
             </Section>
           )}
 

@@ -19,7 +19,7 @@ import {
 import { firstName, mentionIds, plainMentions } from "../../shared/people.ts";
 import type { RideRoute } from "../../shared/ride.ts";
 import type { Icon } from "../../shared/sport-icons.ts";
-import { hasRoute, minPerMile, SPORT_LABEL, type Sport } from "../../shared/sports.ts";
+import { minPerMile, SPORT_LABEL, type Sport, timedByRoute } from "../../shared/sports.ts";
 import { dayLabel, fmtTime, hhmmToMin, nyNow } from "../../shared/time.ts";
 import { type AppEnv, can, requireRole, type SessionUser } from "../app.ts";
 import { notifyActivity } from "../push.ts";
@@ -46,6 +46,7 @@ interface ActivityRow {
   observed_json: string | null;
   private: number;
   created_by: string | null;
+  online: number;
 }
 
 const VISIBLE = visible();
@@ -81,7 +82,8 @@ export async function summaries(
   const { results: rows } = await db
     .prepare(
       `select a.id, a.sport, a.icon, a.title, a.date, a.start_time, a.end_time, a.spot_id, a.outdoor, a.pace_mph, a.details,
-              a.notes, a.status, a.updated_at, a.observed_json, a.private, a.created_by ${pick}`,
+              a.notes, a.status, a.updated_at, a.observed_json, a.private, a.created_by,
+              (select s.online from spots s where s.id = a.spot_id) as online ${pick}`,
     )
     .bind(...binds)
     .all<ActivityRow>();
@@ -147,6 +149,7 @@ export async function summaries(
       observed: r.observed_json ? (JSON.parse(r.observed_json) as RecordedWeather) : null,
       private: Boolean(r.private),
       createdBy: r.created_by,
+      online: Boolean(r.online),
     };
   });
 }
@@ -300,12 +303,12 @@ async function changes(db: D1Database, a: Activity, b: ActivityValues): Promise<
   if (a.title !== b.title) out.push(b.title ? `now "${b.title}"` : "title removed");
   if (a.date !== b.date) out.push(`moved to ${dayLabel(b.date, true)}`);
   if (a.startTime !== b.startTime)
-    out.push(`${hasRoute(b.sport) ? "meet" : "starts"} ${time(a.startTime)} → ${time(b.startTime)}`);
+    out.push(`${timedByRoute(b.sport, b.online) ? "meet" : "starts"} ${time(a.startTime)} → ${time(b.startTime)}`);
   if (a.endTime && b.endTime && a.endTime !== b.endTime) out.push(`ends ${time(a.endTime)} → ${time(b.endTime)}`);
   if (a.spotId !== b.spotId)
-    out.push(`${hasRoute(b.sport) ? "start" : "at"} ${await spot(a.spotId)} → ${await spot(b.spotId)}`);
+    out.push(`${timedByRoute(b.sport, b.online) ? "start" : "at"} ${await spot(a.spotId)} → ${await spot(b.spotId)}`);
   if (a.outdoor !== b.outdoor) out.push(b.outdoor ? "now outdoors" : "now indoors");
-  if (hasRoute(b.sport) && Math.abs(a.pace - b.pace) > 0.01)
+  if (timedByRoute(b.sport, b.online) && Math.abs(a.pace - b.pace) > 0.01)
     out.push(b.sport === "run" ? `pace ${minPerMile(b.pace)} min/mi` : `pace ${b.pace} mph`);
   if (a.details !== b.details) out.push(b.details ? `details: ${b.details}` : "details removed");
   if (routeText(a.routes) !== routeText(b.routes)) out.push(`route ${routeText(b.routes)}`);
@@ -341,14 +344,16 @@ const systemMessage = (db: D1Database, id: string, kind: Message["kind"], body: 
     .prepare("insert into messages (id, activity_id, kind, body, created_at) values (?, ?, ?, ?, ?)")
     .bind(newId(), id, kind, body, nowIso());
 
-/** The date must be today or later, and the spot active (an archived spot may stay on an activity that already uses it). */
+/** The date must be today or later, and the spot active (an archived spot may stay on an activity that already uses it);
+ * whether it's online must be what the app planned for (times and route rules depend on it). */
 async function checkInput(db: D1Database, input: ActivityValues, currentSpot?: string) {
   if (input.date < nyNow().date) fail(400, "Pick today or a later date");
   const spot = await db
-    .prepare("select archived from spots where id = ?")
+    .prepare("select archived, online from spots where id = ?")
     .bind(input.spotId)
-    .first<{ archived: number }>();
+    .first<{ archived: number; online: number }>();
   if (!spot || (spot.archived && input.spotId !== currentSpot)) fail(400, "Unknown place");
+  if (Boolean(spot?.online) !== input.online) fail(400, "That place changed; pick it again");
 }
 
 const REPLACED_NOTE = "Cancelled: replaced by a new plan.";

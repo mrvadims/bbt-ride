@@ -120,7 +120,7 @@ async function fetchAlerts(s: SpotPoint): Promise<Alert[] | undefined> {
 export async function spotForecasts(env: Env) {
   const { results: spots } = await env.DB.prepare(
     `select id, lat, lng from spots
-     where archived = 0 or id in (select spot_id from activities where status = 'published' and date >= ?)
+     where online = 0 and (archived = 0 or id in (select spot_id from activities where status = 'published' and date >= ?))
      order by name`,
   )
     .bind(addDays(nyNow().date, -2))

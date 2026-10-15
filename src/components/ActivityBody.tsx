@@ -6,13 +6,13 @@ import rwgpsLogo from "../../brand/web/ridewithgps-vertical-logo.svg";
 import { type ActivityDetail, activityName, type RecordedWeather } from "../../shared/api.ts";
 import { activityEvent } from "../../shared/ics.ts";
 import { KIT_OFFSETS, type KitAdvice, type KitOffset } from "../../shared/kit.ts";
-import { M_PER_MI, mapsLink, type Spot } from "../../shared/ride.ts";
-import { hasRoute, INDOOR_LABELS, SPORT_LABEL, type Sport } from "../../shared/sports.ts";
+import { M_PER_MI, mapsLink, onlineService, type Spot } from "../../shared/ride.ts";
+import { INDOOR_LABELS, SPORT_LABEL, type Sport } from "../../shared/sports.ts";
 import { dayLabel, fmtDur, fmtTime } from "../../shared/time.ts";
 import { bikeFeel, compass } from "../../shared/weather.ts";
 import type { ActivityLike, ActivityModel } from "../lib/activityModel.ts";
 import { type CalEvent, downloadIcs, googleLink, outlookLink } from "../lib/calendar.ts";
-import { bbt, isApp } from "../lib/native.ts";
+import { bbt, isApp, openExternal } from "../lib/native.ts";
 import { type Prefs, setPref, usePrefs } from "../lib/prefs.ts";
 import { type Units, units } from "../lib/units.ts";
 import { CalendarLink } from "./CalendarLink.tsx";
@@ -25,6 +25,7 @@ import {
   PrivateBadge,
   ShareIcon,
   SportIcon,
+  VideoIcon,
   WxIcon,
   wxLabel,
 } from "./icons.tsx";
@@ -162,8 +163,10 @@ function WhatToWear({ kit, feelMin, u }: { kit: KitAdvice; feelMin: number; u: U
 const feelLabel = (sport: Sport): string | undefined =>
   sport === "ride" ? "bike feel" : sport === "run" ? "run feel" : undefined;
 
-/** "Pickleball · Indoor" / "Swim · Pool": the sport, plus the setting for sports that can be indoors. */
-function sportLine(a: Pick<ActivityLike, "sport" | "outdoor">): string {
+/** "Pickleball · Indoor" / "Swim · Pool" / "Ride · Online": the sport, plus the setting for sports that can be indoors
+ * or for any sport at an online place. */
+function sportLine(a: Pick<ActivityLike, "sport" | "outdoor">, online: boolean): string {
+  if (online) return `${SPORT_LABEL[a.sport]} · Online`;
   const labels = INDOOR_LABELS[a.sport];
   return labels ? `${SPORT_LABEL[a.sport]} · ${a.outdoor ? labels[1] : labels[0]}` : SPORT_LABEL[a.sport];
 }
@@ -186,11 +189,11 @@ export function ActivityHeader({
         {act.private && <PrivateBadge />}
       </span>
       <div className="ahead-b">
-        <span className="kicker">{sportLine(act)}</span>
+        <span className="kicker">{sportLine(act, m.spot.online)}</span>
         <h1>{name}</h1>
         <span className="small muted">
           {dayLabel(act.date, true)} · {fmtTime(m.start)}
-          {hasRoute(act.sport) ? "" : `–${fmtTime(m.end)}`}
+          {m.ride ? "" : `–${fmtTime(m.end)}`}
           {act.details ? ` · ${act.details}` : ""}
         </span>
       </div>
@@ -205,11 +208,11 @@ export function ActivityHeader({
 
 function shareText(act: ActivityDetail, m: ActivityModel, u: Units): string {
   const st = m.ev?.st;
-  const routed = hasRoute(act.sport);
+  const routed = Boolean(m.ride);
   const lines = [
     `${act.status === "cancelled" ? "CANCELLED: " : ""}BBT ${SPORT_LABEL[act.sport].toLowerCase()} · ${dayLabel(act.date, true)}`,
     act.title || null,
-    `${routed ? "Meet" : "Starts"} ${fmtTime(m.start)} · ${m.spot.name} ${m.spot.maps_url}`,
+    `${routed ? "Meet" : "Starts"} ${fmtTime(m.start)} · ${m.spot.name}${m.spot.online ? " · Join:" : ""} ${m.spot.maps_url}`,
     ...act.routes.map((r) => {
       const rr = m.routeById(r.routeId);
       const name = rr ? `${rr.name} (${u.dist(rr.distance_m / M_PER_MI)}) ${rr.url}` : `#${r.routeId}`;
@@ -337,7 +340,7 @@ const calendarEvent = (act: ActivityDetail, m: ActivityModel): CalEvent =>
     date: act.date,
     start: m.start,
     end: m.end,
-    meet: hasRoute(act.sport),
+    meet: Boolean(m.ride),
     spot: m.spot,
     routes: act.routes.map((r) => {
       const route = m.routeById(r.routeId);
@@ -363,10 +366,29 @@ export function ActionRow({ act, m }: { act: ActivityDetail; m: ActivityModel })
   return (
     <>
       <div className="tiles">
-        <button type="button" className="tile" onClick={() => setSheet("directions")}>
-          <DirectionsIcon />
-          Directions
-        </button>
+        {m.spot.online ? (
+          // Zoom, Meet and Teams links open their app when it's installed, otherwise the browser
+          <a
+            className="tile tile-join"
+            href={m.spot.maps_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => {
+              // The Android app hands it to the phone, which offers the Zoom (Meet, Teams) app when it's installed
+              if (!isApp()) return;
+              e.preventDefault();
+              openExternal(m.spot.maps_url).catch(() => undefined);
+            }}
+          >
+            <VideoIcon />
+            Join
+          </a>
+        ) : (
+          <button type="button" className="tile" onClick={() => setSheet("directions")}>
+            <DirectionsIcon />
+            Directions
+          </button>
+        )}
         <button type="button" className="tile" onClick={() => setSheet("calendar")}>
           <CalendarIcon />
           Calendar
@@ -406,7 +428,7 @@ export function ActivityBody(props: {
   const { ride, spot, route, ev, se, settings: s, rules } = m;
   const st = ev?.st;
   const stop = ride?.stop ?? null;
-  const routed = hasRoute(act.sport);
+  const routed = Boolean(ride);
   const feel = feelLabel(act.sport);
 
   const meet = (
@@ -435,6 +457,16 @@ export function ActivityBody(props: {
             )}
           </dd>
         </div>
+        {spot.online && (
+          <div>
+            <dt>Online</dt>
+            <dd>
+              <a href={spot.maps_url} target="_blank" rel="noopener noreferrer">
+                Join on {onlineService(spot.maps_url)}
+              </a>
+            </dd>
+          </div>
+        )}
         {spot.note && (
           <div>
             <dt>Notes</dt>

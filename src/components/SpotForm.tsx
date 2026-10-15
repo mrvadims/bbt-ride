@@ -1,5 +1,8 @@
-// Add or edit a place (start spot, pool, courts…): name and Google Maps link required, notes optional (Plan and Settings).
+// Add or edit a place (start spot, pool, courts…, or an online meeting): name and a Google Maps or meeting link required,
+// notes optional (Plan and Settings).
 import { useState } from "react";
+import { meetingLink, onlineService } from "../../shared/ride.ts";
+import { VideoIcon } from "./icons.tsx";
 
 export interface SpotFields {
   name: string;
@@ -24,6 +27,7 @@ export function SpotForm({
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const complete = f.name.trim() && f.link.trim();
+  const meeting = meetingLink(f.link);
   return (
     <form
       className="newspot"
@@ -49,18 +53,30 @@ export function SpotForm({
         />
       </label>
       <label className="field">
-        Google Maps link
+        Map or meeting link
         <input
           required
           value={f.link}
           onChange={(e) => setF({ ...f, link: e.target.value })}
-          placeholder="Paste a Maps link, or 41.0454, -73.6973"
+          placeholder="A Maps link, 41.0454, -73.6973, or a Zoom link"
           maxLength={2000}
         />
       </label>
-      <span className="tiny muted" style={{ marginTop: -8 }}>
-        In Google Maps: drop a pin (on the parking spot for rides and runs) → Share → Copy link.
-      </span>
+      {meeting ? (
+        <p className="online-note">
+          <VideoIcon size={20} />
+          <span>
+            <b>Online · {onlineService(meeting)}</b>
+            <br />
+            <span className="small muted">No map or weather. Activities here get a Join button.</span>
+          </span>
+        </p>
+      ) : (
+        <span className="tiny muted" style={{ marginTop: -8 }}>
+          In Google Maps: drop a pin (on the parking spot for rides and runs) → Share → Copy link. For an online
+          meet-up, paste the meeting link (Zoom, Google Meet, Teams…).
+        </span>
+      )}
       <label className="field">
         Notes (optional)
         <textarea

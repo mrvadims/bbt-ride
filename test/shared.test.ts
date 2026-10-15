@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import fallback from "../data/raw/om_purchase.json";
 import seed from "../data/seed.json";
 import { activityInput, activityUpdate, contactFields } from "../shared/api.ts";
-import { fold, icsCalendar } from "../shared/ics.ts";
+import { activityEvent, fold, icsCalendar } from "../shared/ics.ts";
 import { DEFAULT_KIT, kitAdvice, kitBand } from "../shared/kit.ts";
 import {
   cleanName,
@@ -13,10 +13,10 @@ import {
   plainMentions,
   splitMentions,
 } from "../shared/people.ts";
-import { parseLatLng, type Route, rideTimes } from "../shared/ride.ts";
+import { meetingLink, onlineService, parseLatLng, type Route, rideTimes } from "../shared/ride.ts";
 import { DEFAULT_SETTINGS as S, settingsProblem } from "../shared/settings.ts";
 import { activityIcon, ICON_KEYS, SPORT_ICON } from "../shared/sport-icons.ts";
-import { minPerMile, mphFromMinPerMile, rulesFor, SPORTS } from "../shared/sports.ts";
+import { minPerMile, mphFromMinPerMile, rulesFor, SPORTS, timedByRoute } from "../shared/sports.ts";
 import { fmtDur, fmtTime, isDate, nextWeekendDays, nyToUTC, weekendDates } from "../shared/time.ts";
 import {
   bikeFeel,
@@ -289,6 +289,57 @@ describe(".ics calendar", () => {
   });
 });
 
+describe("online places", () => {
+  it("tells a meeting link from a Maps link or coordinates", () => {
+    expect(meetingLink("https://us02web.zoom.us/j/8123?pwd=abc")).toBe("https://us02web.zoom.us/j/8123?pwd=abc");
+    expect(meetingLink(" https://meet.google.com/abc-defg-hij ")).toBe("https://meet.google.com/abc-defg-hij");
+    expect(meetingLink("https://maps.app.goo.gl/xyz")).toBeNull();
+    expect(meetingLink("https://www.google.com/maps/place/@41.04,-73.69,17z")).toBeNull();
+    expect(meetingLink("41.0454, -73.6973")).toBeNull();
+    expect(meetingLink("http://zoom.us/j/1")).toBeNull(); // https only
+    expect(meetingLink("https://user:pw@zoom.us/j/1")).toBeNull();
+    expect(meetingLink("javascript:alert(1)")).toBeNull();
+  });
+  it("names the service", () => {
+    expect(onlineService("https://us02web.zoom.us/j/1")).toBe("Zoom");
+    expect(onlineService("https://meet.google.com/x")).toBe("Google Meet");
+    expect(onlineService("https://teams.microsoft.com/l/meetup-join/x")).toBe("Teams");
+    expect(onlineService("https://example.webex.com/meet/x")).toBe("Webex");
+    expect(onlineService("https://zwift.com/events/1")).toBe("Online link");
+  });
+  it("links the meeting in a calendar event, without coordinates", () => {
+    const e = activityEvent({
+      id: "z",
+      sport: "ride",
+      name: "Trainer intervals",
+      date: "2026-11-04",
+      start: 1140,
+      end: 1200,
+      meet: false,
+      spot: {
+        name: "Zoom biking",
+        lat: 0,
+        lng: 0,
+        maps_url: "https://zoom.us/j/1",
+        note: "Passcode 4242",
+        online: true,
+      },
+      routes: [],
+      details: "",
+      notes: "",
+    });
+    expect(e.location).toBe("https://zoom.us/j/1");
+    expect(e.geo).toBeNull();
+    expect(e.details).toContain("Join Zoom biking: https://zoom.us/j/1");
+    expect(icsCalendar([e])).not.toContain("GEO:");
+  });
+  it("times online rides and runs like other sports", () => {
+    expect(timedByRoute("ride", false)).toBe(true);
+    expect(timedByRoute("ride", true)).toBe(false);
+    expect(timedByRoute("swim", false)).toBe(false);
+  });
+});
+
 describe("sports", () => {
   it("applies each sport's rules", () => {
     expect(rulesFor("ride", 17, S.warn)).toMatchObject({ pace: 17, road: true, lowLight: true, warn: S.warn.ride });
@@ -341,6 +392,15 @@ describe("activity input", () => {
     expect(activityInput.safeParse({ ...swim, endTime: "06:00" }).success).toBe(false);
     expect(activityInput.safeParse({ ...swim, endTime: null }).success).toBe(false);
     expect(activityInput.safeParse({ ...swim, routes: ride.routes }).success).toBe(false);
+  });
+  it("online: any sport has a start and an end, a route is optional, never outdoors", () => {
+    const zoom = { ...ride, online: true, routes: [], endTime: "09:30", pace: 0 };
+    expect(activityInput.parse(zoom)).toMatchObject({ endTime: "09:30", pace: 0, outdoor: false });
+    expect(activityInput.safeParse({ ...zoom, endTime: null }).success).toBe(false);
+    expect(activityInput.parse({ ...zoom, routes: ride.routes }).routes).toHaveLength(1);
+    expect(activityInput.parse({ ...zoom, details: "Watopia" }).details).toBe("Watopia");
+    expect(activityInput.safeParse({ ...swim, online: true, routes: ride.routes }).success).toBe(false);
+    expect(activityInput.parse({ ...swim, sport: "pickleball", online: true, outdoor: true }).outdoor).toBe(false);
   });
   it("stores fields that don't apply as empty", () => {
     const r = activityInput.parse({ ...ride, endTime: "11:00", outdoor: false, details: "2 courts" });
