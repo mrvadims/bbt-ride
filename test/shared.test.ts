@@ -457,6 +457,7 @@ describe("mentions", () => {
   });
   it("cleans names: invisible and direction-changing characters out, spaces collapsed", () => {
     expect(cleanName("  Jo\u202E kraP \u200B  Park\n")).toBe("Jo kraP Park");
+    for (const emoji of ["👨‍👩‍👧", "🏳️‍🌈", "👍🏽", "🏴󠁧󠁢󠁳󠁣󠁴󠁿"]) expect(cleanName(`Jo ${emoji}`)).toBe(`Jo ${emoji}`);
   });
   it("shows tokens as names, and unknown people as a former member", () => {
     const names = new Map(team.map((t) => [t.id, t.name]));

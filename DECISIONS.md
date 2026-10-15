@@ -99,6 +99,8 @@ Every open question from the design review, with what was decided. Details live 
 | Replace's notification | A cancellation by Replace is told to everyone with notifications on, like any other cancellation | 2026-10-14 |
 | Who sees contacts | Every member sees everyone's phone and emergency contact; only Admins see other people's roles; disabled members are hidden from Team and mentions (names kept for old mentions); the phone requirement is the app's, not the API's | 2026-10-14 |
 | Visit tracking | Only opening the activity page counts as a visit (its own request); reading it in Plan or the 30 s refresh doesn't | 2026-10-14 |
+| Game icons for Other | Chess (Material's knight), Cards (Material), Ping-pong (Tabler Icons, MIT, made solid to match), Billiards and Bowling (drawn to match). No emoji button: computers have their own picker (Windows + . / Control + Command + Space) | 2026-10-15 |
+| Garmin help | A help page, Routes on your Garmin, reached from Help in the account menu; no link on the activity page | 2026-10-15 |
 | HTTPS only | Every connection is HTTPS: Cloudflare redirects plain HTTP, the API refuses it, HSTS for a year with includeSubDomains (no preload), no cleartext in the Android app; calendar buttons keep `webcal:` links for simplicity | 2026-10-14 |
 | Prototype | The v1 HTML prototype is removed (it predated v2); it stays in git history | 2026-10-14 |
 

@@ -1,7 +1,8 @@
 // Sport icons (DESIGN.md → v2, Sport icons): Google Material Symbols, Rounded, weight 400 (Apache 2.0). Each sport has its own
 // icon; an Other activity can show any icon from ICONS instead (picked in Plan). The shapes are copied into
-// src/lib/icon-paths.ts by scripts/sport-icons.ts (Triathlon is put together there from Material's swim, bike and
-// run shapes); nothing loads from Google.
+// src/lib/icon-paths.ts by scripts/sport-icons.ts, which also holds the few Material lacks (Triathlon, put together from
+// its swim, bike and run shapes; Ping-pong, from Tabler Icons, MIT; Billiards and Bowling, drawn to match); nothing
+// loads from outside.
 import type { Sport } from "./sports.ts";
 
 /** The icons an Other activity can show, in picker order, with what each stands for. */
@@ -42,6 +43,11 @@ export const ICONS = {
   self_improvement: "Yoga",
   fitness_center: "Gym",
   paragliding: "Paraglide",
+  chess_knight: "Chess",
+  playing_cards: "Cards",
+  ping_pong: "Ping-pong",
+  billiards: "Billiards",
+  bowling: "Bowling",
   restaurant: "Meal",
   sports_bar: "Drinks",
   celebration: "Party",

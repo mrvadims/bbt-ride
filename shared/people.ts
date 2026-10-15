@@ -4,10 +4,11 @@
 export const FORMER_MEMBER = "Former member";
 export const firstName = (name: string | null | undefined) => (name ?? FORMER_MEMBER).split(" ")[0] ?? "";
 
-/** A name as stored: invisible and direction-changing characters removed, spaces collapsed. */
+/** A name as stored: invisible and direction-changing characters removed, spaces collapsed. The joiners that hold
+ * compound emoji together (👨‍👩‍👧, 🏳️‍🌈) and the tag characters of regional flags (🏴󠁧󠁢󠁳󠁣󠁴󠁿) stay. */
 export const cleanName = (name: string) =>
   name
-    .replace(/[\p{Cc}\p{Cf}]/gu, "")
+    .replace(/(?!\u200C|\u200D|[\u{E0020}-\u{E007F}])[\p{Cc}\p{Cf}]/gu, "")
     .trim()
     .replace(/\s+/g, " ");
 
