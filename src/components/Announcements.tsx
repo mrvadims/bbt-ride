@@ -5,7 +5,8 @@ import { useState } from "react";
 import type { Announcement, AnnouncementAdmin } from "../../shared/api.ts";
 import { dayLabel, nyNow } from "../../shared/time.ts";
 import { api } from "../lib/api.ts";
-import { useAnnouncements } from "../lib/data.ts";
+import { useAnnouncements, useMe } from "../lib/data.ts";
+import { Link } from "../lib/router.tsx";
 import { PersonButton } from "./Contact.tsx";
 import { Linkified } from "./Linkified.tsx";
 import { Panel } from "./Panel.tsx";
@@ -63,6 +64,11 @@ export function AnnouncementsPage() {
         <div className="kicker">From the team admins</div>
         <h1>Announcements</h1>
         <p className="muted small">The last 90 days, newest first.</p>
+        {useMe().data?.role === "admin" && (
+          <p className="small">
+            Admins: post, edit and see who got each one in <Link href="/settings">Settings → Announcements</Link>.
+          </p>
+        )}
       </div>
       {!list ? (
         <p className="muted small">Loading…</p>

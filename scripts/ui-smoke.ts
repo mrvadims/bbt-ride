@@ -466,10 +466,7 @@ await page
   .first()
   .waitFor();
 check(true, "announcements: posted from Settings, with how many got it");
-// The poster has seen their own; as someone who hasn't, the banner shows
-sql(
-  `delete from announcement_seen where announcement_id in (select id from announcements where title = 'Winter rides ${stamp}')`,
-);
+// The poster sees their own banner until Got it
 await page.getByLabel("BBT home").click();
 await page.reload();
 const banner = page.getByRole("region", { name: "Announcement" });
@@ -491,6 +488,7 @@ await page.getByRole("button", { name: "Account menu" }).click();
 await page.getByRole("link", { name: /Announcements/ }).click();
 await page.getByRole("heading", { name: "Announcements" }).waitFor();
 check(await page.getByText(`Winter rides ${stamp}`).isVisible(), "announcements: still on the Announcements page");
+await shot(page, "announcements-page");
 await page.getByRole("button", { name: "Account menu" }).click();
 await page.getByRole("link", { name: /What's new/ }).click();
 await page.getByRole("link", { name: /Private activities, announcements/ }).click();

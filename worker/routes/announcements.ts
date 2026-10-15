@@ -113,12 +113,7 @@ export const announcements = new Hono<AppEnv>()
         `insert into announcements (id, title, body, ends_on, created_by, created_at, updated_at)
          values (?, ?, ?, ?, ?, ?, ?)`,
       ).bind(id, title, body, endsOn, user.id, now, now),
-      // The person posting has seen it.
-      c.env.DB.prepare("insert into announcement_seen (announcement_id, user_id, at) values (?, ?, ?)").bind(
-        id,
-        user.id,
-        now,
-      ),
+      // The person posting sees the banner too, until they tap Got it: what members see, and proof it went out.
       audit(c.env.DB, user.id, "publish", "announcement", id, { title, endsOn, notify }),
     ]);
     if (notify) c.executionCtx.waitUntil(notifyTeam(c.env, title, body.slice(0, 300), "/announcements"));

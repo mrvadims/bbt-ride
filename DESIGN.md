@@ -297,7 +297,7 @@ Everything above is v1. Steps 1–3 below are built; where they differ, this sec
   - **Notifications:** a private activity only ever notifies the people invited (enforced where notifications are queued, whatever the reason; an activity that can't be found notifies no one, except the "Deleted" notice to the people who were going). Its "new activity" notification goes to them whatever sports they muted; people just invited get that rather than "Updated".
   - **Data:** `activities.private` and `activity_guests(activity_id, user_id)` (`0014_private.sql`). The server applies one rule, `visible()` in `worker/util.ts`, in every query that reads activities for a person; only notifications about an activity already in hand skip it, and they filter by guest list themselves.
 - **Announcements** (2026-10-15, designs on the "Announcements and virtual meet-ups" canvas): Admins post a message to the whole team from **Settings → Announcements**: a title (80 characters), a message (1,000; links are tappable), an optional last day, and **Also send a notification** (on by default; it goes to everyone with notifications on, and tapping it opens the Announcements page).
-  - **Banner:** under the top bar on every page (except the Announcements page itself), the newest active announcement the person hasn't tapped **Got it** on, with "1 of N" when there are more. Got it is remembered on the server per person (`announcement_seen`), so it clears on every device. The poster has seen their own. Someone who joins while one is active sees it too.
+  - **Banner:** under the top bar on every page (except the Announcements page itself), the newest active announcement the person hasn't tapped **Got it** on, with "1 of N" when there are more. Got it is remembered on the server per person (`announcement_seen`), so it clears on every device. The poster sees it too until they tap Got it. Someone who joins while one is active sees it too.
   - **Active** while not ended and its last day (New York) hasn't passed; without a last day it stays until each person taps Got it or an Admin taps **End now**.
   - **Announcements page** (account menu → Announcements, `/announcements`): the active ones and those from the last 90 days, newest first, with the date, who posted it and its last day.
   - **Admins' list:** Active and Past, each with "18 of 30 got it" (members who aren't disabled); tapping it lists who hasn't, with Call and Text. **Edit** fixes the title, message or last day without showing it again to those who already tapped Got it, and never notifies again; **End now** takes it off the banner (it stays on the page). Posting, editing and ending are audited.
@@ -404,6 +404,7 @@ Later (2026-10-15):
 0015_announcements.sql: announcements(id, title, body, ends_on NULL, ended_at NULL, created_by, created_at, updated_at);
   announcement_seen(announcement_id, user_id, at, PRIMARY KEY(announcement_id, user_id))  -- Got it; goes with either
 0016_online_places.sql: spots + online DEFAULT 0  -- an online place keeps its meeting link in maps_url, lat/lng 0
+0017_poster_sees_announcement.sql: drops the "seen" rows once added for an announcement's poster at posting time
 ```
 Step 2 (`0008_notify_calendar.sql`, built):
 ```
