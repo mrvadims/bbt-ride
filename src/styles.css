@@ -1841,9 +1841,11 @@ a.tile[aria-label="Open in RideWithGPS"] {
   display: grid;
   gap: 6px;
 }
-.help-checks li {
-  display: grid;
-  gap: 2px;
+.help-checks li > * {
+  display: block;
+}
+.help-checks li b {
+  margin-bottom: 2px;
 }
 .acctmenu .help-link {
   display: flex;
