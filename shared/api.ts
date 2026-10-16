@@ -32,7 +32,6 @@ export interface Me {
 export interface TeamMember {
   id: string;
   name: string;
-  role?: Role; // only for Admins: other people's roles are theirs to see
   active: boolean; // false: disabled; kept so mentions still show the name, but without contact details
   phone: string | null;
   emergencyName: string | null;
