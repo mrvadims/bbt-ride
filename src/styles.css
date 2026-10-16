@@ -1745,11 +1745,9 @@ a.tile[aria-label="Open in RideWithGPS"] {
   align-items: center;
   gap: 12px;
 }
-.contact-head > div {
+.contact-head h2 {
   flex: 1;
   min-width: 0;
-}
-.contact-head h2 {
   margin: 0;
   font-size: 18px;
   overflow-wrap: anywhere;

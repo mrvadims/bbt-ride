@@ -146,7 +146,7 @@ check(riderMe?.emergencyPhone === "+12035550177", "anyone updates their own cont
     "everyone sees the team directory, emergency contacts included, but not other people's roles",
   );
   const asAdmin = ((await admin("/api/team")).json as Json[]).find((m) => m.id === me.id);
-  check(asAdmin?.role === "admin", "Admins see roles in the directory");
+  check(asAdmin && !("role" in asAdmin), "the directory has no roles, even for Admins (they're in Settings → Users)");
 }
 await rider("/api/activities"); // the rider's markers start here: anything posted later is new to them
 check((await rider("/api/users")).status === 403, "rider can't list users");

@@ -2,7 +2,7 @@
 // contact card that Team and Who's in open.
 import { useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
-import { type ContactFields, contactFields, type Me, ROLE_LABEL, type TeamMember } from "../../shared/api.ts";
+import { type ContactFields, contactFields, type Me, type TeamMember } from "../../shared/api.ts";
 import { firstName, fmtPhone } from "../../shared/people.ts";
 import { api } from "../lib/api.ts";
 import { useMembers } from "../lib/data.ts";
@@ -148,10 +148,7 @@ export function ContactCard({ member, onClose }: { member: TeamMember; onClose: 
       <div className="contact-card">
         <div className="contact-head">
           <Initials name={m.name} />
-          <div>
-            <h2>{m.name}</h2>
-            {m.role && <span className="muted small">{ROLE_LABEL[m.role]}</span>}
-          </div>
+          <h2>{m.name}</h2>
           <button type="button" className="linkbtn" onClick={onClose}>
             Close
           </button>

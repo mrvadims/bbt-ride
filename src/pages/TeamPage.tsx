@@ -1,6 +1,6 @@
 // Team directory (DESIGN.md → Team and contacts): everyone on the team, with Call and Text; a row opens the contact card.
 import { useState } from "react";
-import { type Me, ROLE_LABEL, type TeamMember } from "../../shared/api.ts";
+import type { Me, TeamMember } from "../../shared/api.ts";
 import { fmtPhone } from "../../shared/people.ts";
 import { CallText, ContactCard, ContactForm, Initials } from "../components/Contact.tsx";
 import { Sheet } from "../components/Sheet.tsx";
@@ -43,10 +43,7 @@ export function TeamPage({ me }: { me: Me }) {
                     {m.name}
                     {m.id === me.id && <span className="muted"> (you)</span>}
                   </b>
-                  <span className="muted small">
-                    {m.role && m.role !== "view" && `${ROLE_LABEL[m.role]} · `}
-                    {m.phone ? fmtPhone(m.phone) : "No phone yet"}
-                  </span>
+                  <span className="muted small">{m.phone ? fmtPhone(m.phone) : "No phone yet"}</span>
                 </span>
               </button>
               {m.id === me.id ? (

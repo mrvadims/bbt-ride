@@ -258,7 +258,7 @@ Every `/api/*` route except health, the invite/reset link endpoints and the sign
 - Three roles: View (shown as Member), Edit, Admin, checked by `requireRole` middleware.
 - Private activities: one SQL rule, `visible()` in `worker/util.ts`, is applied in every query that reads activities for a person. Uninvited people (Admins included) get the same 404 as for a missing activity; each write repeats the check inside its D1 batch (`stillVisible`) to close the read-then-write race.
 - Notifications for a private activity reach only its guests, enforced in the queueing query; an activity that can't be found notifies no one (fail closed).
-- Only Admins see other members' roles and emails; everyone sees names, phones and emergency contacts (a team decision).
+- Only Admins see other members' roles and emails, in Settings → Users; the Team directory has no roles. Everyone sees names, phones and emergency contacts (a team decision).
 
 **Request hygiene**
 
@@ -424,7 +424,7 @@ All routes are under `https://app.bbt.team/api`, JSON in and out; "Session" mean
 | `/auth/*` | Public (Better Auth) | Sign-in (Google, email/username + password), sign-out, session |
 | `POST /links`, `POST /links/accept` | Valid invite or reset token | Read a link; create the account or set a new password |
 | `GET /me`, `PUT /me/contact`, `PUT /me/muted/:sport`, `POST /me/calendar`, `POST /me/calendar/reset` | Session | Own profile, contact details, sport mutes, calendar link |
-| `GET /team` | Session | Directory (roles only for Admins) |
+| `GET /team` | Session | Directory: names, phones, emergency contacts (no roles) |
 | `GET /activities`, `GET /activities/past`, `GET /activities/:id`, `POST /activities/:id/seen` | Session | Upcoming list with own answer and unread markers, History, detail, record a visit |
 | `POST /activities`, `PUT /activities/:id`, `POST /activities/:id/cancel`, `POST /activities/:id/restore` | Edit or Admin | Publish, update (guest list, Make public, Replace), cancel, restore |
 | `DELETE /activities/:id` | Creator (while Edit) or Admin | Delete for good |
