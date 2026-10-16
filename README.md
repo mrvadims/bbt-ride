@@ -3,6 +3,7 @@
 Planning and hyperlocal weather for the BBT team — rides, runs, swims, pickleball, ski days and more — app.bbt.team.
 
 - [DESIGN.md](DESIGN.md): scope, features, algorithms, data model, architecture.
+- [ARCHITECTURE.md](ARCHITECTURE.md): architecture for technical review, with diagrams, decisions, risks and future work.
 - [DECISIONS.md](DECISIONS.md): every design decision, with dates.
 - [SETUP.md](SETUP.md): accounts, tokens, secrets and the first deploy.
 - `public/privacy.html`: the public privacy page (served at `/privacy`).
