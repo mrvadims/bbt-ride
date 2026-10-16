@@ -229,7 +229,7 @@ The same path serves updates, cancellations, restores, deletes (`gone`), mention
 
 1. Calendar apps fetch `GET /api/cal/<user>.<version>.<signature>.ics` without a session.
 2. The Worker checks the HMAC signature and that the version matches the user's current feed version (resetting the link bumps the version, revoking old links).
-3. It loads activities with that user as the viewer, so private activities appear only for guests: the ones they are In for, from 14 days back plus upcoming, at most 100.
+3. It loads activities with that user as the viewer, so private activities appear only for guests: the ones they are In for, from 30 days back (`PAST_DAYS`) plus upcoming, at most 100.
 4. Events are built from stored data and the route cache only; no external call happens per feed request. Online activities use the meeting link as the location and have no geo.
 
 ### Weather and recorded weather
