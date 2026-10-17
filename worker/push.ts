@@ -106,6 +106,45 @@ export async function notifyActivity(
   if (jobs.length) await env.PUSH.sendBatch(jobs);
 }
 
+/** Queues a notification about a date poll for opted-in devices of the people it asks (not disabled). A private poll
+ * only ever reaches its guests, whatever the options say.
+ * - `to`: only these people (a nudge, a mention, those In or Maybe for the day planned), whatever sports they muted.
+ * - `sport` (without `to`): not people who muted it (a new poll).
+ * - `except`: not these people (its author). */
+export async function notifyPoll(
+  env: Env,
+  pollId: string,
+  title: string,
+  body: string,
+  opts: { to?: string[]; except?: string[]; sport?: Sport | null; url?: string } = {},
+): Promise<void> {
+  const web = Boolean(env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY);
+  const app = Boolean(env.FCM_SERVICE_ACCOUNT);
+  if (!web && !app) return;
+  if (opts.to?.length === 0) return;
+  const { results } = await env.DB.prepare(
+    `select p.endpoint, p.keys_json, p.kind from push_subscriptions p join "user" u on u.id = p.user_id
+     where coalesce(u.banned, 0) = 0 and (p.kind = 'web' and ?2 or p.kind = 'fcm' and ?3)
+       and exists (select 1 from date_polls d where d.id = ?1 and (d.private = 0
+            or exists (select 1 from date_poll_guests g where g.poll_id = d.id and g.user_id = p.user_id)))
+       and (?4 is null or p.user_id in (select value from json_each(?4)))
+       and p.user_id not in (select value from json_each(?5))
+       and (?4 is not null or ?6 is null
+            or not exists (select 1 from notify_off n where n.user_id = p.user_id and n.sport = ?6))`,
+  )
+    .bind(
+      pollId,
+      web ? 1 : 0,
+      app ? 1 : 0,
+      opts.to ? JSON.stringify(opts.to) : null,
+      JSON.stringify(opts.except ?? []),
+      opts.sport ?? null,
+    )
+    .all<Sub>();
+  const jobs = batches(results, JSON.stringify({ title, body, url: opts.url ?? `/polls/${pollId}` }));
+  if (jobs.length) await env.PUSH.sendBatch(jobs);
+}
+
 /** Queue jobs of up to BATCH devices each for one notification. */
 const batches = (subs: Sub[], data: string): { body: PushJob }[] => {
   const devices = subs.map(({ endpoint, keys_json, kind }) => ({ endpoint, keys_json, kind }));

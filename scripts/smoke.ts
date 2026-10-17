@@ -981,6 +981,188 @@ check((await creator.c(`/api/activities/${pid}`, { method: "DELETE" })).status =
   );
 }
 
+// Date polls (DESIGN.md → Date polls): rules, answers, Not yet, Nudge, messages, the private access matrix, Plan this.
+{
+  const t0 = nyNow().date;
+  const d1 = addDays(t0, 30 + Math.floor(Math.random() * 200));
+  const o = (from: string, days = 1) => ({ startsOn: from, endsOn: addDays(from, days - 1) });
+  const body = {
+    title: `Gunks ${stamp}`,
+    note: "Two days of climbing",
+    sport: "ride",
+    options: [o(d1, 2), o(addDays(d1, 7), 2), o(addDays(d1, 14))],
+  };
+  check((await guest.c("/api/polls", { body })).status === 403, "polls: a Member can't start one (Editors only)");
+  const refused = await Promise.all(
+    [
+      { ...body, options: [o(addDays(t0, -1))] },
+      { ...body, options: [o(addDays(t0, 366))] },
+      { ...body, options: [o(d1, 5)] },
+      { ...body, options: Array.from({ length: 15 }, (_, i) => o(addDays(d1, i))) },
+      { ...body, closesOn: addDays(d1, 30) },
+      { ...body, title: " " },
+    ].map((b) => creator.c("/api/polls", { body: b }).then((r) => r.status)),
+  );
+  check(
+    refused.every((s) => s === 400),
+    `polls: refuses past dates, beyond a year, blocks over 4 days, over 14 options, closing after the last date, no title (${refused.join(",")})`,
+  );
+  const pub = await creator.c("/api/polls", { body });
+  const poll = pub.json;
+  check(
+    pub.status === 201 && poll.options.length === 3 && poll.closesOn === addDays(d1, -1) && poll.open && !poll.private,
+    "polls: started for everyone; answers close the day before the first date",
+  );
+  const [a, b] = poll.options as Json[];
+  const answer = (c: typeof admin, answers: Json[], note?: string | null) =>
+    c(`/api/polls/${poll.id}/answers`, { method: "PUT", body: note === undefined ? { answers } : { answers, note } });
+  let r = await answer(guest.c, [
+    { optionId: a.id, status: "in", note: "after 9" },
+    { optionId: b.id, status: "maybe" },
+  ]);
+  check(
+    r.status === 200 &&
+      r.json.options[0].answers.some((x: Json) => x.userId === guest.id && x.status === "in" && x.note === "after 9") &&
+      r.json.options[1].answers.some((x: Json) => x.userId === guest.id && x.status === "maybe"),
+    "polls: a Member answers In with a note, and Maybe",
+  );
+  await answer(outsider.c, [
+    { optionId: a.id, status: "in" },
+    { optionId: b.id, status: "out" },
+  ]);
+  r = await answer(guest.c, [{ optionId: b.id, status: null }], "Away Nov 5");
+  check(
+    !r.json.options[1].answers.some((x: Json) => x.userId === guest.id) &&
+      r.json.notes.some((n: Json) => n.userId === guest.id && n.note === "Away Nov 5"),
+    "polls: an answer can be cleared; a note on the whole poll is kept",
+  );
+  check(
+    (await answer(guest.c, [{ optionId: "no-such-option", status: "in" }])).status === 400,
+    "polls: an answer must be for one of its own dates",
+  );
+  check(
+    r.json.answeredCount === 2 &&
+      r.json.notYet.some((p: Json) => p.userId === creator.id) &&
+      !r.json.notYet.some((p: Json) => p.userId === guest.id),
+    "polls: Not yet lists the people asked who haven't answered",
+  );
+  const listed = ((await outsider.c("/api/polls")).json as Json[]).find((p) => p.id === poll.id);
+  check(listed?.answered === true && listed.answeredCount === 2, "polls: listed for everyone, with who answered");
+  const nudge = (c: typeof admin) => c(`/api/polls/${poll.id}/nudge`, { method: "POST" }).then((x) => x.status);
+  check(
+    (await nudge(guest.c)) === 403 && (await nudge(creator.c)) === 200 && (await nudge(admin)) === 200,
+    "polls: its creator or an Admin can nudge, a Member can't",
+  );
+  const posted = await outsider.c(`/api/polls/${poll.id}/messages`, { body: { body: `Carpool? <@${guest.id}>` } });
+  const pm = posted.json?.messages?.at(-1)?.id as string;
+  check(posted.status === 201 && Boolean(pm), "polls: anyone asked can post in its thread");
+  check(
+    (
+      await outsider.c(`/api/messages/${pm}`, { method: "PATCH", body: { body: "Carpool from Rye?" } })
+    ).json?.messages?.at(-1)?.body === "Carpool from Rye?",
+    "polls: the author edits a message, and the poll comes back",
+  );
+  check(
+    (await guest.c(`/api/messages/${pm}`, { method: "DELETE" })).status === 403 &&
+      (await creator.c(`/api/messages/${pm}`, { method: "DELETE" })).status === 200,
+    "polls: a Member can't delete someone else's message; an Editor can",
+  );
+  check(
+    (await guest.c(`/api/polls/${poll.id}/seen`, { method: "POST" })).status === 200,
+    "polls: opening it records the visit",
+  );
+  const edit = { title: "Gunks weekend", note: "", closesOn: poll.closesOn };
+  check(
+    (await guest.c(`/api/polls/${poll.id}`, { method: "PUT", body: edit })).status === 403 &&
+      (await creator.c(`/api/polls/${poll.id}`, { method: "PUT", body: edit })).json?.title === "Gunks weekend",
+    "polls: only its creator or an Admin edits it",
+  );
+
+  // A private poll: the people picked see it; anyone else, Admins included, gets 404 everywhere.
+  check(
+    (await creator.c("/api/polls", { body: { ...body, guests: [] } })).status === 400 &&
+      (await creator.c("/api/polls", { body: { ...body, guests: [riderRow.id] } })).status === 400,
+    "polls: a private poll needs someone picked who's on the team",
+  );
+  const privPoll = await creator.c("/api/polls", {
+    body: { ...body, title: `Secret poll ${stamp}`, guests: [guest.id, coEditor.id] },
+  });
+  const sp = privPoll.json;
+  check(
+    privPoll.status === 201 && sp.private === true && sp.guests.length === 3 && sp.askedCount === 3,
+    "polls: private, the creator added to the people picked",
+  );
+  const sa = sp.options[0] as Json;
+  const statuses = (c: typeof admin) =>
+    Promise.all([
+      c(`/api/polls/${sp.id}`),
+      c(`/api/polls/${sp.id}/answers`, { method: "PUT", body: { answers: [{ optionId: sa.id, status: "in" }] } }),
+      c(`/api/polls/${sp.id}/messages`, { body: { body: "hi" } }),
+      c(`/api/polls/${sp.id}/seen`, { method: "POST" }),
+      c(`/api/polls/${sp.id}/nudge`, { method: "POST" }),
+      c(`/api/polls/${sp.id}`, { method: "PUT", body: { title: "x", note: "", closesOn: sp.closesOn } }),
+      c(`/api/polls/${sp.id}/close`, { method: "POST" }),
+      c(`/api/polls/${sp.id}`, { method: "DELETE" }),
+    ]).then((rs) => rs.map((x) => x.status));
+  for (const [who, c] of [
+    ["an uninvited Admin", admin],
+    ["an uninvited Editor", outEditor.c],
+    ["an uninvited Member", outsider.c],
+  ] as const) {
+    const got = await statuses(c);
+    check(
+      got.every((s) => s === 404) && !((await c("/api/polls")).json as Json[]).some((p) => p.id === sp.id),
+      `polls: private, ${who} gets 404 on every route and doesn't see it listed (${got.join(",")})`,
+    );
+  }
+  check((await guest.c(`/api/polls/${sp.id}`)).status === 200, "polls: private, a person picked sees it");
+  const spm = (await guest.c(`/api/polls/${sp.id}/messages`, { body: { body: "secret note" } })).json.messages.at(-1)
+    .id as string;
+  check(
+    (await admin(`/api/messages/${spm}`, { method: "DELETE" })).status === 404 &&
+      (await outsider.c(`/api/messages/${spm}`, { method: "PATCH", body: { body: "x" } })).status === 404,
+    "polls: private, its messages are 404 to people not picked, Admins included",
+  );
+
+  // Plan this: publishing from an option links the activity and closes the poll.
+  check(
+    (await creator.c("/api/activities", { body: { ...pickle, date: a.startsOn, pollId: sp.id, pollOptionId: a.id } }))
+      .status === 400,
+    "polls: Plan this needs one of that poll's own dates",
+  );
+  check(
+    (
+      await outEditor.c("/api/activities", {
+        body: { ...pickle, date: sa.startsOn, pollId: sp.id, pollOptionId: sa.id },
+      })
+    ).status === 404,
+    "polls: Plan this from a private poll you can't see is refused",
+  );
+  const planned = await creator.c("/api/activities", {
+    body: { ...pickle, title: `From poll ${stamp}`, date: a.startsOn, pollId: poll.id, pollOptionId: a.id },
+  });
+  check(
+    planned.status === 201 && planned.json.fromPoll?.id === poll.id,
+    "polls: Plan this publishes an activity that links back to the poll",
+  );
+  const after = (await guest.c(`/api/polls/${poll.id}`)).json;
+  check(
+    after.activityId === planned.json.id && after.open === false && after.activityTitle === `From poll ${stamp}`,
+    "polls: …and the poll closes, linked to the activity",
+  );
+  check(
+    (await answer(guest.c, [{ optionId: a.id, status: "out" }])).status === 409,
+    "polls: a closed poll takes no answers",
+  );
+  check(
+    (await coEditor.c(`/api/polls/${sp.id}`, { method: "DELETE" })).status === 403 &&
+      (await creator.c(`/api/polls/${sp.id}`, { method: "DELETE" })).status === 204 &&
+      (await guest.c(`/api/polls/${sp.id}`)).status === 404 &&
+      (await guest.c(`/api/messages/${spm}`, { method: "PATCH", body: { body: "x" } })).status === 404,
+    "polls: only its creator or an Admin deletes it; then it and its messages are gone",
+  );
+}
+
 // Rate limit on password sign-in
 const brute = client();
 const codes: number[] = [];

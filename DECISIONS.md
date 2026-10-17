@@ -109,6 +109,7 @@ Every open question from the design review, with what was decided. Details live 
 | Prototype | The v1 HTML prototype is removed (it predated v2); it stays in git history | 2026-10-14 |
 | Roles in Team | Team list and contact cards show no roles, for Admins too; roles stay in Settings → Users, and `GET /api/team` no longer returns them | 2026-10-16 |
 | Message threads | One `messages` table keyed by thread; a thread per owner (activity now, date polls next) with one nullable owner column per kind, so deleting an owner cascades; chosen over a generic owner pair (no foreign keys) and over mapping tables per owner (orphaned threads on delete, extra joins). Messages are their own panel below Who's in, open by default, previewing the latest while closed | 2026-10-17 |
+| Date polls | Editors and Admins ask which date works: up to 14 options, single days or 2–4-day blocks, within 12 months; In / Maybe / Out per option with notes; Everyone or Picked people (private like activities, Admins included); results visible to everyone asked; Nudge; Plan this links the activity and closes the poll; each poll has a message thread; named "Date poll" (not "Who's in", which is the RSVP panel) | 2026-10-17 |
 | Compact activity page | With every panel collapsed, a typical activity fits a 390 × 760 phone (iPhone 13–16, common Androids) without scrolling, checked by the browser smoke test; small phones and pages with banners or several warnings may scroll | 2026-10-17 |
 
 ## Notes

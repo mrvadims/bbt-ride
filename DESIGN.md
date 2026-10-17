@@ -348,6 +348,20 @@ The v1 algorithms stay; what changes is which feel and which warnings apply. Thr
 
 Every group has the same thresholds (cold, heat, wind, gusts, rain chance and amount) plus thunder and NWS alerts; `rulesFor` in `shared/sports.ts` picks the feel, the extras and the thresholds. Ride keeps v1's thresholds. The others start with first-guess defaults (Run: cold below 30 / 15 °F, heat 82 / 90 °F, wind 18 / 25 mph, rain 50 / 80 %; Ski: cold below 5 / −10 °F; Other outdoor: cold below 45 / 35 °F), to be tuned like v1's. Settings → Weather warnings edits one group at a time. The weather window is start → end (or Back about). The kit chart stays ride-only. Recorded weather on past activities works for every outdoor activity.
 
+### Date polls (2026-10-17, "Check dates" canvas, renamed Date poll)
+
+Before planning, an Editor or Admin can ask which date works: Plan has two tabs, **Plan an activity** and **Date poll**.
+- **A poll:** a title, an optional sport (icon, and who's notified) and note, and up to **14 options**, each a **single day** or a **block of 2–4 days** (a weekend trip), picked on a month calendar, from today up to **12 months** ahead; they needn't be next to each other (three separate weekends). **+ Next weekend** adds the next Saturday–Sunday.
+- **Who's asked:** **Everyone** (notified unless they muted its sport) or **Picked people** (only they and its creator see it, Admins included, like a private activity; all are notified).
+- **Answers close** by default the day before the first option (never before today), and no later than its last day.
+- **Answering:** **In / Maybe / Out** for each option, tapping again clears it, with an optional note each (140 characters; "Saturday only" on a block); **Can't make any of these** marks them all Out; one note on the whole poll. Saved as you tap; changeable until answers close.
+- **Results:** everyone asked sees them. Options are ranked by In, then Maybe, then date; the best is highlighted with who's In, Maybe and Out and their notes. **N of M answered** lists who hasn't yet (the first 12, then "+N more"); its creator or an Admin can **Nudge** them (one notification).
+- **Plan this** (Editors and Admins, on any option): opens Plan filled in with the title, sport, the option's first day and, for a private poll, its people. Publishing links the activity to the poll, closes it, and tells the people In or Maybe for that option ("Planned: …"); the activity shows "From the date poll …".
+- **Messages:** each poll has its own thread (the same Messages panel), for everyone asked; @mentions notify.
+- **Manage:** its creator or an Admin can edit the title, note and closing date, close answers early, or delete it (with its answers and messages).
+- **Where:** an open poll you haven't answered is a card at the top of Home (**Answer**); once answered it's a row under **Open date polls** below the list; **All date polls** (/polls) lists open ones and those from the last 120 days.
+- **Data** (`0019_date_polls.sql`): `date_polls`, `date_poll_guests`, `date_poll_options`, `date_poll_answers`, `date_poll_notes`; `threads.poll_id` (each poll's thread, made by a trigger); `thread_seen` (when each person last read a thread, for a poll's "new" messages). The same migration drops `messages_v1`.
+
 ### Calendar link
 Each person can subscribe their own calendar (Apple, Google, Outlook) to a private feed of everything they're **In** for: upcoming activities plus the last 30 days, with changes and cancellations (shown as cancelled) updating the events by themselves. It needs no app and no calendar permission, so it works on every phone and computer.
 - **Where:** the account menu (**Apple Calendar · Google Calendar · Copy link · Reset link**), the Calendar tile on an activity ("Or subscribe to your BBT calendar"), and the Welcome sheet (Android app, iPhone Home Screen app). The link is made the first time someone asks for it. The one-off **Add this activity** (.ics, Google, Outlook links) stays.

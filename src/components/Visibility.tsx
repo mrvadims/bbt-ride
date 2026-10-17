@@ -9,12 +9,14 @@ export function Visibility({
   meId,
   creatorId,
   original,
+  poll = false,
 }: {
   guests: string[] | null; // null: public
   onChange: (guests: string[] | null) => void;
   meId: string;
   creatorId: string | null; // editing: the creator, who stays invited; a new plan: the editor
   original: string[] | null; // editing a private activity: its saved guest list (else null: it's new)
+  poll?: boolean; // a date poll's "Who's asked": Everyone or Picked people
 }) {
   const members = useMembers().data ?? [];
   const [q, setQ] = useState("");
@@ -45,21 +47,27 @@ export function Visibility({
   return (
     <div className="vis">
       {!editing && (
-        <div role="radiogroup" aria-label="Visibility">
+        <div role="radiogroup" aria-label={poll ? "Who's asked" : "Visibility"}>
           <label className="radio">
             <input type="radio" name="visibility" checked={guests === null} onChange={() => onChange(null)} />
             <span>
-              <b>Public</b>
+              <b>{poll ? "Everyone" : "Public"}</b>
               <br />
-              <span className="small muted">The whole team sees it.</span>
+              <span className="small muted">
+                {poll ? "The whole team, notified unless they muted its sport." : "The whole team sees it."}
+              </span>
             </span>
           </label>
           <label className="radio">
             <input type="radio" name="visibility" checked={guests !== null} onChange={() => onChange(chosen)} />
             <span>
-              <b>Private</b>
+              <b>{poll ? "Picked people" : "Private"}</b>
               <br />
-              <span className="small muted">Only the people you invite see it, and they're notified.</span>
+              <span className="small muted">
+                {poll
+                  ? "Only they see it, and they're notified."
+                  : "Only the people you invite see it, and they're notified."}
+              </span>
             </span>
           </label>
         </div>
@@ -89,8 +97,8 @@ export function Visibility({
           </div>
           <input
             type="search"
-            aria-label="Invite people"
-            placeholder="Invite people"
+            aria-label={poll ? "Pick people" : "Invite people"}
+            placeholder={poll ? "Pick people" : "Invite people"}
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
@@ -106,10 +114,12 @@ export function Visibility({
               <span className="small muted">No one matches.</span>
             )}
           </div>
-          <p className="tiny muted">
-            People you invite are notified{editing ? "; people you remove stop seeing it" : ""}. Editors you invite can
-            edit it too.
-          </p>
+          {!poll && (
+            <p className="tiny muted">
+              People you invite are notified{editing ? "; people you remove stop seeing it" : ""}. Editors you invite
+              can edit it too.
+            </p>
+          )}
           {editing && (
             <button type="button" className="btn btn-outline btn-sm" onClick={() => onChange(null)}>
               Make public

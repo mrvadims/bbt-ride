@@ -1,17 +1,17 @@
 // Message threads (DESIGN.md → Messages, migrations/0018_threads.sql): every message belongs to a thread, and every thread
-// to one owner. Owners today: activities. A new owner kind adds a nullable column on threads, a trigger that makes the
+// to one owner. Owners today: activities and date polls. A new owner kind adds a nullable column on threads, a trigger that makes the
 // thread when the owner is inserted, and an entry in OWNER below; who may read and post stays with the owner's route,
 // which checks it before calling these.
 import type { Message } from "../shared/api.ts";
 import { newId, nowIso } from "./util.ts";
 
-export type OwnerKind = "activity";
+export type OwnerKind = "activity" | "poll";
 export interface Owner {
   kind: OwnerKind;
   id: string;
 }
 /** The threads column that points at each kind of owner (constants only: these go into SQL). */
-const OWNER = { activity: "activity_id" } as const satisfies Record<OwnerKind, string>;
+const OWNER = { activity: "activity_id", poll: "poll_id" } as const satisfies Record<OwnerKind, string>;
 
 /** SQL joining a message `m` to its thread `t`, for queries that filter by owner (`t.activity_id = …`). */
 export const MESSAGES_OF = "messages m join threads t on t.id = m.thread_id";
@@ -85,3 +85,22 @@ export const deleteThread = (db: D1Database, owner: Owner) => {
     db.prepare(`delete from threads where ${col} = ?`).bind(owner.id),
   ];
 };
+
+/** When the viewer last read the owner's thread (null: never), and now records this visit. */
+export async function readThread(db: D1Database, owner: Owner, viewer: string): Promise<string | null> {
+  const col = OWNER[owner.kind];
+  const [prev] = await db.batch([
+    db
+      .prepare(
+        `select s.seen_at from thread_seen s join threads t on t.id = s.thread_id where t.${col} = ? and s.user_id = ?`,
+      )
+      .bind(owner.id, viewer),
+    db
+      .prepare(
+        `insert into thread_seen (thread_id, user_id, seen_at) select t.id, ?, ? from threads t where t.${col} = ?
+         on conflict (thread_id, user_id) do update set seen_at = excluded.seen_at`,
+      )
+      .bind(viewer, nowIso(), owner.id),
+  ]);
+  return (prev?.results?.[0] as { seen_at: string } | undefined)?.seen_at ?? null;
+}

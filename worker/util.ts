@@ -44,3 +44,8 @@ export function audit(
  * only the people invited, its creator among them. Admins are no exception. */
 export const visible = (param = "?") =>
   `(a.private = 0 or exists (select 1 from activity_guests g where g.activity_id = a.id and g.user_id = ${param}))`;
+
+/** Who may see a date poll (table alias p, the viewer's id bound to `param`): everyone if it's for the whole team; if
+ * it's private, only the people picked, its creator among them. Admins are no exception. */
+export const pollVisible = (param = "?") =>
+  `(p.private = 0 or exists (select 1 from date_poll_guests g where g.poll_id = p.id and g.user_id = ${param}))`;
