@@ -6,6 +6,7 @@ import { fmtStamp, nyNow } from "../../shared/time.ts";
 import { ActionRow, ActivityBody, ActivityHeader } from "../components/ActivityBody.tsx";
 import { History } from "../components/History.tsx";
 import { LevelIcon } from "../components/icons.tsx";
+import { MessagesPanel } from "../components/Messages.tsx";
 import { WhoIsIn } from "../components/WhoIsIn.tsx";
 import { useActivityModel } from "../lib/activityModel.ts";
 import { api } from "../lib/api.ts";
@@ -14,6 +15,7 @@ import { Link, navigate } from "../lib/router.tsx";
 
 function View({ act, me, since }: { act: ActivityDetail; me: Me; since?: string | null }) {
   const [routeIndex, setRouteIndex] = useState(0);
+  const qc = useQueryClient();
   const m = useActivityModel(act, routeIndex);
   const past = act.date < nyNow().date;
   const editor = me.role !== "view";
@@ -39,7 +41,7 @@ function View({ act, me, since }: { act: ActivityDetail; me: Me; since?: string 
           <LevelIcon level={2} />
           <div>
             <b>Cancelled</b>
-            <span>{act.messages.findLast((x) => x.kind === "cancel")?.body ?? ""} See Who's in for messages.</span>
+            <span>{act.messages.findLast((x) => x.kind === "cancel")?.body ?? ""} See Messages below.</span>
           </div>
         </div>
       ) : (
@@ -62,7 +64,24 @@ function View({ act, me, since }: { act: ActivityDetail; me: Me; since?: string 
         mode={past ? "past" : "upcoming"}
         routeIndex={routeIndex}
         onRouteIndex={setRouteIndex}
-        people={<WhoIsIn act={act} me={me} past={past} since={since} />}
+        people={<WhoIsIn act={act} me={me} past={past} />}
+        messages={
+          <MessagesPanel
+            id="messages"
+            messages={act.messages}
+            me={me}
+            canPost={!past && act.status === "published"}
+            past={past}
+            postPath={`/activities/${act.id}/messages`}
+            onData={(data) => {
+              qc.setQueryData(["activity", act.id], data as ActivityDetail);
+              qc.invalidateQueries({ queryKey: ["activities"] });
+            }}
+            only={act.private ? act.guests.map((g) => g.userId) : undefined}
+            group={act.private}
+            since={since}
+          />
+        }
         history={<History act={act} id="history" />}
       />
     </>

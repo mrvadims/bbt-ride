@@ -108,6 +108,7 @@ Every open question from the design review, with what was decided. Details live 
 | HTTPS only | Every connection is HTTPS: Cloudflare redirects plain HTTP, the API refuses it, HSTS for a year with includeSubDomains (no preload), no cleartext in the Android app; calendar buttons keep `webcal:` links for simplicity | 2026-10-14 |
 | Prototype | The v1 HTML prototype is removed (it predated v2); it stays in git history | 2026-10-14 |
 | Roles in Team | Team list and contact cards show no roles, for Admins too; roles stay in Settings → Users, and `GET /api/team` no longer returns them | 2026-10-16 |
+| Message threads | One `messages` table keyed by thread; a thread per owner (activity now, date polls next) with one nullable owner column per kind, so deleting an owner cascades; chosen over a generic owner pair (no foreign keys) and over mapping tables per owner (orphaned threads on delete, extra joins). Messages are their own panel below Who's in, open by default, previewing the latest while closed | 2026-10-17 |
 
 ## Notes
 - **Nearest spot.** Use the route's first track point to find the nearest start spot (the seed file's RWGPS start point differs by about 45 m).

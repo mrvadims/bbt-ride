@@ -153,6 +153,25 @@ await page.getByRole("button", { name: "Who's in", exact: true }).click();
 await page.getByPlaceholder(/Message the team/).fill("See you at 8:30! Parking: https://example.com/lot.");
 await page.getByRole("button", { name: "Send" }).click();
 await page.getByText("See you at 8:30!").waitFor();
+{
+  const panelOf = (name: string) =>
+    page.locator("section.panel", { has: page.getByRole("button", { name, exact: true }) });
+  check(
+    !(await panelOf("Who's in")
+      .getByPlaceholder(/Message the/)
+      .count()) &&
+      (await panelOf("Messages")
+        .getByPlaceholder(/Message the/)
+        .count()) === 1,
+    "messages are their own panel, below Who's in",
+  );
+  await page.getByRole("button", { name: "Messages", exact: true }).click();
+  check(
+    (await panelOf("Messages").locator(".msg-latest").textContent())?.includes("See you at 8:30!") === true,
+    "a closed Messages panel shows the latest message",
+  );
+  await page.getByRole("button", { name: "Messages", exact: true }).click();
+}
 check(
   (await page.getByRole("link", { name: "https://example.com/lot" }).getAttribute("href")) ===
     "https://example.com/lot",
@@ -250,7 +269,7 @@ const pkUrl = page.url();
   const rideId = rideUrl.split("/a/")[1];
   const now = new Date().toISOString();
   sql(
-    `insert into "user" (id, name, email, emailVerified, createdAt, updatedAt, role, phone) values ('mate-${stamp}', 'Teammate ${stamp}', 'mate-${stamp}@example.test', 1, '${now}', '${now}', 'view', '+12035550119'); insert into messages (id, activity_id, kind, user_id, body, created_at) values ('msg-${stamp}', '${rideId}', 'user', 'mate-${stamp}', 'Count me in', '${new Date(Date.now() + 1000).toISOString()}')`,
+    `insert into "user" (id, name, email, emailVerified, createdAt, updatedAt, role, phone) values ('mate-${stamp}', 'Teammate ${stamp}', 'mate-${stamp}@example.test', 1, '${now}', '${now}', 'view', '+12035550119'); insert into messages (id, thread_id, kind, user_id, body, created_at) select 'msg-${stamp}', id, 'user', 'mate-${stamp}', 'Count me in', '${new Date(Date.now() + 1000).toISOString()}' from threads where activity_id = '${rideId}'`,
   );
   await page.getByLabel("BBT home").click();
   const card = page.locator(`a.arow[href="/a/${rideId}"]`);

@@ -420,6 +420,7 @@ export function ActivityBody(props: {
   routeIndex: number;
   onRouteIndex?: (i: number) => void;
   people?: ReactNode;
+  messages?: ReactNode; // the Messages panel, after Who's in
   history?: ReactNode; // the quiet History panel, last
 }) {
   const { act, model: m, mode } = props;
@@ -609,6 +610,7 @@ export function ActivityBody(props: {
         {weather}
         {notes}
         {props.people}
+        {props.messages}
         {props.history}
       </div>
     </>

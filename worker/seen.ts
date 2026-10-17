@@ -3,6 +3,7 @@
 // existed when markers started counts as seen.
 import type { Unseen } from "../shared/api.ts";
 import { firstName } from "../shared/people.ts";
+import { MESSAGES_OF } from "./threads.ts";
 import { nowIso, sameBatch, visible } from "./util.ts";
 
 /** The person's baseline, made the first time they're asked about. */
@@ -30,7 +31,7 @@ export async function markers(db: D1Database, userId: string, today: string): Pr
       .bind(userId, since, today),
     db
       .prepare(
-        `select m.activity_id, u.name from messages m join activities a on a.id = m.activity_id
+        `select t.activity_id, u.name from ${MESSAGES_OF} join activities a on a.id = t.activity_id
          left join "user" u on u.id = m.user_id
          where a.date >= ?3 and ${shown} and m.kind = 'user' and m.deleted_at is null and m.user_id is not ?1 and m.created_at > ${seen}
          order by m.created_at`,
@@ -38,7 +39,7 @@ export async function markers(db: D1Database, userId: string, today: string): Pr
       .bind(userId, since, today),
     db
       .prepare(
-        `select m.activity_id, m.kind, m.body, m.created_at from messages m join activities a on a.id = m.activity_id
+        `select t.activity_id, m.kind, m.body, m.created_at from ${MESSAGES_OF} join activities a on a.id = t.activity_id
          where a.date >= ?3 and ${shown} and m.kind != 'user' and m.created_at > ${seen} order by m.created_at`,
       )
       .bind(userId, since, today),

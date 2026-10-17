@@ -24,6 +24,15 @@ import { dayLabel, fmtTime, hhmmToMin, nyNow } from "../../shared/time.ts";
 import { type AppEnv, can, requireRole, type SessionUser } from "../app.ts";
 import { notifyActivity } from "../push.ts";
 import { markers, visit } from "../seen.ts";
+import {
+  checkParent,
+  deleteThread,
+  MESSAGES_OF,
+  type MessageRow,
+  messageOf,
+  postMessage,
+  threadMessages,
+} from "../threads.ts";
 import { audit, fail, newId, nowIso, sameBatch, visible } from "../util.ts";
 import { validate } from "../validate.ts";
 import { loadSettings } from "./settings.ts";
@@ -105,14 +114,14 @@ export async function summaries(
       .bind(...binds),
     db
       .prepare(
-        `select activity_id, count(*) as n from messages where activity_id in (${marks}) and deleted_at is null
-         group by activity_id`,
+        `select t.activity_id, count(*) as n from ${MESSAGES_OF} where t.activity_id in (${marks}) and m.deleted_at is null
+         group by t.activity_id`,
       )
       .bind(...binds),
     db
       .prepare(
-        `select activity_id, body, created_at from messages m where activity_id in (${marks}) and kind = 'update'
-         and created_at = (select max(created_at) from messages where activity_id = m.activity_id and kind = 'update')`,
+        `select t.activity_id, m.body, m.created_at from ${MESSAGES_OF} where t.activity_id in (${marks}) and m.kind = 'update'
+         and m.created_at = (select max(created_at) from messages where thread_id = m.thread_id and kind = 'update')`,
       )
       .bind(...binds),
   ]);
@@ -154,18 +163,6 @@ export async function summaries(
   });
 }
 
-interface MessageRow {
-  id: string;
-  parent_id: string | null;
-  kind: Message["kind"];
-  user_id: string | null;
-  name: string | null;
-  body: string;
-  created_at: string;
-  edited_at: string | null;
-  deleted_at: string | null;
-}
-
 /** The activity, if the viewer may see it; else 404. */
 async function load(db: D1Database, viewer: string, id: string): Promise<Activity> {
   const [act] = await summaries(db, viewer, "a.id = ?", [id]);
@@ -188,13 +185,7 @@ async function detail(db: D1Database, viewer: string, id: string): Promise<Activ
       )
       .bind(id)
       .all<{ user_id: string; name: string; status: "in" | "out"; route_label: string | null }>(),
-    db
-      .prepare(
-        `select m.id, m.parent_id, m.kind, m.user_id, u.name, m.body, m.created_at, m.edited_at, m.deleted_at
-         from messages m left join "user" u on u.id = m.user_id where m.activity_id = ? order by m.created_at`,
-      )
-      .bind(id)
-      .all<MessageRow>(),
+    threadMessages(db, { kind: "activity", id }).all<MessageRow>(),
     db
       .prepare(`select a.created_at, u.name from activities a left join "user" u on u.id = a.created_by where a.id = ?`)
       .bind(id)
@@ -214,19 +205,7 @@ async function detail(db: D1Database, viewer: string, id: string): Promise<Activ
     rsvps: rsvps.results.map(
       (v): Rsvp => ({ userId: v.user_id, name: v.name, status: v.status, routeLabel: v.route_label }),
     ),
-    messages: messages.results.map(
-      (m): Message => ({
-        id: m.id,
-        parentId: m.parent_id,
-        kind: m.kind,
-        authorId: m.user_id,
-        authorName: m.name,
-        body: m.deleted_at ? "" : m.body,
-        createdAt: m.created_at,
-        editedAt: m.edited_at,
-        deleted: Boolean(m.deleted_at),
-      }),
-    ),
+    messages: messages.results.map(messageOf),
   };
 }
 
@@ -340,9 +319,7 @@ const routeRows = (db: D1Database, id: string, routes: ActivityValues["routes"])
     : db.prepare("update rsvps set route_label = null where activity_id = ?").bind(id),
 ];
 const systemMessage = (db: D1Database, id: string, kind: Message["kind"], body: string) =>
-  db
-    .prepare("insert into messages (id, activity_id, kind, body, created_at) values (?, ?, ?, ?, ?)")
-    .bind(newId(), id, kind, body, nowIso());
+  postMessage(db, { kind: "activity", id }, { kind, body });
 
 /** The date must be today or later, and the spot active (an archived spot may stay on an activity that already uses it);
  * whether it's online must be what the app planned for (times and route rules depend on it). */
@@ -470,8 +447,8 @@ export const activities = new Hono<AppEnv>()
       summaries(
         c.env.DB,
         user.id,
-        `a.date >= ? and not (a.status = 'cancelled' and exists (select 1 from messages r where r.activity_id = a.id
-           and r.kind = 'cancel' and r.body = ?))`,
+        `a.date >= ? and not (a.status = 'cancelled' and exists (select 1 from ${MESSAGES_OF} where t.activity_id = a.id
+           and m.kind = 'cancel' and m.body = ?))`,
         [today, REPLACED_NOTE],
       ),
       c.env.DB.prepare(
@@ -652,7 +629,7 @@ export const activities = new Hono<AppEnv>()
       systemMessage(c.env.DB, id, "cancel", "Cancelled."),
       audit(c.env.DB, user.id, "cancel", "activity", id),
     ]).catch(gone);
-    c.executionCtx.waitUntil(notifyActivity(c.env, id, subject(cur, "Cancelled"), "Check Who's in for messages."));
+    c.executionCtx.waitUntil(notifyActivity(c.env, id, subject(cur, "Cancelled"), "See Messages on the activity."));
     return c.json(await detail(c.env.DB, user.id, id));
   })
 
@@ -693,8 +670,7 @@ export const activities = new Hono<AppEnv>()
       .batch([
         stillVisible(db, id, user.id),
         db.prepare("delete from activity_seen where activity_id = ?").bind(id),
-        db.prepare("delete from messages where activity_id = ? and parent_id is not null").bind(id),
-        db.prepare("delete from messages where activity_id = ?").bind(id),
+        ...deleteThread(db, { kind: "activity", id }),
         db.prepare("delete from rsvps where activity_id = ?").bind(id),
         db.prepare("delete from activity_guests where activity_id = ?").bind(id),
         db.prepare("delete from activity_routes where activity_id = ?").bind(id),
@@ -751,16 +727,12 @@ export const activities = new Hono<AppEnv>()
     if (act.date < nyNow().date) fail(409, "Posting is closed on past activities");
     if (act.status !== "published") fail(409, "Posting is closed on cancelled activities");
     if (parentId) {
-      const parent = await c.env.DB.prepare("select parent_id from messages where id = ? and activity_id = ?")
-        .bind(parentId, id)
-        .first<{ parent_id: string | null }>();
-      if (!parent || parent.parent_id) fail(400, "Replies go to a top-level message");
+      if (!(await checkParent(c.env.DB, { kind: "activity", id }, parentId)))
+        fail(400, "Replies go to a top-level message");
     }
     await c.env.DB.batch([
       stillVisible(c.env.DB, id, user.id),
-      c.env.DB.prepare(
-        "insert into messages (id, activity_id, user_id, parent_id, body, created_at) values (?, ?, ?, ?, ?, ?)",
-      ).bind(newId(), id, user.id, parentId, body, nowIso()),
+      postMessage(c.env.DB, { kind: "activity", id }, { userId: user.id, parentId, body }),
     ]).catch(gone);
     c.executionCtx.waitUntil(notifyMentions(c.env, id, user.id, body));
     return c.json(await detail(c.env.DB, user.id, id), 201);
@@ -770,8 +742,8 @@ export const activities = new Hono<AppEnv>()
 async function messageFor(db: D1Database, viewer: string, id: string) {
   const m = await db
     .prepare(
-      `select m.activity_id, m.user_id, m.kind, m.deleted_at, a.date, a.status from messages m
-       join activities a on a.id = m.activity_id where m.id = ? and m.kind = 'user' and ${VISIBLE}`,
+      `select t.activity_id, m.user_id, m.kind, m.deleted_at, a.date, a.status from ${MESSAGES_OF}
+       join activities a on a.id = t.activity_id where m.id = ? and m.kind = 'user' and ${VISIBLE}`,
     )
     .bind(id, viewer)
     .first<{

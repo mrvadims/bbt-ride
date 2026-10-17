@@ -697,6 +697,10 @@ const note = await guest.c(`/api/activities/${pid}/messages`, { body: { body: "B
 const mid = note.json?.messages?.find((m: Json) => m.body === "Bringing balls")?.id as string;
 check(note.status === 201 && Boolean(mid), "private: a guest can post a message");
 check(
+  (await guest.c(`/api/activities/${pid}/messages`, { body: { body: "Me too", parentId: msgId } })).status === 400,
+  "threads: a reply can't point at a message in another activity's thread",
+);
+check(
   (await guest.c(`/api/activities/${pid}/rsvp`, { method: "PUT", body: { status: "in", routeLabel: null } })).status ===
     200,
   "private: a guest can answer In",
