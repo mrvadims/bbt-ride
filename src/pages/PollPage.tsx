@@ -297,6 +297,8 @@ function View({ poll, me, since }: { poll: PollDetail; me: Me; since?: string | 
           only={poll.private ? poll.guests.map((g) => g.userId) : undefined}
           group={poll.private}
           since={since}
+          notify={poll.notify}
+          notifyPath={`/polls/${poll.id}/notify`}
         />
       </div>
 

@@ -1,7 +1,15 @@
 // @mentions (DESIGN.md → Mentions): a message box with a team picker, and message text that shows mentions and links.
 import { type KeyboardEvent, useId, useRef, useState } from "react";
 import { MESSAGE_MAX, type TeamMember } from "../../shared/api.ts";
-import { encodeMentions, FORMER_MEMBER, mentionIds, plainMentions, splitMentions } from "../../shared/people.ts";
+import {
+  encodeMentions,
+  FORMER_MEMBER,
+  HERE,
+  mentionIds,
+  mentionsHere,
+  plainMentions,
+  splitMentions,
+} from "../../shared/people.ts";
 import { useMembers } from "../lib/data.ts";
 import { Initials } from "./Contact.tsx";
 import { Linkified } from "./Linkified.tsx";
@@ -20,10 +28,13 @@ export function bodyDraft(body: string, members: TeamMember[]): Draft {
   const nameOf = (id: string) => members.find((m) => m.id === id)?.name;
   return {
     text: plainMentions(body, nameOf),
-    picked: mentionIds(body).flatMap((id) => {
-      const name = nameOf(id);
-      return name ? [{ id, name }] : [];
-    }),
+    picked: [
+      ...(mentionsHere(body) ? [{ id: HERE, name: HERE }] : []),
+      ...mentionIds(body).flatMap((id) => {
+        const name = nameOf(id);
+        return name ? [{ id, name }] : [];
+      }),
+    ],
   };
 }
 
@@ -45,6 +56,7 @@ export function MentionBox({
   placeholder,
   meId,
   only,
+  here: offerHere = true,
 }: {
   value: Draft;
   onChange: (d: Draft) => void;
@@ -52,6 +64,7 @@ export function MentionBox({
   placeholder?: string;
   meId: string;
   only?: string[]; // a private activity: only the people invited can be mentioned
+  here?: boolean; // offer @here (not when editing: edits never notify)
 }) {
   const members = useMembers().data ?? [];
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -68,14 +81,17 @@ export function MentionBox({
         })
         .slice(0, MAX_SHOWN)
     : [];
-  const open = matches.length > 0;
+  // "@here" first from "@h" on, while what's typed could still be it (a bare "@" + Enter still picks a person)
+  const here = offerHere && mention !== null && mention.query !== "" && HERE.startsWith(mention.query.toLowerCase());
+  const options: { id: string; name: string }[] = [...(here ? [{ id: HERE, name: HERE }] : []), ...matches];
+  const open = options.length > 0;
 
   const update = (text: string, caret: number) => {
     onChange({ ...value, text });
     setMention(typing(text, caret));
     setActive(0);
   };
-  const pick = (m: TeamMember) => {
+  const pick = (m: { id: string; name: string }) => {
     if (!mention) return;
     const end = mention.at + 1 + mention.query.length;
     const insert = `@${m.name} `;
@@ -95,10 +111,10 @@ export function MentionBox({
     if (!open) return;
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       e.preventDefault();
-      setActive((a) => (a + (e.key === "ArrowDown" ? 1 : matches.length - 1)) % matches.length);
+      setActive((a) => (a + (e.key === "ArrowDown" ? 1 : options.length - 1)) % options.length);
     } else if (e.key === "Enter" || e.key === "Tab") {
       e.preventDefault();
-      const m = matches[active];
+      const m = options[active];
       if (m) pick(m);
     } else if (e.key === "Escape") {
       e.preventDefault();
@@ -110,7 +126,7 @@ export function MentionBox({
     <div className="mentionbox">
       {open && (
         <div className="mention-list" role="listbox" id={listId} aria-label="Mention someone">
-          {matches.map((m, i) => (
+          {options.map((m, i) => (
             <button
               key={m.id}
               type="button"
@@ -120,8 +136,17 @@ export function MentionBox({
               onPointerDown={(e) => e.preventDefault()} // keep the caret in the box
               onClick={() => pick(m)}
             >
-              <Initials name={m.name} />
-              <b>{m.name}</b>
+              {m.id === HERE ? (
+                <span className="mention-here">
+                  <b>@here</b>
+                  <span className="tiny muted">Notify everyone who can see this</span>
+                </span>
+              ) : (
+                <>
+                  <Initials name={m.name} />
+                  <b>{m.name}</b>
+                </>
+              )}
             </button>
           ))}
         </div>
@@ -152,7 +177,7 @@ export function MessageText({ body, meId }: { body: string; meId: string }) {
       {splitMentions(body).map((p, i) =>
         "mention" in p ? (
           <span key={i} className={`mention${p.mention === meId ? " me" : ""}`}>
-            @{members?.find((m) => m.id === p.mention)?.name ?? FORMER_MEMBER}
+            @{p.mention === HERE ? HERE : (members?.find((m) => m.id === p.mention)?.name ?? FORMER_MEMBER)}
           </span>
         ) : (
           <Linkified key={i} text={p.text} />

@@ -1,6 +1,6 @@
 # BBT app architecture
 
-Last updated 2026-10-16. Audience: CTO, developers, DevOps, QA and InfoSec reviewing the design, its decisions and the next steps. The diagrams are Mermaid and render on GitHub.
+Last updated 2026-10-17. Audience: CTO, developers, DevOps, QA and InfoSec reviewing the design, its decisions and the next steps. The diagrams are Mermaid and render on GitHub.
 
 ## Summary
 
@@ -78,7 +78,7 @@ flowchart TB
 | --- | --- | --- |
 | Worker `bbt-ride` | `worker/index.ts`, `compatibility_date` 2026-10-01, `nodejs_compat`, observability on | All `/api/*` requests; everything else is served from static assets |
 | Static assets | `not_found_handling: single-page-application`, `run_worker_first: ["/api/*"]` | The built React PWA, service worker, privacy and download pages, with `_headers` (CSP, HSTS) |
-| D1 `bbt-ride` | binding `DB`, migrations `0001`–`0019` | All application and auth data |
+| D1 `bbt-ride` | binding `DB`, migrations `0001`–`0020` | All application and auth data |
 | KV `CACHE` | binding `CACHE` | Forecasts (30 min), NWS alerts (10 min), the FCM OAuth token (under 1 hour) |
 | Queue `bbt-ride-push` | producer `PUSH`; consumer batch size 1, 1 retry | Notification delivery off the request path, 5 devices per message |
 | Cron | `15 */3 * * *` | Saves observed weather on recent outdoor activities |
@@ -93,10 +93,10 @@ One repository and one language: the Worker, the browser app and the Android she
 | Path | What it holds |
 | --- | --- |
 | `shared/` | Pure, side-effect-free code used by both sides: API shapes and Zod request schemas (`api.ts`), sports rules (`sports.ts`), ride ETA math and places (`ride.ts`), weather evaluation and warnings (`weather.ts`), kit chart, New York time, `.ics` builder, mentions and name cleaning (`people.ts`), date poll rules (`polls.ts`), sport icon list. |
-| `worker/` | The Cloudflare Worker: Hono app (`index.ts`), session/role/origin middleware (`app.ts`), Better Auth setup (`auth.ts`, PBKDF2 in `password.ts`), Web Push and FCM delivery (`push.ts`, `fcm.ts`), unread markers (`seen.ts`), message threads (`threads.ts`), RideWithGPS client (`rwgps.ts`), the 3-hourly job (`cron.ts`), helpers including the visibility rule (`util.ts`). |
+| `worker/` | The Cloudflare Worker: Hono app (`index.ts`), session/role/origin middleware (`app.ts`), Better Auth setup (`auth.ts`, PBKDF2 in `password.ts`), Web Push and FCM delivery (`push.ts`, `fcm.ts`), unread markers (`seen.ts`), message threads (`threads.ts`) and who hears about new messages (`thread-notify.ts`), RideWithGPS client (`rwgps.ts`), the 3-hourly job (`cron.ts`), helpers including the visibility rule (`util.ts`). |
 | `worker/routes/` | One Hono router per resource: activities, message edit/delete (any thread), date polls, announcements, calendar feed, drafts, routes, settings, spots (places), users (me, team, admin users, invite/reset links), weather. |
 | `src/` | React 19 app: `App.tsx` (routing, sign-in gate), `pages/` (Home, Activity, Plan, date polls, History, Team, Settings, Help, Updates, sign-in, link pages), `components/` (activity body, Who's in, Messages, date poll cards, Plan tabs, mentions, visibility, announcements, charts, map), `lib/` (TanStack Query hooks, API client, router, prefs, units, native bridge). |
-| `migrations/` | Plain SQL migrations `0001`–`0019`, applied in order by Wrangler. |
+| `migrations/` | Plain SQL migrations `0001`–`0020`, applied in order by Wrangler. |
 | `android/` | Capacitor 8 Android project: `MainActivity`, a native plugin (`BbtNativePlugin`: share, open external, app update, push), FCM messaging service, RSVP broadcast receiver. |
 | `public/`, `www/` | Static assets for the app (service worker, privacy page, download page, `_headers`) and the separate www site. |
 | `scripts/` | API smoke test, browser smoke test (Playwright), local seed, icon generation, APK build. |
@@ -156,6 +156,7 @@ Better Auth also keeps `session`, `account`, `verification` and `rateLimit` for 
 | `activity_routes`, `route_cache` | Up to two routes per activity; cached RideWithGPS data | Routes cascade with the activity |
 | `rsvps` | Answers | Cascade with activity |
 | `threads`, `messages`, `thread_seen` | One thread per owner (an activity or a date poll); its messages, with one level of replies and system notes; when each person last read a poll's thread | Thread cascades with its owner, messages with the thread; messages keep a NULL author ("Former member") |
+| `thread_people` | Per person and thread: follow or mute (Notify me), and when they were last alerted (one card per thread) | Cascade with either side |
 | `activity_guests` | Guest list of a private activity (creator included) | Cascade with either side |
 | `activity_seen`, `seen_baseline` | Per-person last visit; when markers started for the person | Cascade with either side |
 | `date_polls`, `date_poll_guests`, `date_poll_options`, `date_poll_answers`, `date_poll_notes` | Date polls: title, sport, private, closing date, the activity planned from it; a private poll's people; its options (a day or a 2–4-day block); In / Maybe / Out answers with notes; each person's note on the whole poll | Options, answers, notes, guests and the thread cascade with the poll; answers, notes and guest rows with the person; `created_by` set NULL |
@@ -168,7 +169,7 @@ Better Auth also keeps `session`, `account`, `verification` and `rateLimit` for 
 | `settings`, `kit_bands` | Team settings (JSON values) and the kit chart | Not personal |
 | `audit_log` | Who did what, when, with a JSON diff | Actor set NULL |
 
-Migrations `0001`–`0019` are plain SQL and only add (`0019` also drops the `messages_v1` copy `0018` kept): new tables, new columns, data fixes. The renames (`rides` to `activities`, `0007`; `messages` to `messages_v1` when threads replaced it, `0018`) and the one column-type change (`0011`) were done by renames, copies and column swaps, never a table rebuild, because D1 enforces foreign keys during a rebuild.
+Migrations `0001`–`0020` are plain SQL and only add (`0019` also drops the `messages_v1` copy `0018` kept): new tables, new columns, data fixes. The renames (`rides` to `activities`, `0007`; `messages` to `messages_v1` when threads replaced it, `0018`) and the one column-type change (`0011`) were done by renames, copies and column swaps, never a table rebuild, because D1 enforces foreign keys during a rebuild.
 
 ## Key flows
 
@@ -219,7 +220,7 @@ sequenceDiagram
 12. A 404/410 from Web Push, or a gone FCM token, deletes that subscription.
 13. Other failures are logged and re-queued once, only for the failed devices, 60 seconds later. A second failure is logged and dropped.
 
-The same path serves updates, cancellations, restores, deletes (`gone`), mentions (`to`) and announcements (`notifyTeam`, every opted-in device, no activity filter).
+The same path serves updates, cancellations, restores, deletes (`gone`), mentions (`to`) and announcements (`notifyTeam`, every opted-in device, no activity filter). Thread messages and @here go through `notifyPeople` from `thread-notify.ts`, which picks the people and passes a `tag` (one card per thread) and `quiet` (later messages replace it without sound) that the service worker and Android 1.3 honour.
 
 ### Sign-in and sessions
 
@@ -262,7 +263,7 @@ Every `/api/*` route except health, the invite/reset link endpoints and the sign
 - Three roles: View (shown as Member), Edit, Admin, checked by `requireRole` middleware.
 - Private date polls: the same pattern, `pollVisible()` in `worker/util.ts`, on every poll route and in the message edit/delete routes; a poll's notifications reach only its people.
 - Private activities: one SQL rule, `visible()` in `worker/util.ts`, is applied in every query that reads activities for a person. Uninvited people (Admins included) get the same 404 as for a missing activity; each write repeats the check inside its D1 batch (`stillVisible`) to close the read-then-write race.
-- Notifications for a private activity reach only its guests, enforced in the queueing query; an activity that can't be found notifies no one (fail closed).
+- Notifications for a private activity or poll reach only its people, enforced in SQL wherever recipients are chosen: the `notifyActivity` / `notifyPoll` queueing queries, or `notifyThread`'s recipient select with `visible()` / `pollVisible()`; `notifyPeople` does no check of its own, so every caller must choose recipients that way. An owner that can't be found notifies no one (fail closed).
 - Only Admins see other members' roles and emails, in Settings → Users; the Team directory has no roles. Everyone sees names, phones and emergency contacts (a team decision).
 
 **Request hygiene**
@@ -286,8 +287,8 @@ Every `/api/*` route except health, the invite/reset link endpoints and the sign
 
 **Privacy and data handling**
 
-- Stored personal data: name, email, optional username, mobile and emergency contact, RSVPs, messages, push endpoints, visits, announcement acknowledgements. `/privacy` describes it.
-- Deleting an account cascades to sessions, devices, calendar link, RSVPs, visits, guest rows and acknowledgements; messages remain as "Former member"; the email is removed from old links and the audit trail.
+- Stored personal data: name, email, optional username, mobile and emergency contact, RSVPs, messages, push endpoints, visits, thread follow and mute choices with last-alerted times, announcement acknowledgements. `/privacy` describes it.
+- Deleting an account cascades to sessions, devices, calendar link, RSVPs, visits, guest rows, `thread_people` and acknowledgements; messages remain as "Former member"; the email is removed from old links and the audit trail.
 - The audit log records publish, update, cancel, restore, delete, user and announcement changes, with actor and timestamp.
 
 ## Operations
@@ -333,9 +334,9 @@ CI gates every merge on lint, types, unit tests and a build; the two end-to-end 
 | --- | --- | --- | --- |
 | Lint and format | Biome 2 | CI (every push), locally | Whole repo; CI fails on any error |
 | Types | TypeScript 7 (`tsc -b`) | CI, locally | Worker, client, shared, scripts |
-| Unit | Vitest 5 | CI, locally | 73 tests: date poll rules (options, closing date, ranking, next weekend), weather and road wetness, bike feel, ETA math (worked examples from DESIGN.md), kit chart, warnings, New York time, `.ics` (including a CPU budget), activity input rules, online places, mentions, names, phones |
-| API end to end | `scripts/smoke.ts` (fetch) | Locally against `npm run dev` | 213 checks: invites, sign-in, rate limit, roles, activities, RSVP, messages, Replace, calendar feed, private-activity access matrix (every route x role x invited or not), announcements, online places, date polls (rules, answers, Nudge, close, edit conflicts, messages, private access matrix, Plan this once, private poll into a private activity) |
-| Browser end to end | `scripts/ui-smoke.ts` (Playwright, Chromium) | Locally against `npm run dev` | 87 checks: sign-in and invite pages, Plan, activity page, mentions, markers, Team, contacts, delete, private activities, announcements, online meet-ups, date polls, Help, What's new, phone-width layout, a collapsed ride fitting a 390 × 760 phone, dark mode, iPhone install hint; optional screenshots for review |
+| Unit | Vitest 5 | CI, locally | 77 tests: message notification cards and @here, date poll rules (options, closing date, ranking, next weekend), weather and road wetness, bike feel, ETA math (worked examples from DESIGN.md), kit chart, warnings, New York time, `.ics` (including a CPU budget), activity input rules, online places, mentions, names, phones |
+| API end to end | `scripts/smoke.ts` (fetch) | Locally against `npm run dev` | 221 checks: invites, sign-in, rate limit, roles, activities, RSVP, messages, Replace, calendar feed, private-activity access matrix (every route x role x invited or not), announcements, online places, date polls (rules, answers, Nudge, close, edit conflicts, messages, private access matrix, Plan this once, private poll into a private activity), message notifications (followers, Notify me, sport mutes, @here; the notify routes in both access matrices) |
+| Browser end to end | `scripts/ui-smoke.ts` (Playwright, Chromium) | Locally against `npm run dev` | 90 checks: sign-in and invite pages, Plan, activity page, mentions, @here, Notify me, markers, Team, contacts, delete, private activities, announcements, online meet-ups, date polls, Help, What's new, phone-width layout, a collapsed ride fitting a 390 × 760 phone, dark mode, iPhone install hint; optional screenshots for review |
 | Android build | Gradle | CI on branches (unsigned), deploy (signed) | Compiles and passes release lint; no device tests |
 
 **Review practice:** larger changes get an independent security review before merge (for example, private activities: the review found two design issues, fixed before release). Pull request descriptions list the checks run.
@@ -382,7 +383,7 @@ The largest risks are operational, not functional: no staging, no alerting and n
 | Third-party dependencies (Open-Meteo, NWS, RideWithGPS, Google, FCM, OSM/Carto tiles) | Features degrade when a provider is down or changes its API | Medium | Caching (KV, D1 route cache); the page still loads without weather or a route |
 | End-to-end tests not in CI; no Safari/device automation | Regressions caught late, iOS layout issues reach users | Medium | Manual review on phones; screenshots in PRs |
 | Android app sideloaded, iPhone uses Web Push | Install friction; iOS notifications need Home Screen install (iOS 16.4+) | High (by design) | Download page, install hints, in-app update prompt |
-| Free-tier ceilings (CPU per request, daily request and storage quotas) | Throttling if usage grows well beyond one team | Low | Code is budgeted for ~10 ms CPU; paid plan is a configuration change |
+| Free-tier ceilings (CPU per request, daily request, Queue operation and storage quotas) | Throttling if usage grows well beyond one team | Low | Code is budgeted for ~10 ms CPU; paid plan is a configuration change |
 
 ## Future technical enhancements
 
@@ -435,12 +436,12 @@ All routes are under `https://app.bbt.team/api`, JSON in and out; "Session" mean
 | `GET /activities`, `GET /activities/past`, `GET /activities/:id`, `POST /activities/:id/seen` | Session | Upcoming list with own answer and unread markers, History, detail, record a visit |
 | `POST /activities`, `PUT /activities/:id`, `POST /activities/:id/cancel`, `POST /activities/:id/restore` | Edit or Admin | Publish, update (guest list, Make public, Replace), cancel, restore |
 | `DELETE /activities/:id` | Creator (while Edit) or Admin | Delete for good |
-| `PUT /activities/:id/rsvp`, `POST /activities/:id/messages` | Session | In / Out / clear; post or reply |
+| `PUT /activities/:id/rsvp`, `POST /activities/:id/messages`, `PUT /activities/:id/notify` | Session | In / Out / clear; post or reply (notifies followers, @here everyone who can see it); follow or mute the thread |
 | `PATCH /messages/:id`, `DELETE /messages/:id` | Author; Edit and Admin can delete any (in threads they can see) | Edit own message; delete (soft), in an activity's or a poll's thread |
 | `GET /polls`, `GET /polls/:id`, `POST /polls/:id/seen` | Session (private: its people) | Date polls the viewer is asked on; one poll with answers, Not yet and messages; record a visit |
 | `POST /polls` | Edit or Admin | Start a date poll (Everyone or Picked people) |
 | `PUT /polls/:id`, `POST /polls/:id/close`, `DELETE /polls/:id`, `POST /polls/:id/nudge` | Its creator or Admin (and its people) | Edit title, note, closing date; close; delete; nudge who hasn't answered |
-| `PUT /polls/:id/answers`, `POST /polls/:id/messages` | Its people | Answer In / Maybe / Out with notes; post or reply |
+| `PUT /polls/:id/answers`, `POST /polls/:id/messages`, `PUT /polls/:id/notify` | Its people | Answer In / Maybe / Out with notes; post or reply; follow or mute the thread |
 | `GET /announcements`, `POST /announcements/:id/seen` | Session | Active and recent announcements; Got it |
 | `GET /announcements/all`, `GET /announcements/:id/unseen`, `POST /announcements`, `PUT /announcements/:id`, `POST /announcements/:id/end` | Admin | List with counts, who hasn't seen it, post, edit, end |
 | `GET /spots`; `POST /spots`; `PATCH /spots/:id` | Session; Edit; Admin | Places (pin or meeting link): list, add, edit or archive |

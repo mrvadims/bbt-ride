@@ -9,6 +9,7 @@ import {
   encodeMentions,
   fmtPhone,
   mentionIds,
+  mentionsHere,
   normalizePhone,
   plainMentions,
   splitMentions,
@@ -525,5 +526,13 @@ describe("mentions", () => {
     expect(splitMentions("a <@u1> b")).toEqual([{ text: "a " }, { mention: "u1" }, { text: " b" }]);
     expect(splitMentions("<@u1>")).toEqual([{ mention: "u1" }]);
     expect(splitMentions("no mentions <@ bad>")).toEqual([{ text: "no mentions <@ bad>" }]);
+  });
+  it("keeps @here apart from people: stored as a token, shown as @here, never counted as a mention", () => {
+    const body = encodeMentions("@here moved to 9:30 @Jo", [{ id: "here", name: "here" }, ...team]);
+    expect(body).toBe("<@here> moved to 9:30 <@u2>");
+    expect(mentionsHere(body)).toBe(true);
+    expect(mentionsHere("@here typed by hand")).toBe(false);
+    expect(mentionIds(body)).toEqual(["u2"]);
+    expect(plainMentions(body, () => "Someone")).toBe("@here moved to 9:30 @Someone");
   });
 });

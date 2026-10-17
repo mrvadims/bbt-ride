@@ -338,6 +338,27 @@ const pkUrl = page.url();
   await page.locator(".mention", { hasText: `@Teammate ${stamp}` }).waitFor();
   check(true, "the sent message shows the mention");
 
+  // @here: offered first while typing "@he"; the message shows it; the thread's Notify me switch
+  await box.fill("@he");
+  await page.getByRole("option", { name: /@here/ }).waitFor();
+  check(
+    (await page.getByRole("option").first().textContent())?.startsWith("@here"),
+    "@here is offered first in the mention list",
+  );
+  if (shots) await page.screenshot({ path: `${shots}/mention-here.png` });
+  await page.getByRole("option", { name: /@here/ }).click();
+  await box.pressSequentially("start moved to 9:30");
+  await page.getByRole("button", { name: "Send" }).click();
+  await page.locator(".mention", { hasText: "@here" }).waitFor();
+  const notifyBox = page.getByRole("checkbox", { name: /Notify me about new messages/ });
+  check(await notifyBox.isChecked(), "posting follows the thread: Notify me is on");
+  await notifyBox.click(); // it changes once the server answers
+  await page.getByText("Off. You'll still get @mentions of you.").waitFor();
+  check(!(await notifyBox.isChecked()), "Notify me off mutes the thread");
+  if (shots) await page.screenshot({ path: `${shots}/thread-muted.png` });
+  await notifyBox.click();
+  await page.getByText("@mentions reach you either way.").waitFor();
+
   // Who's in: a name opens the contact card with Call, Text and the emergency contact
   await page.locator(".plist").getByRole("button", { name: "Captain Renamed" }).click();
   const cardDlg = page.getByRole("dialog", { name: "Contact Captain Renamed" });

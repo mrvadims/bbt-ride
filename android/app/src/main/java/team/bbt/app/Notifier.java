@@ -24,14 +24,18 @@ final class Notifier {
 
     private Notifier() {}
 
-    /** A push payload from the Worker: {title, body, url, activityId?, actions?}. */
+    /**
+     * A push payload from the Worker: {title, body, url, activityId?, actions?, tag?, quiet?}. One with a tag replaces
+     * the card with that tag (a thread's messages); a quiet one does it without sound or vibration.
+     */
     static void show(Context ctx, JSONObject data) {
         String title = data.optString("title", "BBT");
         String body = data.optString("body", "");
         String path = data.optString("url", "/");
         String activityId = data.optString("activityId", "");
-        int id = (path + System.currentTimeMillis()).hashCode();
-        NotificationCompat.Builder b = builder(ctx, id, title, body, path);
+        String tag = data.optString("tag", "");
+        int id = tag.isEmpty() ? (path + System.currentTimeMillis()).hashCode() : tag.hashCode();
+        NotificationCompat.Builder b = builder(ctx, id, title, body, path).setSilent(data.optBoolean("quiet", false));
         if (!activityId.isEmpty() && data.has("actions")) {
             b.addAction(0, "Still in", answer(ctx, id, "in", activityId, title, path));
             b.addAction(0, "I'm out", answer(ctx, id, "out", activityId, title, path));
@@ -93,9 +97,9 @@ final class Notifier {
     static void ensureChannel(Context ctx) {
         if (Build.VERSION.SDK_INT < 26) return;
         NotificationManager nm = ctx.getSystemService(NotificationManager.class);
-        if (nm.getNotificationChannel(CHANNEL) != null) return;
+        // Creating it again only updates its name and description; the person's own settings for it stay.
         NotificationChannel ch = new NotificationChannel(CHANNEL, "Activities", NotificationManager.IMPORTANCE_HIGH);
-        ch.setDescription("New activities, changes and cancellations");
+        ch.setDescription("Activities, date polls and messages");
         nm.createNotificationChannel(ch);
     }
 }

@@ -1901,6 +1901,17 @@ a.tile[aria-label="Open in RideWithGPS"] {
   padding: 4px;
   display: grid;
 }
+.mention-here {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.radio.notify-row {
+  border: 0;
+  border-top: 1px solid var(--line);
+  padding: 12px 0 0;
+  margin-top: 12px;
+}
 .mention-list button {
   display: flex;
   align-items: center;

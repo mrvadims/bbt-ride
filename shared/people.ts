@@ -35,10 +35,14 @@ export function fmtPhone(e164: string): string {
 const TOKEN = /<@([A-Za-z0-9_-]{1,64})>/g;
 /** At most this many people per message (each is notified). */
 export const MAX_MENTIONS = 10;
+/** "@here" (stored as <@here>; no user id is this short word): everyone who can see the activity or poll is notified
+ * (DESIGN.md → Message notifications). */
+export const HERE = "here";
+export const mentionsHere = (body: string) => body.includes(`<@${HERE}>`);
 
-/** The people mentioned in a body, each once, in order. */
+/** The people mentioned in a body, each once, in order (not @here). */
 export function mentionIds(body: string): string[] {
-  return [...new Set([...body.matchAll(TOKEN)].map((m) => m[1] as string))];
+  return [...new Set([...body.matchAll(TOKEN)].map((m) => m[1] as string))].filter((id) => id !== HERE);
 }
 
 type BodyPart = { text: string } | { mention: string };
@@ -57,7 +61,7 @@ export function splitMentions(body: string): BodyPart[] {
 
 /** The body as plain text, each mention as "@Name". */
 export function plainMentions(body: string, nameOf: (id: string) => string | undefined): string {
-  return body.replace(TOKEN, (_, id: string) => `@${nameOf(id) ?? FORMER_MEMBER}`);
+  return body.replace(TOKEN, (_, id: string) => `@${id === HERE ? HERE : (nameOf(id) ?? FORMER_MEMBER)}`);
 }
 
 /** The composer works in "@Name" text; this turns the names picked from the team list into tokens when sending. A name

@@ -92,6 +92,8 @@ function View({ act, me, since }: { act: ActivityDetail; me: Me; since?: string 
             only={act.private ? act.guests.map((g) => g.userId) : undefined}
             group={act.private}
             since={since}
+            notify={act.notify}
+            notifyPath={`/activities/${act.id}/notify`}
           />
         }
         history={<History act={act} id="history" />}

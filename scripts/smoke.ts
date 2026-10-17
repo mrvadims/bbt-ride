@@ -718,6 +718,7 @@ for (const { who, c } of outs) {
     (await c(`/api/activities/${pid}/seen`, { method: "POST" })).status,
     (await c(`/api/activities/${pid}/rsvp`, { method: "PUT", body: { status: "in", routeLabel: null } })).status,
     (await c(`/api/activities/${pid}/messages`, { body: { body: "hi" } })).status,
+    (await c(`/api/activities/${pid}/notify`, { method: "PUT", body: { on: true } })).status,
     (await c(`/api/messages/${mid}`, { method: "PATCH", body: { body: "edited" } })).status,
     (await c(`/api/messages/${mid}`, { method: "DELETE" })).status,
   ];
@@ -1110,6 +1111,7 @@ check((await creator.c(`/api/activities/${pid}`, { method: "DELETE" })).status =
       c(`/api/polls/${sp.id}/answers`, { method: "PUT", body: { answers: [{ optionId: sa.id, status: "in" }] } }),
       c(`/api/polls/${sp.id}/messages`, { body: { body: "hi" } }),
       c(`/api/polls/${sp.id}/seen`, { method: "POST" }),
+      c(`/api/polls/${sp.id}/notify`, { method: "PUT", body: { on: true } }),
       c(`/api/polls/${sp.id}/nudge`, { method: "POST" }),
       c(`/api/polls/${sp.id}`, {
         method: "PUT",
@@ -1201,6 +1203,71 @@ check((await creator.c(`/api/activities/${pid}`, { method: "DELETE" })).status =
       (await guest.c(`/api/messages/${spm}`, { method: "PATCH", body: { body: "x" } })).status === 404,
     "polls: only its creator or an Admin deletes it; then it and its messages are gone",
   );
+}
+
+// Message notifications (DESIGN.md → Message notifications): who follows a thread by default, the Notify me switch,
+// and @here. Delivery itself needs real devices; the switch shows what the server will do.
+{
+  const na = await creator.c("/api/activities", {
+    body: { ...pickle, title: `Notify ${stamp}`, date: addDays(nyNow().date, 9) },
+  });
+  const nid = na.json.id as string;
+  const notifyOf = async (c: typeof admin) => (await c(`/api/activities/${nid}`)).json?.notify;
+  check(
+    na.json.notify === true && (await notifyOf(outsider.c)) === false,
+    "message notifications: its creator follows the thread; someone not In doesn't",
+  );
+  await outsider.c(`/api/activities/${nid}/rsvp`, { method: "PUT", body: { status: "in", routeLabel: null } });
+  check((await notifyOf(outsider.c)) === true, "message notifications: saying In follows it");
+  await outsider.c("/api/me/muted/pickleball", { method: "PUT", body: { off: true } });
+  check(
+    (await notifyOf(outsider.c)) === true,
+    "message notifications: turning the sport off doesn't stop messages on an activity you're In for",
+  );
+  await outsider.c("/api/me/muted/pickleball", { method: "PUT", body: { off: false } });
+  const muted = await outsider.c(`/api/activities/${nid}/notify`, { method: "PUT", body: { on: false } });
+  check(
+    muted.status === 200 && muted.json.notify === false && (await notifyOf(outsider.c)) === false,
+    "message notifications: Notify me off mutes it, though In",
+  );
+  const posted = await guest.c(`/api/activities/${nid}/messages`, { body: { body: "<@here> Start moved to 9:30" } });
+  check(
+    posted.status === 201 && posted.json.notify === true && posted.json.messages.at(-1).body.startsWith("<@here>"),
+    "message notifications: @here is kept in the message, and posting follows the thread",
+  );
+  check(
+    (await outEditor.c(`/api/activities/${nid}/notify`, { method: "PUT", body: { on: true } })).json?.notify === true,
+    "message notifications: anyone who can see it can follow it",
+  );
+  const pa = await creator.c("/api/activities", {
+    body: { ...pickle, title: `Notify private ${stamp}`, date: addDays(nyNow().date, 9), guests: [guest.id] },
+  });
+  check(
+    (await outsider.c(`/api/activities/${pa.json.id}/notify`, { method: "PUT", body: { on: true } })).status === 404,
+    "message notifications: a private activity's thread can't be followed by people not invited",
+  );
+  await creator.c(`/api/activities/${pa.json.id}`, { method: "DELETE" });
+  await creator.c(`/api/activities/${nid}`, { method: "DELETE" });
+
+  const d = addDays(nyNow().date, 40);
+  const np = (
+    await creator.c("/api/polls", {
+      body: { title: `Notify poll ${stamp}`, options: [{ startsOn: d, endsOn: d }] },
+    })
+  ).json;
+  const before = (await outsider.c(`/api/polls/${np.id}`)).json?.notify;
+  const after = (
+    await outsider.c(`/api/polls/${np.id}/answers`, {
+      method: "PUT",
+      body: { answers: [{ optionId: np.options[0].id, status: "maybe" }] },
+    })
+  ).json?.notify;
+  const off = (await outsider.c(`/api/polls/${np.id}/notify`, { method: "PUT", body: { on: false } })).json?.notify;
+  check(
+    np.notify === true && before === false && after === true && off === false,
+    `message notifications: on a date poll, its creator and people In or Maybe follow it; Notify me off mutes it (${before},${after},${off})`,
+  );
+  await creator.c(`/api/polls/${np.id}`, { method: "DELETE" });
 }
 
 // Rate limit on password sign-in
