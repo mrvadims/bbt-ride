@@ -127,6 +127,7 @@ export interface ActivityDetail extends Activity {
   messages: Message[];
   history: HistoryEntry[]; // newest first
   fromPoll: { id: string; title: string; messages: number } | null; // planned from a date poll the viewer can see
+  notify: boolean; // new messages notify the viewer (the Messages panel's switch)
 }
 
 /** Date polls (DESIGN.md → Date polls). */
@@ -166,6 +167,7 @@ export interface PollDetail extends Omit<PollSummary, "options"> {
   notYet: { userId: string; name: string }[]; // asked, not disabled, no answer yet
   messages: Message[];
   activityTitle: string | null; // the planned activity's name, when the viewer can see it
+  notify: boolean; // new messages notify the viewer (the Messages panel's switch)
 }
 
 /** GET /api/announcements: active ones and those from the last 90 days, newest first (DESIGN.md → Announcements). */
@@ -302,6 +304,8 @@ const messageBody = z
   .refine((b) => mentionIds(b).length <= MAX_MENTIONS, `Mention at most ${MAX_MENTIONS} people in one message`);
 export const messageInput = z.object({ body: messageBody, parentId: z.string().max(64).nullable().default(null) });
 export const messageEdit = z.object({ body: messageBody });
+/** The Messages panel's switch: follow or mute a thread. */
+export const threadNotifyInput = z.object({ on: z.boolean() });
 
 const announcementFields = {
   title: z.string().trim().min(1).max(80),

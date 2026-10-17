@@ -14,6 +14,7 @@ import {
   type RecordedWeather,
   type Rsvp,
   rsvpInput,
+  threadNotifyInput,
 } from "../../shared/api.ts";
 import { firstName, mentionIds, plainMentions } from "../../shared/people.ts";
 import type { RideRoute } from "../../shared/ride.ts";
@@ -23,6 +24,7 @@ import { dayLabel, fmtTime, hhmmToMin, nyNow } from "../../shared/time.ts";
 import { type AppEnv, can, requireRole, type SessionUser } from "../app.ts";
 import { notifyActivity } from "../push.ts";
 import { markers, visit } from "../seen.ts";
+import { notifyThread, setThreadNotify, threadNotify } from "../thread-notify.ts";
 import {
   checkParent,
   deleteThread,
@@ -171,7 +173,7 @@ async function load(db: D1Database, viewer: string, id: string): Promise<Activit
 
 export async function detail(db: D1Database, viewer: string, id: string): Promise<ActivityDetail> {
   const act = await load(db, viewer, id);
-  const [guests, rsvps, messages, made, changes, poll] = await Promise.all([
+  const [guests, rsvps, messages, made, changes, poll, notify] = await Promise.all([
     db
       .prepare(
         `select g.user_id, u.name from activity_guests g join "user" u on u.id = g.user_id where g.activity_id = ?
@@ -206,6 +208,7 @@ export async function detail(db: D1Database, viewer: string, id: string): Promis
       )
       .bind(id, viewer)
       .first<{ id: string; title: string; messages: number }>(),
+    threadNotify(db, { kind: "activity", id }, viewer),
   ]);
   return {
     ...act,
@@ -216,6 +219,7 @@ export async function detail(db: D1Database, viewer: string, id: string): Promis
     ),
     messages: messages.results.map(messageOf),
     fromPoll: poll ? { id: poll.id, title: poll.title, messages: poll.messages } : null,
+    notify,
   };
 }
 
@@ -752,5 +756,19 @@ export const activities = new Hono<AppEnv>()
       postMessage(c.env.DB, { kind: "activity", id }, { userId: user.id, parentId, body }),
     ]).catch(gone);
     c.executionCtx.waitUntil(notifyMentions(c.env, id, user.id, body));
+    c.executionCtx.waitUntil(
+      notifyThread(c.env, { kind: "activity", id }, { name: activityName(act), url: `/a/${id}` }, user, body),
+    );
     return c.json(await detail(c.env.DB, user.id, id), 201);
+  })
+  // The Messages panel's switch: follow or mute this activity's thread.
+  .put("/:id/notify", validate("json", threadNotifyInput), async (c) => {
+    const id = c.req.param("id");
+    const user = c.get("user");
+    await load(c.env.DB, user.id, id);
+    await c.env.DB.batch([
+      stillVisible(c.env.DB, id, user.id),
+      setThreadNotify(c.env.DB, { kind: "activity", id }, user.id, c.req.valid("json").on),
+    ]).catch(gone);
+    return c.json(await detail(c.env.DB, user.id, id));
   });

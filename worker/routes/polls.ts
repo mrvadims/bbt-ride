@@ -12,6 +12,7 @@ import {
   pollAnswers,
   pollEdit,
   pollInput,
+  threadNotifyInput,
 } from "../../shared/api.ts";
 import { firstName, mentionIds, plainMentions } from "../../shared/people.ts";
 import { byDate, defaultCloses, lastDay, optionLabel, optionsProblem } from "../../shared/polls.ts";
@@ -19,6 +20,7 @@ import { SPORT_LABEL, type Sport } from "../../shared/sports.ts";
 import { addDays, nyNow } from "../../shared/time.ts";
 import { type AppEnv, can, requireRole, type SessionUser } from "../app.ts";
 import { notifyActivity, notifyPoll } from "../push.ts";
+import { notifyThread, setThreadNotify, threadNotify } from "../thread-notify.ts";
 import {
   checkParent,
   deleteThread,
@@ -125,43 +127,46 @@ const askedSql = (priv: boolean) =>
 
 export async function pollDetail(db: D1Database, viewer: string, id: string): Promise<PollDetail> {
   const { row, summary } = await load(db, viewer, id);
-  const [answers, notes, guests, notYet, messages, act] = await db.batch<Record<string, unknown>>([
-    db
-      .prepare(
-        `select a.option_id, a.user_id, u.name, a.status, a.note from date_poll_answers a
+  const [[answers, notes, guests, notYet, messages, act], notify] = await Promise.all([
+    db.batch<Record<string, unknown>>([
+      db
+        .prepare(
+          `select a.option_id, a.user_id, u.name, a.status, a.note from date_poll_answers a
          join date_poll_options o on o.id = a.option_id join "user" u on u.id = a.user_id
          where o.poll_id = ? and coalesce(u.banned, 0) = 0 order by a.updated_at`,
-      )
-      .bind(id),
-    db
-      .prepare(
-        `select n.user_id, u.name, n.note from date_poll_notes n join "user" u on u.id = n.user_id
+        )
+        .bind(id),
+      db
+        .prepare(
+          `select n.user_id, u.name, n.note from date_poll_notes n join "user" u on u.id = n.user_id
          where n.poll_id = ? and coalesce(u.banned, 0) = 0 order by n.updated_at`,
-      )
-      .bind(id),
-    db
-      .prepare(
-        `select g.user_id, u.name from date_poll_guests g join "user" u on u.id = g.user_id
+        )
+        .bind(id),
+      db
+        .prepare(
+          `select g.user_id, u.name from date_poll_guests g join "user" u on u.id = g.user_id
          where g.poll_id = ?1 and coalesce(u.banned, 0) = 0 order by g.user_id = ?2 desc, u.name`,
-      )
-      .bind(id, row.created_by ?? ""),
-    db
-      .prepare(
-        `select x.id as user_id, x.name from (${askedSql(Boolean(row.private))}) x
+        )
+        .bind(id, row.created_by ?? ""),
+      db
+        .prepare(
+          `select x.id as user_id, x.name from (${askedSql(Boolean(row.private))}) x
          where not exists (select 1 from date_poll_answers a join date_poll_options o on o.id = a.option_id
                            where o.poll_id = ?1 and a.user_id = x.id)
          order by x.name collate nocase`,
-      )
-      .bind(id),
-    threadMessages(db, { kind: "poll", id }),
-    db
-      .prepare(
-        `select a.title, a.sport, (select rc.name from activity_routes ar
+        )
+        .bind(id),
+      threadMessages(db, { kind: "poll", id }),
+      db
+        .prepare(
+          `select a.title, a.sport, (select rc.name from activity_routes ar
            left join route_cache rc on rc.rwgps_route_id = ar.rwgps_route_id where ar.activity_id = a.id
            order by ar.sort limit 1) as route_name
          from activities a where a.id = ?1 and ${visible("?2")}`,
-      )
-      .bind(row.activity_id ?? "", viewer),
+        )
+        .bind(row.activity_id ?? "", viewer),
+    ]),
+    threadNotify(db, { kind: "poll", id }, viewer),
   ]);
   type A = { option_id: string; user_id: string; name: string; status: PollAnswer; note: string | null };
   const a = (act?.results?.[0] ?? null) as { title: string; sport: Sport; route_name: string | null } | null;
@@ -192,6 +197,7 @@ export async function pollDetail(db: D1Database, viewer: string, id: string): Pr
     })),
     messages: ((messages?.results ?? []) as unknown as MessageRow[]).map(messageOf),
     activityTitle: a ? a.title || a.route_name || SPORT_LABEL[a.sport] : null,
+    notify,
   };
 }
 
@@ -461,5 +467,13 @@ export const polls = new Hono<AppEnv>()
     if (parentId && !(await checkParent(c.env.DB, owner, parentId))) fail(400, "Replies go to a top-level message");
     await postMessage(c.env.DB, owner, { userId: user.id, parentId, body }).run();
     c.executionCtx.waitUntil(notifyMentions(c.env, p, user, body));
+    c.executionCtx.waitUntil(notifyThread(c.env, owner, { name: p.title, url: `/polls/${p.id}` }, user, body));
     return c.json(await pollDetail(c.env.DB, user.id, p.id), 201);
+  })
+  // The Messages panel's switch: follow or mute this poll's thread.
+  .put("/:id/notify", validate("json", threadNotifyInput), async (c) => {
+    const user = c.get("user");
+    const { summary: p } = await load(c.env.DB, user.id, c.req.param("id"));
+    await setThreadNotify(c.env.DB, { kind: "poll", id: p.id }, user.id, c.req.valid("json").on).run();
+    return c.json(await pollDetail(c.env.DB, user.id, p.id));
   });

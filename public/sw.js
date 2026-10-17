@@ -1,6 +1,8 @@
 // Service worker: shows activity notifications and opens the activity when one is tapped. No offline caching.
 // An update to an activity someone is In for has Still in / I'm out buttons (DESIGN.md → v2, Notifications); browsers
-// without notification buttons (iPhone) just show the notification, and tapping it opens the activity.
+// without notification buttons (iPhone) just show the notification, and tapping it opens the activity. A thread's
+// messages share a tag, so a later one replaces the card; "quiet" ones do it without sound (DESIGN.md → Message
+// notifications).
 self.addEventListener("push", (event) => {
   let data = {};
   try {
@@ -15,6 +17,7 @@ self.addEventListener("push", (event) => {
       badge: "/icons/icon-192.png",
       data: { url: data.url || "/", activityId: data.activityId || null },
       actions: Array.isArray(data.actions) ? data.actions : [],
+      ...(data.tag ? { tag: data.tag, renotify: !data.quiet, silent: Boolean(data.quiet) } : {}),
     }),
   );
 });

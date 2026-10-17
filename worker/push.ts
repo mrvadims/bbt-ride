@@ -145,6 +145,39 @@ export async function notifyPoll(
   if (jobs.length) await env.PUSH.sendBatch(jobs);
 }
 
+/** A notification payload as the service worker and the Android app read it. `tag`: a later one with the same tag
+ * replaces it on the device; `quiet`: without sound or vibration (a thread's "3 new messages"). */
+export interface PushMessage {
+  title: string;
+  body: string;
+  url: string;
+  tag?: string;
+  quiet?: boolean;
+}
+
+/** Queues each message for the opted-in devices of its people (not disabled). Callers decide who may hear about what
+ * (thread-notify.ts checks who can see the thread). */
+export async function notifyPeople(env: Env, sends: { to: string[]; message: PushMessage }[]): Promise<void> {
+  const web = Boolean(env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY);
+  const app = Boolean(env.FCM_SERVICE_ACCOUNT);
+  const ids = sends.flatMap((s) => s.to);
+  if ((!web && !app) || !ids.length) return;
+  const { results } = await env.DB.prepare(
+    `select p.endpoint, p.keys_json, p.kind, p.user_id from push_subscriptions p join "user" u on u.id = p.user_id
+     where coalesce(u.banned, 0) = 0 and (p.kind = 'web' and ?1 or p.kind = 'fcm' and ?2)
+       and p.user_id in (select value from json_each(?3))`,
+  )
+    .bind(web ? 1 : 0, app ? 1 : 0, JSON.stringify(ids))
+    .all<Sub & { user_id: string }>();
+  const jobs = sends.flatMap((s) =>
+    batches(
+      results.filter((r) => s.to.includes(r.user_id)),
+      JSON.stringify(s.message),
+    ),
+  );
+  if (jobs.length) await env.PUSH.sendBatch(jobs);
+}
+
 /** Queue jobs of up to BATCH devices each for one notification. */
 const batches = (subs: Sub[], data: string): { body: PushJob }[] => {
   const devices = subs.map(({ endpoint, keys_json, kind }) => ({ endpoint, keys_json, kind }));

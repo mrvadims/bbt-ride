@@ -15,6 +15,42 @@ interface Update {
 
 const UPDATES: Update[] = [
   {
+    date: "2026-10-17",
+    label: "October 17, 2026",
+    title: "Date polls, message notifications and @here",
+    summary:
+      "Ask which date works, hear about new messages, and reach everyone at once. Plus a more compact activity page.",
+    sections: [
+      {
+        h: "Date polls",
+        items: [
+          <>
+            Plan has a second tab, <b>Date poll</b>: up to 14 days or weekends, and everyone asked answers{" "}
+            <b>In, Maybe or Out</b> for each. The best date comes first, and <b>Plan this</b> turns it into an activity.
+          </>,
+          <>Each poll has its own Messages. Open polls show on Home; all of them are under All date polls.</>,
+        ],
+      },
+      {
+        h: "Messages",
+        items: [
+          <>
+            New messages now <b>notify</b> the people In (on a poll, In or Maybe), whoever created it and anyone who
+            posted. Several in a row become one notification until you open it.
+          </>,
+          <>
+            <b>Notify me about new messages</b>, under each thread, mutes it or follows it.
+          </>,
+          <>
+            Type <b>@here</b> to notify everyone who can see the activity or poll.
+          </>,
+          <>Messages are their own panel, and an activity with every panel closed fits on one phone screen.</>,
+        ],
+      },
+    ],
+    note: <>Android: update the app when it offers (version 1.3), so a thread's notifications stay on one card.</>,
+  },
+  {
     date: "2026-10-15",
     label: "October 15, 2026",
     title: "Private activities, announcements and Zoom meet-ups",

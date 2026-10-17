@@ -22,6 +22,8 @@ export function MessagesPanel({
   only,
   group,
   since,
+  notify,
+  notifyPath,
 }: {
   id: string; // the panel's id, for its remembered open state
   messages: Message[];
@@ -33,6 +35,8 @@ export function MessagesPanel({
   only?: string[]; // who can be mentioned (the people invited to something private)
   group: boolean; // "Message the group" rather than "the team"
   since?: string | null; // when the viewer last caught up; undefined: no "new" divider
+  notify: boolean; // new messages notify the viewer
+  notifyPath: string; // PUT { on } here to follow or mute the thread
 }) {
   const members = useMembers().data;
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
@@ -214,6 +218,21 @@ export function MessagesPanel({
       )}
     >
       {top.length ? top.map((m) => msg(m, false)) : <p className="muted small">No messages yet.</p>}
+      <label className="radio notify-row" style={{ border: 0, padding: 0 }}>
+        <input
+          type="checkbox"
+          checked={notify}
+          disabled={call.isPending}
+          onChange={(e) => call.mutate({ path: notifyPath, method: "PUT", body: { on: e.target.checked } })}
+        />
+        <span>
+          <b>Notify me about new messages</b>
+          <br />
+          <span className="small muted">
+            {notify ? "@mentions reach you either way." : "Muted. You'll still get @mentions of you."}
+          </span>
+        </span>
+      </label>
       {canPost && (
         <div className="compose">
           <MentionBox
