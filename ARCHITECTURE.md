@@ -439,7 +439,7 @@ All routes are under `https://app.bbt.team/api`, JSON in and out; "Session" mean
 | `PUT /activities/:id/rsvp`, `POST /activities/:id/messages`, `PUT /activities/:id/notify` | Session | In / Out / clear; post or reply (notifies followers, @here everyone who can see it); follow or mute the thread |
 | `PATCH /messages/:id`, `DELETE /messages/:id` | Author; Edit and Admin can delete any (in threads they can see) | Edit own message; delete (soft), in an activity's or a poll's thread |
 | `GET /polls`, `GET /polls/:id`, `POST /polls/:id/seen` | Session (private: its people) | Date polls the viewer is asked on; one poll with answers, Not yet and messages; record a visit |
-| `POST /polls` | Edit or Admin | Start a date poll (Everyone or Picked people) |
+| `POST /polls` | Edit or Admin | Start a date poll (Public or Private) |
 | `PUT /polls/:id`, `POST /polls/:id/close`, `DELETE /polls/:id`, `POST /polls/:id/nudge` | Its creator or Admin (and its people) | Edit title, note, closing date; close; delete; nudge who hasn't answered |
 | `PUT /polls/:id/answers`, `POST /polls/:id/messages`, `PUT /polls/:id/notify` | Its people | Answer In / Maybe / Out with notes; post or reply; follow or mute the thread |
 | `GET /announcements`, `POST /announcements/:id/seen` | Session | Active and recent announcements; Got it |

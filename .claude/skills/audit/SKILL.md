@@ -1,6 +1,6 @@
 ---
 name: audit
-description: Comprehensive audit of the BBT app — automated gates (lint, types, unit tests, fresh-DB migrations, secrets, pinned actions, npm audit, diagrams, API and browser smoke tests), then six reviewers in parallel (spec and docs, design and simplicity, implementation, security, infrastructure, UX), each finding challenged by a skeptic, and one ranked report. Report only; fixes happen when the owner picks them. Use when asked to audit, to review or check everything, to make sure everything is consistent, accurate, simple, secure or follows best practices, and before every pull request ("/audit pr").
+description: Comprehensive audit of the BBT app — automated gates (lint, types, unit tests, fresh-DB migrations, secrets, pinned actions, npm audit, diagrams, API and browser smoke tests), then six reviewers in parallel (spec and docs, design and simplicity, implementation, security, infrastructure, UX), each finding challenged by a skeptic, and one ranked report. Report only; fixes happen when the owner picks them. Use when asked to audit, to review or check everything, to make sure everything is consistent, accurate, simple, secure or follows best practices, and when the owner asks for it before a pull request ("/audit pr"). Never run it unprompted.
 ---
 
 # /audit
@@ -56,7 +56,9 @@ Expect roughly 6 reviewers plus one skeptic per finding (findings are capped at 
   minor later"), and whether to fix nits now.
 - Don't start fixing until the owner answers.
 
-## Before every pull request
+## Before a pull request
 
-Run `/audit pr` before opening a PR and put a one-line result in the PR description ("Audit: gates pass; 0 critical,
-0 major; 2 minor fixed"). For a docs-only change the gates alone are enough; say so.
+Don't run the audit on your own: it spawns dozens of agents. Before opening a PR, ask the owner whether to run
+`/audit pr` (multiple choice: run it, gates only, or skip; recommend one by the size and risk of the change). When it
+runs, put a one-line result in the PR description ("Audit: gates pass; 0 critical, 0 major; 2 minor fixed"); when it's
+skipped, say so ("Audit: skipped at the owner's request; lint, types and tests pass").
