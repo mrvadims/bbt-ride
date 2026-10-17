@@ -58,6 +58,7 @@ import { History } from "../components/History.tsx";
 import { HourTable } from "../components/HourTable.tsx";
 import { SportIcon, SymbolIcon } from "../components/icons.tsx";
 import { EmptyPanel, Panel, Section } from "../components/Panel.tsx";
+import { PlanTabs } from "../components/PlanTabs.tsx";
 import { SpotForm } from "../components/SpotForm.tsx";
 import { nobodyInvited, Visibility } from "../components/Visibility.tsx";
 import { WarningChips } from "../components/Warnings.tsx";
@@ -70,6 +71,7 @@ import {
   useActivities,
   useActivity,
   useMe,
+  usePoll,
   useRoute,
   useRouteSearch,
   useSpots,
@@ -232,6 +234,11 @@ export function PlanPage() {
   const [paceMsg, setPaceMsg] = useState<string | null>(null);
   const editId = query.get("edit");
   const reuseId = query.get("reuse");
+  // "Plan this" on a date poll: its title, sport, the option's first day and, for a private poll, its people
+  const pollId = editId || reuseId ? null : query.get("poll");
+  const pollOptionId = query.get("option");
+  const pollQ = usePoll(pollId);
+  const poll = pollQ.data;
   const source = useActivity(editId ?? reuseId);
   const sourceAct = source.data;
   const editingAct = useActivity(form?.editing).data; // stays current after Cancel / Restore
@@ -285,6 +292,7 @@ export function PlanPage() {
   useEffect(() => {
     if (loaded.current || !team || !spots || !acts) return;
     if ((editId || reuseId) && !sourceAct) return;
+    if (pollId && !poll) return;
     loaded.current = true;
     const first = offered.includes(prefs.sport) ? prefs.sport : (offered[0] ?? "other");
     if (editId && sourceAct)
@@ -294,6 +302,16 @@ export function PlanPage() {
         ...freshForm(sourceAct.sport),
         ...fromActivity(sourceAct, nextFreeDay(sourceAct.sport), null),
       });
+    if (poll) {
+      const option = poll.options.find((o) => o.id === pollOptionId) ?? poll.options[0];
+      const sport = poll.sport && offered.includes(poll.sport) ? poll.sport : first;
+      return setForm({
+        ...freshForm(sport),
+        title: poll.title.slice(0, 60),
+        date: option && option.startsOn >= today ? option.startsOn : nextFreeDay(sport),
+        guests: poll.private ? poll.guests.map((g) => g.userId).filter((id) => id !== me?.id) : null,
+      });
+    }
     api<{ form: Partial<Form> } | null>("/draft")
       .then((d) => {
         const restored = { ...freshForm(d?.form?.sport ?? first), ...(d?.form ?? {}) };
@@ -433,6 +451,7 @@ export function PlanPage() {
         replaceId,
         guests: form.guests ?? undefined,
         makePublic: Boolean(editingAct?.private && !form.guests), // Make public, on Update
+        ...(poll && !form.editing ? { pollId: poll.id, pollOptionId } : {}),
         baseUpdatedAt: form.base ?? "", // a POST ignores it
       };
       return form.editing
@@ -443,6 +462,7 @@ export function PlanPage() {
       await dropDraft(); // the server already deleted it; this catches a save that was in flight
       setPref("sport", act.sport);
       await qc.invalidateQueries({ queryKey: ["activities"] });
+      if (poll) await qc.invalidateQueries({ queryKey: ["polls"] });
       qc.setQueryData(["activity", act.id], act);
       navigate(`/a/${act.id}`);
     },
@@ -472,6 +492,7 @@ export function PlanPage() {
 
   if (source.isError && !source.data)
     return <p className="small">That activity couldn't be loaded. {source.error.message}</p>;
+  if (pollQ.isError && !poll) return <p className="small">That date poll couldn't be loaded. {pollQ.error.message}</p>;
   if (!form || !team || !spots || !acts) return <p className="muted small">Loading…</p>;
   const s = team.settings;
   const active = spots.filter((x) => !x.archived);
@@ -590,6 +611,13 @@ export function PlanPage() {
   return (
     <>
       <h1 className="sr">Plan an activity</h1>
+      {!form.editing && <PlanTabs current="plan" />}
+      {poll && !form.editing && (
+        <p className="notice small">
+          From the date poll <Link href={`/polls/${poll.id}`}>{poll.title}</Link>: publishing closes it and tells the
+          people In or Maybe for that date.
+        </p>
+      )}
       {editingAct ? (
         <div className={`editbar${editingAct.status === "cancelled" ? " lv2" : ""}`}>
           <span>

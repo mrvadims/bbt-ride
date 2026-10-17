@@ -63,6 +63,12 @@ function View({ act, me, since }: { act: ActivityDetail; me: Me; since?: string 
           </div>
         </div>
       )}
+      {act.fromPoll && (
+        <p className="small from-poll">
+          From the date poll <Link href={`/polls/${act.fromPoll.id}`}>{act.fromPoll.title}</Link>
+          {act.fromPoll.messages ? ` · ${act.fromPoll.messages} message${act.fromPoll.messages === 1 ? "" : "s"}` : ""}
+        </p>
+      )}
       <ActionRow act={act} m={m} />
       <ActivityBody
         act={act}

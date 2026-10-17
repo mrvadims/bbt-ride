@@ -2,6 +2,7 @@
 import { z } from "zod";
 import type { KitBand } from "./kit.ts";
 import { cleanName, MAX_MENTIONS, mentionIds, normalizePhone } from "./people.ts";
+import { POLL_OPTIONS_MAX } from "./polls.ts";
 import type { RideRoute } from "./ride.ts";
 import { HHMM, type Settings } from "./settings.ts";
 import { ICON_KEYS, type Icon } from "./sport-icons.ts";
@@ -125,6 +126,46 @@ export interface ActivityDetail extends Activity {
   rsvps: Rsvp[];
   messages: Message[];
   history: HistoryEntry[]; // newest first
+  fromPoll: { id: string; title: string; messages: number } | null; // planned from a date poll the viewer can see
+}
+
+/** Date polls (DESIGN.md → Date polls). */
+export type PollAnswer = "in" | "maybe" | "out";
+export interface PollOptionDates {
+  id: string;
+  startsOn: string;
+  endsOn: string;
+}
+/** GET /api/polls: the polls the viewer is asked on, open ones and recent closed ones. */
+export interface PollSummary {
+  id: string;
+  title: string;
+  sport: Sport | null;
+  private: boolean; // only the people picked (and its creator) see it
+  options: PollOptionDates[]; // in date order
+  closesOn: string; // the last day answers are taken
+  open: boolean; // taking answers (not closed, and closesOn not past)
+  createdBy: string | null;
+  createdByName: string | null;
+  createdAt: string;
+  answered: boolean; // the viewer answered at least one option
+  answeredCount: number; // people asked who answered
+  askedCount: number; // people asked (not disabled)
+  activityId: string | null; // planned: the activity made from it
+  newMessages: number; // other people's messages since the viewer last opened it
+}
+export interface PollOptionDetail extends PollOptionDates {
+  answers: { userId: string; name: string; status: PollAnswer; note: string | null }[];
+}
+export interface PollDetail extends Omit<PollSummary, "options"> {
+  note: string;
+  updatedAt: string; // sent back as baseUpdatedAt when editing
+  options: PollOptionDetail[]; // in date order
+  notes: { userId: string; name: string; note: string }[]; // each person's note on the whole poll
+  guests: { userId: string; name: string }[]; // a private poll's people, its creator among them; [] for everyone
+  notYet: { userId: string; name: string }[]; // asked, not disabled, no answer yet
+  messages: Message[];
+  activityTitle: string | null; // the planned activity's name, when the viewer can see it
 }
 
 /** GET /api/announcements: active ones and those from the last 90 days, newest first (DESIGN.md → Announcements). */
@@ -202,6 +243,8 @@ const activityFields = z.object({
   // unchanged when editing. A public activity can't become private.
   guests: z.array(z.string().min(1).max(64)).max(GUESTS_MAX).optional(),
   makePublic: z.boolean().default(false), // editing a private activity: show it to everyone (never undone)
+  pollId: z.string().max(64).nullable().default(null), // planned from this date poll's option ("Plan this")
+  pollOptionId: z.string().max(64).nullable().default(null),
 });
 type ActivityFields = z.output<typeof activityFields>;
 
@@ -267,6 +310,44 @@ const announcementFields = {
 };
 export const announcementInput = z.object({ ...announcementFields, notify: z.boolean().default(true) });
 export const announcementEdit = z.object(announcementFields); // editing never notifies again
+
+const pollTitle = z.string().trim().min(1, "Give it a title").max(80);
+const pollNote = z.string().trim().max(500).default("");
+export const pollInput = z.object({
+  title: pollTitle,
+  note: pollNote,
+  sport: z.enum(SPORTS).nullable().default(null),
+  options: z
+    .array(z.object({ startsOn: date, endsOn: date }))
+    .min(1, "Pick at least one date")
+    .max(POLL_OPTIONS_MAX),
+  // The people asked: null for everyone; otherwise these (the server adds the creator).
+  guests: z.array(z.string().min(1).max(64)).max(GUESTS_MAX).nullable().default(null),
+  closesOn: date.nullable().default(null), // null: the day before the first option
+});
+// baseUpdatedAt: the poll's updatedAt when the editor opened it, so a later change isn't overwritten.
+export const pollEdit = z.object({
+  title: pollTitle,
+  note: pollNote,
+  closesOn: date,
+  baseUpdatedAt: z.string().max(40),
+});
+export const POLL_NOTE_MAX = 140;
+const pollAnswerNote = z.string().trim().max(POLL_NOTE_MAX).nullable().default(null);
+// Only what changed: one option's answer (tap), all of them (Can't make any), and/or the note on the whole poll.
+export const pollAnswers = z.object({
+  answers: z
+    .array(
+      z.object({
+        optionId: z.string().min(1).max(64),
+        status: z.enum(["in", "maybe", "out"]).nullable(),
+        note: pollAnswerNote,
+      }),
+    )
+    .max(POLL_OPTIONS_MAX)
+    .default([]),
+  note: z.string().trim().max(POLL_NOTE_MAX).nullable().optional(), // left out: unchanged; null or "": removed
+});
 
 export const spotInput = z.object({
   name: z.string().trim().min(1).max(80),

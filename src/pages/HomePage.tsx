@@ -5,6 +5,7 @@ import { type Activity, activityName, type Me, type Unseen } from "../../shared/
 import { SPORT_LABEL, type Sport } from "../../shared/sports.ts";
 import { dayLabel, fmtTime, hhmmToMin } from "../../shared/time.ts";
 import { PrivateBadge, SportIcon, VideoIcon } from "../components/icons.tsx";
+import { OpenPolls, PollsToAnswer } from "../components/PollCards.tsx";
 import { Pill, WarningChips } from "../components/Warnings.tsx";
 import { useActivityModel } from "../lib/activityModel.ts";
 import { useActivities, useSpots } from "../lib/data.ts";
@@ -84,6 +85,7 @@ export function HomePage({ me }: { me: Me }) {
   return (
     <>
       <h1 className="sr">Upcoming</h1>
+      <PollsToAnswer />
       {sports.length > 1 && (
         <div className="filters" role="group" aria-label="Show">
           {(["all", ...sports] as const).map((s) => (
@@ -113,6 +115,7 @@ export function HomePage({ me }: { me: Me }) {
           )}
         </section>
       )}
+      <OpenPolls />
       <p className="center">
         <Link className="small" href="/past">
           Past activities

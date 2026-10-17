@@ -671,6 +671,44 @@ await settled();
 check(!(await welcome.count()), "the Welcome sheet shows once");
 await iphone.close();
 
+// Date polls: Plan's second tab, pick two weekends, send; answer; results; Plan this fills in Plan.
+await page.setViewportSize({ width: 390, height: 844 });
+await page.goto(`${BASE}/plan`);
+await page.getByRole("link", { name: "Date poll", exact: true }).click();
+await page.waitForURL("**/polls/new");
+await page.getByLabel("Title").fill(`Gunks ${stamp}`);
+await page.getByRole("button", { name: /^\+ Next weekend/ }).click();
+await page.getByRole("button", { name: /^\+ Next weekend/ }).click();
+check((await page.locator(".poll-opts li").count()) === 2, "date poll: + Next weekend adds weekends as options");
+await page.getByRole("button", { name: "Blocks (2–4 days)" }).click();
+await shot(page, "poll-new");
+await page.getByRole("button", { name: "Send to the team" }).click();
+await page.waitForURL(/\/polls\/[\w-]+$/);
+await page.getByRole("heading", { name: `Gunks ${stamp}` }).waitFor();
+const firstSeg = page.getByRole("group", { name: /^Your answer for / }).first();
+await firstSeg.getByRole("button", { name: "In", exact: true }).click();
+await page.locator(".poll-res.best").waitFor();
+check(
+  (await firstSeg.getByRole("button", { name: "In", exact: true }).getAttribute("aria-pressed")) === "true" &&
+    (await page.locator(".poll-res.best").textContent())?.includes("1 in") === true,
+  "date poll: answering In shows it as the best so far",
+);
+check(
+  (await page.getByRole("button", { name: "Messages", exact: true }).count()) === 1,
+  "date poll: it has its own Messages panel",
+);
+await shot(page, "poll");
+await page.locator(".poll-res.best").getByRole("button", { name: "Plan this" }).click();
+await page.waitForURL(/\/plan\?poll=/);
+await page.getByText("From the date poll").waitFor();
+check(
+  (await page.getByLabel("Title").inputValue()) === `Gunks ${stamp}`,
+  "date poll: Plan this opens Plan with the poll's title",
+);
+await page.goto(BASE);
+await page.locator(".poll-open").getByText(`Gunks ${stamp}`).waitFor();
+check(true, "date poll: once answered, it's listed under Open date polls on Home");
+
 check(errors.length === 0, `no page errors${errors.length ? `: ${errors.join(" | ")}` : ""}`);
 await browser.close();
 console.log(failures ? `\n${failures} check(s) failed` : "\nall checks passed");

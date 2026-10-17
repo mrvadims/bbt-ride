@@ -5,6 +5,8 @@ import type {
   ActivityDetail,
   Announcement,
   Me,
+  PollDetail,
+  PollSummary,
   RouteSummary,
   TeamMember,
   TeamSettings,
@@ -56,6 +58,17 @@ export const useActivity = (id: string | null | undefined) =>
     enabled: Boolean(id),
     refetchInterval: 30_000,
     refetchOnMount: "always", // opening it shows what's new since, not a copy from earlier
+  });
+
+/** Date polls the viewer is asked on (Home, the poll list); a poll with its answers, refreshed every 30 s while open. */
+export const usePolls = () => useQuery({ queryKey: ["polls"], queryFn: () => api<PollSummary[]>("/polls") });
+export const usePoll = (id: string | null | undefined) =>
+  useQuery({
+    queryKey: ["poll", id],
+    queryFn: () => api<PollDetail>(`/polls/${id}`),
+    enabled: Boolean(id),
+    refetchInterval: 30_000,
+    refetchOnMount: "always",
   });
 
 export const useRoute = (id: number | null | undefined) =>

@@ -4,6 +4,7 @@ import { AnnouncementBanner, AnnouncementsPage } from "./components/Announcement
 import { AppExtras } from "./components/AppExtras.tsx";
 import { ContactForm } from "./components/Contact.tsx";
 import { InstallHint } from "./components/InstallHint.tsx";
+import { PollList } from "./components/PollCards.tsx";
 import { TopBar } from "./components/TopBar.tsx";
 import { ApiError } from "./lib/api.ts";
 import { useMe } from "./lib/data.ts";
@@ -16,12 +17,14 @@ import { HelpGuide } from "./pages/HelpGuide.tsx";
 import { HomePage } from "./pages/HomePage.tsx";
 import { LinkPage } from "./pages/LinkPage.tsx";
 import { PastList } from "./pages/PastPage.tsx";
+import { PollPage } from "./pages/PollPage.tsx";
 import { SignIn } from "./pages/SignIn.tsx";
 import { TeamPage } from "./pages/TeamPage.tsx";
 import { UpdatesPage } from "./pages/Updates.tsx";
 
 // Editor and admin screens load on demand; most members never open them.
 const PlanPage = lazy(() => import("./pages/PlanPage.tsx").then((m) => ({ default: m.PlanPage })));
+const PollNew = lazy(() => import("./pages/PollNew.tsx").then((m) => ({ default: m.PollNew })));
 const SettingsPage = lazy(() => import("./pages/SettingsPage.tsx").then((m) => ({ default: m.SettingsPage })));
 
 export function App() {
@@ -75,6 +78,10 @@ export function App() {
   else if (page === "settings")
     content = user.role === "admin" ? <SettingsPage me={user} /> : <Restricted text="Settings are for admins." />;
   else if (page === "a" && arg) content = <ActivityPage id={arg} me={user} />;
+  else if (page === "polls" && arg === "new")
+    content = user.role === "view" ? <Restricted text="Date polls are started by editors." /> : <PollNew />;
+  else if (page === "polls" && arg) content = <PollPage id={arg} me={user} />;
+  else if (page === "polls") content = <PollList canCreate={user.role !== "view"} />;
   else if (page === "past") content = <PastList />;
   else content = <HomePage me={user} />;
 

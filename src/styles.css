@@ -2063,3 +2063,250 @@ a.tile[aria-label="Open in RideWithGPS"] {
 .update-row b {
   font-size: 18px;
 }
+
+/* Date polls (DESIGN.md → Date polls). */
+.plan-tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--card2);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 4px;
+  margin: 0 0 12px;
+}
+.plan-tabs a {
+  flex: 1;
+  text-align: center;
+  padding: 9px 0;
+  border-radius: 9px;
+  font-size: 14px;
+  color: var(--muted);
+  text-decoration: none;
+}
+.plan-tabs a.on {
+  background: var(--card);
+  color: var(--text);
+  font-weight: 700;
+  box-shadow: var(--shadow);
+}
+.poll-new .sec-b,
+.poll .sec-b {
+  display: grid;
+  gap: 10px;
+}
+.pcal {
+  display: grid;
+  gap: 8px;
+}
+.pcal .seg {
+  justify-self: start;
+}
+.pcal-h {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.pcal-h .iconbtn {
+  font-size: 22px;
+  color: var(--link);
+  width: 44px;
+  height: 44px;
+}
+.pcal-h .iconbtn:disabled {
+  opacity: 0.3;
+}
+.pcal-g {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px 0;
+  text-align: center;
+}
+.pcal-w {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+}
+.pcal-d {
+  appearance: none;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  height: 40px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.pcal-d:disabled {
+  color: var(--muted);
+  opacity: 0.45;
+  cursor: default;
+}
+.pcal-d.today {
+  box-shadow: inset 0 0 0 1.5px var(--primary);
+  font-weight: 700;
+}
+.pcal-d.picked,
+.pcal-d.start {
+  background: var(--primary);
+  color: var(--on-primary);
+  font-weight: 700;
+}
+.pcal-d.start {
+  background: var(--win);
+  color: var(--text);
+  box-shadow: inset 0 0 0 2px var(--primary);
+}
+.pcal-d.from {
+  border-radius: 10px 0 0 10px;
+}
+.pcal-d.to {
+  border-radius: 0 10px 10px 0;
+}
+.pcal-d.mid {
+  border-radius: 0;
+}
+.poll-opts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.poll-opts li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 6px 6px 6px 12px;
+  font-size: 14px;
+}
+.poll-opts .linkbtn {
+  min-width: 36px;
+  min-height: 36px;
+}
+.poll {
+  display: grid;
+  gap: 10px;
+}
+.poll-h {
+  display: grid;
+  gap: 3px;
+}
+.poll-h h1 {
+  margin: 0;
+  font-size: 22px;
+}
+.poll-h p {
+  margin: 0;
+}
+.poll-answer,
+.poll-results {
+  display: grid;
+  gap: 12px;
+}
+.poll-row {
+  display: grid;
+  gap: 6px;
+}
+.poll-seg {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.poll-seg button {
+  min-height: 40px;
+}
+.poll-res {
+  display: grid;
+  gap: 4px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.poll-res.best {
+  border: 2px solid var(--primary);
+  border-radius: 12px;
+  padding: 12px;
+}
+.poll-res .kicker {
+  color: var(--link);
+}
+.poll-res p {
+  margin: 0;
+}
+.poll-bar {
+  display: flex;
+  height: 10px;
+  border-radius: 5px;
+  overflow: hidden;
+  background: var(--card2);
+}
+.poll-bar .b-in {
+  background: #1f9d55;
+}
+.poll-bar .b-maybe {
+  background: #e7a713;
+}
+.poll-bar .b-out {
+  background: #d64535;
+}
+.poll-who .linkbtn {
+  font-size: inherit;
+}
+.poll-notes p {
+  margin: 0 0 4px;
+}
+.poll-notyet {
+  display: grid;
+  gap: 8px;
+}
+.poll-manage {
+  gap: 16px;
+}
+.poll-cards {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 12px;
+}
+.poll-card {
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+  border: 2px solid var(--primary);
+}
+.poll-k {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.poll-k svg {
+  fill: none;
+  stroke: var(--primary);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.poll-open {
+  display: grid;
+  gap: 6px;
+  margin: 14px 0 0;
+}
+.poll-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 14px;
+  color: var(--text);
+  text-decoration: none;
+}
+.poll-line-b {
+  flex: 1;
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.from-poll {
+  margin: 0 0 8px;
+}

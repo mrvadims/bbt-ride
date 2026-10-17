@@ -72,6 +72,30 @@ export function HelpGuide({ me }: { me: Me }) {
       </div>
 
       <div className="panel help-sec">
+        <h2>Date polls</h2>
+        <ul>
+          <li>
+            A <b>date poll</b> asks which day (or weekend) works before something is planned. When one is waiting for
+            you, it's at the top of Home: tap <b>Answer</b>.
+          </li>
+          <li>
+            For each date, tap <b>In</b>, <b>Maybe</b> or <b>Out</b> (tap it again to clear it) and add a note if you
+            like. <b>Can't make any of these</b> marks them all Out.
+          </li>
+          <li>
+            Everyone asked sees the results, best date first, and can post in the poll's <b>Messages</b>.
+          </li>
+          {editor && (
+            <li>
+              Editors: <b>Plan</b> → <b>Date poll</b> to start one (up to 14 days or weekends, within a year). On the
+              results, <b>Plan this</b> turns a date into an activity and closes the poll.
+            </li>
+          )}
+        </ul>
+        <Go href="/polls">All date polls</Go>
+      </div>
+
+      <div className="panel help-sec">
         <h2>On an activity's page</h2>
         <ul>
           <li>
