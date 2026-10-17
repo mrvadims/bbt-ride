@@ -12,7 +12,8 @@
       "!dist",
       "!.wrangler",
       "!android",
-      "!www/public"
+      "!www/public",
+      "!.claude/skills/audit/audit.workflow.js"
     ]
   },
   "formatter": {

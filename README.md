@@ -6,6 +6,7 @@ Planning and hyperlocal weather for the BBT team — rides, runs, swims, pickleb
 - [ARCHITECTURE.md](ARCHITECTURE.md): architecture for technical review, with diagrams, decisions, risks and future work.
 - [DECISIONS.md](DECISIONS.md): every design decision, with dates.
 - [SETUP.md](SETUP.md): accounts, tokens, secrets and the first deploy.
+- `/audit` ([.claude/skills/audit](.claude/skills/audit/SKILL.md)): automated gates plus six parallel reviewers (spec and docs, simplicity, implementation, security, infrastructure, UX); run `/audit pr` before every pull request.
 - `public/privacy.html`: the public privacy page (served at `/privacy`).
 
 ## The app
