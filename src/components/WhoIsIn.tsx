@@ -46,12 +46,14 @@ export function WhoIsIn({ act, me, past }: { act: ActivityDetail; me: Me; past: 
       label="Who's in"
       summary={
         <>
-          <b>
-            {ins.length} {past ? (act.status === "cancelled" ? "were in" : "joined") : "in"}
-          </b>{" "}
-          · {outs.length} out{!past && notYet.length > 0 ? ` · ${notYet.length} not yet` : ""}
-          {open && (
-            <div className="sw">
+          <div className="sumrow">
+            <span className="clamp">
+              <b>
+                {ins.length} {past ? (act.status === "cancelled" ? "were in" : "joined") : "in"}
+              </b>{" "}
+              · {outs.length} out{!past && notYet.length > 0 ? ` · ${notYet.length} not yet` : ""}
+            </span>
+            {open && (
               <div className="seg" role="group" aria-label="Your RSVP">
                 <button
                   type="button"
@@ -70,27 +72,29 @@ export function WhoIsIn({ act, me, past }: { act: ActivityDetail; me: Me; past: 
                   Out
                 </button>
               </div>
-              {mine?.status === "in" && alt && (
-                <div className="seg" role="group" aria-label="Your route" style={{ marginTop: 6 }}>
-                  {act.routes.map((r) => (
-                    <button
-                      key={r.label}
-                      type="button"
-                      aria-pressed={mine.routeLabel === r.label}
-                      disabled={call.isPending}
-                      onClick={() =>
-                        call.mutate({
-                          path: `/activities/${act.id}/rsvp`,
-                          method: "PUT",
-                          body: { status: "in", routeLabel: r.label },
-                        })
-                      }
-                    >
-                      {r.label}
-                    </button>
-                  ))}
-                </div>
-              )}
+            )}
+          </div>
+          {open && mine?.status === "in" && alt && (
+            <div className="sw">
+              <div className="seg" role="group" aria-label="Your route">
+                {act.routes.map((r) => (
+                  <button
+                    key={r.label}
+                    type="button"
+                    aria-pressed={mine.routeLabel === r.label}
+                    disabled={call.isPending}
+                    onClick={() =>
+                      call.mutate({
+                        path: `/activities/${act.id}/rsvp`,
+                        method: "PUT",
+                        body: { status: "in", routeLabel: r.label },
+                      })
+                    }
+                  >
+                    {r.label}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
           {error && ( // in the header, so a failed In / Out shows even while the panel is closed

@@ -134,10 +134,10 @@ for (const t of ["Directions", "Calendar", "Share"])
 check(await page.getByRole("link", { name: "Open in RideWithGPS" }).isVisible(), "action row: RideWithGPS tile");
 check(
   await page
-    .getByText(/feels .*wind/)
+    .getByText(/rain \d+% · wind/)
     .first()
     .isVisible(),
-  "weather summary in the Weather header",
+  "weather summary in the Weather header: temperature · rain · wind",
 );
 
 await page.getByRole("button", { name: "History", exact: true }).click();
@@ -167,10 +167,42 @@ await page.getByText("See you at 8:30!").waitFor();
   );
   await page.getByRole("button", { name: "Messages", exact: true }).click();
   check(
-    (await panelOf("Messages").locator(".msg-latest").textContent())?.includes("See you at 8:30!") === true,
+    (await panelOf("Messages").locator(".panel-s").textContent())?.includes("See you at 8:30!") === true,
     "a closed Messages panel shows the latest message",
   );
   await page.getByRole("button", { name: "Messages", exact: true }).click();
+  // With every panel collapsed, a typical ride (one warning, no banner) fits a phone without scrolling: 390 × 760 is
+  // an iPhone 13–16 Home Screen app below its status bar and above its home bar (DESIGN.md → Activity page).
+  const prefs = await page.evaluate(() => localStorage.getItem("bbt.prefs"));
+  await page.evaluate(() => {
+    const p = JSON.parse(localStorage.getItem("bbt.prefs") ?? "{}");
+    const ids = [...document.querySelectorAll(".panel-t")].map((b) => (b.getAttribute("aria-controls") ?? "").slice(3));
+    p.panels = Object.fromEntries(ids.map((id) => [id, false]));
+    localStorage.setItem("bbt.prefs", JSON.stringify(p));
+  });
+  await page.setViewportSize({ width: 390, height: 760 });
+  await page.reload();
+  await page.getByRole("button", { name: "Messages", exact: true }).waitFor();
+  // An announcement left active by an earlier local run would sit above it until Got it: leave its height out.
+  const fit = await page.evaluate(() => {
+    const banner = document.querySelector(".announce");
+    const bannerH = banner
+      ? banner.getBoundingClientRect().height + Number.parseFloat(getComputedStyle(banner).marginBottom)
+      : 0;
+    return {
+      page: Math.round(document.documentElement.scrollHeight - bannerH),
+      screen: innerHeight,
+      warnings: document.querySelectorAll(".warns .warn").length,
+    };
+  });
+  check(
+    fit.warnings > 1 || fit.page <= fit.screen,
+    `a collapsed ride fits a 390 × 760 phone without scrolling (${fit.page} px, ${fit.warnings} warning(s))`,
+  );
+  await page.evaluate((v) => v && localStorage.setItem("bbt.prefs", v), prefs);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.reload();
+  await page.getByRole("button", { name: "Messages", exact: true }).waitFor();
 }
 check(
   (await page.getByRole("link", { name: "https://example.com/lot" }).getAttribute("href")) ===
