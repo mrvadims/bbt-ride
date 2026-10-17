@@ -65,7 +65,7 @@ export function HelpGuide({ me }: { me: Me }) {
           </li>
           <li>
             Post in <b>Messages</b>. Type <b>@</b> and a name to mention someone; they get a notification. <b>@here</b>{" "}
-            notifies everyone who can see the activity.
+            notifies everyone who can see the activity, except people who turned off its thread or its sport.
           </li>
           <li>Tap anyone's name to call or text them.</li>
         </ol>
@@ -124,8 +124,9 @@ export function HelpGuide({ me }: { me: Me }) {
         <ul>
           <li>
             Account menu → <b>Notifications</b>: turn them on for this phone or computer. You're told when an activity
-            is changed, cancelled or back on, when someone mentions you, and about new messages where you're In, you
-            created it or you posted. <b>Notify me about new messages</b>, under each thread, mutes or follows it.
+            is changed, cancelled or back on, when someone mentions you, and about new messages where you're In (on a
+            date poll, In or Maybe), you created it or you posted. <b>Notify me about new messages</b>, under each
+            thread, mutes or follows it.
           </li>
           <li>
             Account menu → <b>Tell me about new</b>: pick the sports you want to hear about when something new is

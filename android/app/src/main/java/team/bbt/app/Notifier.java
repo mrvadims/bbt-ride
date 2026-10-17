@@ -97,9 +97,9 @@ final class Notifier {
     static void ensureChannel(Context ctx) {
         if (Build.VERSION.SDK_INT < 26) return;
         NotificationManager nm = ctx.getSystemService(NotificationManager.class);
-        if (nm.getNotificationChannel(CHANNEL) != null) return;
+        // Creating it again only updates its name and description; the person's own settings for it stay.
         NotificationChannel ch = new NotificationChannel(CHANNEL, "Activities", NotificationManager.IMPORTANCE_HIGH);
-        ch.setDescription("New activities, changes and cancellations");
+        ch.setDescription("Activities, date polls and messages");
         nm.createNotificationChannel(ch);
     }
 }

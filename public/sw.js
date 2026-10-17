@@ -1,4 +1,4 @@
-// Service worker: shows activity notifications and opens the activity when one is tapped. No offline caching.
+// Service worker: shows BBT's notifications and opens the page each one links to when it's tapped. No offline caching.
 // An update to an activity someone is In for has Still in / I'm out buttons (DESIGN.md → v2, Notifications); browsers
 // without notification buttons (iPhone) just show the notification, and tapping it opens the activity. A thread's
 // messages share a tag, so a later one replaces the card; "quiet" ones do it without sound (DESIGN.md → Message

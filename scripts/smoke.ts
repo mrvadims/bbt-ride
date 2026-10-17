@@ -718,6 +718,7 @@ for (const { who, c } of outs) {
     (await c(`/api/activities/${pid}/seen`, { method: "POST" })).status,
     (await c(`/api/activities/${pid}/rsvp`, { method: "PUT", body: { status: "in", routeLabel: null } })).status,
     (await c(`/api/activities/${pid}/messages`, { body: { body: "hi" } })).status,
+    (await c(`/api/activities/${pid}/notify`, { method: "PUT", body: { on: true } })).status,
     (await c(`/api/messages/${mid}`, { method: "PATCH", body: { body: "edited" } })).status,
     (await c(`/api/messages/${mid}`, { method: "DELETE" })).status,
   ];
@@ -1110,6 +1111,7 @@ check((await creator.c(`/api/activities/${pid}`, { method: "DELETE" })).status =
       c(`/api/polls/${sp.id}/answers`, { method: "PUT", body: { answers: [{ optionId: sa.id, status: "in" }] } }),
       c(`/api/polls/${sp.id}/messages`, { body: { body: "hi" } }),
       c(`/api/polls/${sp.id}/seen`, { method: "POST" }),
+      c(`/api/polls/${sp.id}/notify`, { method: "PUT", body: { on: true } }),
       c(`/api/polls/${sp.id}/nudge`, { method: "POST" }),
       c(`/api/polls/${sp.id}`, {
         method: "PUT",
@@ -1217,6 +1219,12 @@ check((await creator.c(`/api/activities/${pid}`, { method: "DELETE" })).status =
   );
   await outsider.c(`/api/activities/${nid}/rsvp`, { method: "PUT", body: { status: "in", routeLabel: null } });
   check((await notifyOf(outsider.c)) === true, "message notifications: saying In follows it");
+  await outsider.c("/api/me/muted/pickleball", { method: "PUT", body: { off: true } });
+  check(
+    (await notifyOf(outsider.c)) === true,
+    "message notifications: turning the sport off doesn't stop messages on an activity you're In for",
+  );
+  await outsider.c("/api/me/muted/pickleball", { method: "PUT", body: { off: false } });
   const muted = await outsider.c(`/api/activities/${nid}/notify`, { method: "PUT", body: { on: false } });
   check(
     muted.status === 200 && muted.json.notify === false && (await notifyOf(outsider.c)) === false,

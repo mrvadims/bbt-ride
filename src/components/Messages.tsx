@@ -88,6 +88,7 @@ export function MessagesPanel({
           <div className="compose">
             <MentionBox
               only={only}
+              here={false}
               label="Edit message"
               meId={me.id}
               value={editing.body}
@@ -218,21 +219,23 @@ export function MessagesPanel({
       )}
     >
       {top.length ? top.map((m) => msg(m, false)) : <p className="muted small">No messages yet.</p>}
-      <label className="radio notify-row" style={{ border: 0, padding: 0 }}>
-        <input
-          type="checkbox"
-          checked={notify}
-          disabled={call.isPending}
-          onChange={(e) => call.mutate({ path: notifyPath, method: "PUT", body: { on: e.target.checked } })}
-        />
-        <span>
-          <b>Notify me about new messages</b>
-          <br />
-          <span className="small muted">
-            {notify ? "@mentions reach you either way." : "Muted. You'll still get @mentions of you."}
+      {canPost && (
+        <label className="radio notify-row">
+          <input
+            type="checkbox"
+            checked={notify}
+            disabled={call.isPending}
+            onChange={(e) => call.mutate({ path: notifyPath, method: "PUT", body: { on: e.target.checked } })}
+          />
+          <span>
+            <b>Notify me about new messages</b>
+            <br />
+            <span className="small muted">
+              {notify ? "@mentions reach you either way." : "Off. You'll still get @mentions of you."}
+            </span>
           </span>
-        </span>
-      </label>
+        </label>
+      )}
       {canPost && (
         <div className="compose">
           <MentionBox

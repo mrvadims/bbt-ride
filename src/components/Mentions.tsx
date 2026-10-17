@@ -56,6 +56,7 @@ export function MentionBox({
   placeholder,
   meId,
   only,
+  here: offerHere = true,
 }: {
   value: Draft;
   onChange: (d: Draft) => void;
@@ -63,6 +64,7 @@ export function MentionBox({
   placeholder?: string;
   meId: string;
   only?: string[]; // a private activity: only the people invited can be mentioned
+  here?: boolean; // offer @here (not when editing: edits never notify)
 }) {
   const members = useMembers().data ?? [];
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -79,8 +81,8 @@ export function MentionBox({
         })
         .slice(0, MAX_SHOWN)
     : [];
-  // "@here" first, while what's typed could still be it
-  const here = mention !== null && HERE.startsWith(mention.query.toLowerCase());
+  // "@here" first from "@h" on, while what's typed could still be it (a bare "@" + Enter still picks a person)
+  const here = offerHere && mention !== null && mention.query !== "" && HERE.startsWith(mention.query.toLowerCase());
   const options: { id: string; name: string }[] = [...(here ? [{ id: HERE, name: HERE }] : []), ...matches];
   const open = options.length > 0;
 

@@ -353,7 +353,7 @@ const pkUrl = page.url();
   const notifyBox = page.getByRole("checkbox", { name: /Notify me about new messages/ });
   check(await notifyBox.isChecked(), "posting follows the thread: Notify me is on");
   await notifyBox.click(); // it changes once the server answers
-  await page.getByText("Muted. You'll still get @mentions of you.").waitFor();
+  await page.getByText("Off. You'll still get @mentions of you.").waitFor();
   check(!(await notifyBox.isChecked()), "Notify me off mutes the thread");
   if (shots) await page.screenshot({ path: `${shots}/thread-muted.png` });
   await notifyBox.click();

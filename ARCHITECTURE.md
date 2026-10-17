@@ -1,6 +1,6 @@
 # BBT app architecture
 
-Last updated 2026-10-16. Audience: CTO, developers, DevOps, QA and InfoSec reviewing the design, its decisions and the next steps. The diagrams are Mermaid and render on GitHub.
+Last updated 2026-10-17. Audience: CTO, developers, DevOps, QA and InfoSec reviewing the design, its decisions and the next steps. The diagrams are Mermaid and render on GitHub.
 
 ## Summary
 
@@ -220,7 +220,7 @@ sequenceDiagram
 12. A 404/410 from Web Push, or a gone FCM token, deletes that subscription.
 13. Other failures are logged and re-queued once, only for the failed devices, 60 seconds later. A second failure is logged and dropped.
 
-The same path serves updates, cancellations, restores, deletes (`gone`), mentions (`to`) and announcements (`notifyTeam`, every opted-in device, no activity filter).
+The same path serves updates, cancellations, restores, deletes (`gone`), mentions (`to`) and announcements (`notifyTeam`, every opted-in device, no activity filter). Thread messages and @here go through `notifyPeople` from `thread-notify.ts`, which picks the people and passes a `tag` (one card per thread) and `quiet` (later messages replace it without sound) that the service worker and Android 1.3 honour.
 
 ### Sign-in and sessions
 
@@ -263,7 +263,7 @@ Every `/api/*` route except health, the invite/reset link endpoints and the sign
 - Three roles: View (shown as Member), Edit, Admin, checked by `requireRole` middleware.
 - Private date polls: the same pattern, `pollVisible()` in `worker/util.ts`, on every poll route and in the message edit/delete routes; a poll's notifications reach only its people.
 - Private activities: one SQL rule, `visible()` in `worker/util.ts`, is applied in every query that reads activities for a person. Uninvited people (Admins included) get the same 404 as for a missing activity; each write repeats the check inside its D1 batch (`stillVisible`) to close the read-then-write race.
-- Notifications for a private activity reach only its guests, enforced in the queueing query; an activity that can't be found notifies no one (fail closed).
+- Notifications for a private activity or poll reach only its people, enforced in SQL wherever recipients are chosen: the `notifyActivity` / `notifyPoll` queueing queries, or `notifyThread`'s recipient select with `visible()` / `pollVisible()`; `notifyPeople` does no check of its own, so every caller must choose recipients that way. An owner that can't be found notifies no one (fail closed).
 - Only Admins see other members' roles and emails, in Settings → Users; the Team directory has no roles. Everyone sees names, phones and emergency contacts (a team decision).
 
 **Request hygiene**
@@ -287,8 +287,8 @@ Every `/api/*` route except health, the invite/reset link endpoints and the sign
 
 **Privacy and data handling**
 
-- Stored personal data: name, email, optional username, mobile and emergency contact, RSVPs, messages, push endpoints, visits, announcement acknowledgements. `/privacy` describes it.
-- Deleting an account cascades to sessions, devices, calendar link, RSVPs, visits, guest rows and acknowledgements; messages remain as "Former member"; the email is removed from old links and the audit trail.
+- Stored personal data: name, email, optional username, mobile and emergency contact, RSVPs, messages, push endpoints, visits, thread follow and mute choices with last-alerted times, announcement acknowledgements. `/privacy` describes it.
+- Deleting an account cascades to sessions, devices, calendar link, RSVPs, visits, guest rows, `thread_people` and acknowledgements; messages remain as "Former member"; the email is removed from old links and the audit trail.
 - The audit log records publish, update, cancel, restore, delete, user and announcement changes, with actor and timestamp.
 
 ## Operations
@@ -334,8 +334,8 @@ CI gates every merge on lint, types, unit tests and a build; the two end-to-end 
 | --- | --- | --- | --- |
 | Lint and format | Biome 2 | CI (every push), locally | Whole repo; CI fails on any error |
 | Types | TypeScript 7 (`tsc -b`) | CI, locally | Worker, client, shared, scripts |
-| Unit | Vitest 5 | CI, locally | 73 tests: date poll rules (options, closing date, ranking, next weekend), weather and road wetness, bike feel, ETA math (worked examples from DESIGN.md), kit chart, warnings, New York time, `.ics` (including a CPU budget), activity input rules, online places, mentions, names, phones |
-| API end to end | `scripts/smoke.ts` (fetch) | Locally against `npm run dev` | 220 checks: invites, sign-in, rate limit, roles, activities, RSVP, messages, Replace, calendar feed, private-activity access matrix (every route x role x invited or not), announcements, online places, date polls (rules, answers, Nudge, close, edit conflicts, messages, private access matrix, Plan this once, private poll into a private activity), message notifications (followers, Notify me, @here) |
+| Unit | Vitest 5 | CI, locally | 77 tests: message notification cards and @here, date poll rules (options, closing date, ranking, next weekend), weather and road wetness, bike feel, ETA math (worked examples from DESIGN.md), kit chart, warnings, New York time, `.ics` (including a CPU budget), activity input rules, online places, mentions, names, phones |
+| API end to end | `scripts/smoke.ts` (fetch) | Locally against `npm run dev` | 221 checks: invites, sign-in, rate limit, roles, activities, RSVP, messages, Replace, calendar feed, private-activity access matrix (every route x role x invited or not), announcements, online places, date polls (rules, answers, Nudge, close, edit conflicts, messages, private access matrix, Plan this once, private poll into a private activity), message notifications (followers, Notify me, sport mutes, @here; the notify routes in both access matrices) |
 | Browser end to end | `scripts/ui-smoke.ts` (Playwright, Chromium) | Locally against `npm run dev` | 90 checks: sign-in and invite pages, Plan, activity page, mentions, @here, Notify me, markers, Team, contacts, delete, private activities, announcements, online meet-ups, date polls, Help, What's new, phone-width layout, a collapsed ride fitting a 390 × 760 phone, dark mode, iPhone install hint; optional screenshots for review |
 | Android build | Gradle | CI on branches (unsigned), deploy (signed) | Compiles and passes release lint; no device tests |
 
@@ -383,7 +383,7 @@ The largest risks are operational, not functional: no staging, no alerting and n
 | Third-party dependencies (Open-Meteo, NWS, RideWithGPS, Google, FCM, OSM/Carto tiles) | Features degrade when a provider is down or changes its API | Medium | Caching (KV, D1 route cache); the page still loads without weather or a route |
 | End-to-end tests not in CI; no Safari/device automation | Regressions caught late, iOS layout issues reach users | Medium | Manual review on phones; screenshots in PRs |
 | Android app sideloaded, iPhone uses Web Push | Install friction; iOS notifications need Home Screen install (iOS 16.4+) | High (by design) | Download page, install hints, in-app update prompt |
-| Free-tier ceilings (CPU per request, daily request and storage quotas) | Throttling if usage grows well beyond one team | Low | Code is budgeted for ~10 ms CPU; paid plan is a configuration change |
+| Free-tier ceilings (CPU per request, daily request, Queue operation and storage quotas) | Throttling if usage grows well beyond one team | Low | Code is budgeted for ~10 ms CPU; paid plan is a configuration change |
 
 ## Future technical enhancements
 

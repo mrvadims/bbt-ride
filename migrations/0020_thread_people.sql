@@ -7,3 +7,6 @@ create table thread_people (
   alerted_at text,
   primary key (thread_id, user_id)
 );
+
+-- Each new message looks up whether its possible recipients have a device.
+create index push_subscriptions_user on push_subscriptions (user_id);
