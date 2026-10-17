@@ -34,7 +34,7 @@ import {
 } from "../threads.ts";
 import { audit, fail, newId, nowIso, pollVisible, sameBatch, visible } from "../util.ts";
 import { validate } from "../validate.ts";
-import { linkPoll, planFromPoll, pollPlanned } from "./polls.ts";
+import { linkPoll, planFromPoll, pollPlanned, stillUnplanned } from "./polls.ts";
 import { loadSettings } from "./settings.ts";
 
 interface ActivityRow {
@@ -496,6 +496,7 @@ export const activities = new Hono<AppEnv>()
     const id = newId();
     const now = nowIso();
     await c.env.DB.batch([
+      ...(plan ? [stillUnplanned(c.env.DB, plan.poll.id)] : []),
       ...(clash ? cancelReplaced(c.env.DB, clash.id, user.id, now) : []),
       c.env.DB.prepare(
         `insert into activities (id, sport, icon, title, date, start_time, end_time, spot_id, outdoor, pace_mph, details, notes,
@@ -525,7 +526,10 @@ export const activities = new Hono<AppEnv>()
       ...(plan ? [linkPoll(c.env.DB, plan.poll.id, id)] : []),
       c.env.DB.prepare("delete from drafts where user_id = ?").bind(user.id),
       audit(c.env.DB, user.id, "publish", "activity", id, input),
-    ]);
+    ]).catch((e) => {
+      if (/malformed JSON/i.test(String(e))) fail(409, "This date poll is already planned");
+      throw e;
+    });
     if (clash) c.executionCtx.waitUntil(notifyReplaced(c.env, clash.id));
     const created = await detail(c.env.DB, user.id, id);
     c.executionCtx.waitUntil(announce(c.env, created, user, guests ? { invited: guests.ids } : undefined));

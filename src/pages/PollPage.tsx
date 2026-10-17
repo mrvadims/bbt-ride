@@ -387,13 +387,14 @@ function EditPoll({
   const [title, setTitle] = useState(poll.title);
   const [note, setNote] = useState(poll.note);
   const [closesOn, setClosesOn] = useState(poll.closesOn);
+  const [base] = useState(poll.updatedAt); // the copy this form opened, not the one the 30 s refresh brings
   const [error, setError] = useState<string | null>(null);
   const last = poll.options.reduce((m, o) => (o.endsOn > m ? o.endsOn : m), "");
   const save = useMutation({
     mutationFn: () =>
       api<PollDetail>(`/polls/${poll.id}`, {
         method: "PUT",
-        body: { title, note, closesOn, baseUpdatedAt: poll.updatedAt },
+        body: { title, note, closesOn, baseUpdatedAt: base },
       }),
     onSuccess: (p) => {
       onSaved(p);

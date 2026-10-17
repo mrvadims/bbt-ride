@@ -224,6 +224,15 @@ export async function planFromPoll(db: D1Database, viewer: string, pollId: strin
   return { poll: summary, option };
 }
 
+/** First in the batch that publishes from "Plan this": fails it (nothing is written) if another publish planned the poll
+ * a moment ago, so two Editors pressing Publish together can't both plan it. */
+export const stillUnplanned = (db: D1Database, pollId: string) =>
+  db
+    .prepare(
+      "select case when exists (select 1 from date_polls where id = ? and activity_id is null) then 1 else json('planned') end",
+    )
+    .bind(pollId);
+
 /** "Plan this", in the batch that publishes the activity: links it to the poll and closes the poll. */
 export const linkPoll = (db: D1Database, pollId: string, activityId: string) =>
   db
