@@ -17,9 +17,22 @@ const UPDATES: Update[] = [
   {
     date: "2026-10-17",
     label: "October 17, 2026",
-    title: "Date polls, message notifications and @here",
-    summary: "Plus a more compact activity page and a few smaller improvements.",
+    title: "Messages panel, date polls, message notifications and @here",
+    summary: "Plus a few smaller improvements.",
     sections: [
+      {
+        h: "Messages panel and a more compact activity page",
+        items: [
+          <>
+            <b>Messages</b> are now their own panel, under Who's in, open by default. Closed, it shows how many messages
+            there are, how many are new and the latest one.
+          </>,
+          <>
+            Every panel closes to a single line, so with all of them closed an activity fits on one phone screen. The
+            Route, Weather and Who's in headers show the key facts at a glance.
+          </>,
+        ],
+      },
       {
         h: "Date polls",
         items: [
@@ -52,15 +65,6 @@ const UPDATES: Update[] = [
           </>,
           <>
             Type <b>@here</b> to notify everyone who can see the activity or poll.
-          </>,
-        ],
-      },
-      {
-        h: "Activity page",
-        items: [
-          <>
-            <b>Messages</b> are their own panel, under Who's in. With every panel closed, an activity fits on one phone
-            screen.
           </>,
         ],
       },
