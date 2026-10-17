@@ -64,7 +64,7 @@ export function WarningBoxes({ list, u, lookback }: { list: Warning[]; u: Units;
             <LevelIcon level={w.level} />
             <div>
               <b>{t.title}</b>
-              <span>{t.detail}</span>
+              {t.detail && <span> · {t.detail}</span>}
             </div>
           </div>
         );

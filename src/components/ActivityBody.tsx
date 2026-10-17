@@ -171,15 +171,17 @@ function sportLine(a: Pick<ActivityLike, "sport" | "outdoor">, online: boolean):
   return labels ? `${SPORT_LABEL[a.sport]} · ${a.outdoor ? labels[1] : labels[0]}` : SPORT_LABEL[a.sport];
 }
 
-/** Header card: sport, name, day and time, details; the Edit pencil for editors. */
+/** Header card: sport, name, day and time, details, the latest change; the Edit pencil for editors. */
 export function ActivityHeader({
   act,
   m,
   onEdit,
+  note,
 }: {
   act: ActivityLike & { private?: boolean };
   m: ActivityModel;
   onEdit?: () => void;
+  note?: ReactNode; // "Updated … · what changed", one line under the day
 }) {
   const name = activityName(act);
   return (
@@ -196,6 +198,7 @@ export function ActivityHeader({
           {m.ride ? "" : `–${fmtTime(m.end)}`}
           {act.details ? ` · ${act.details}` : ""}
         </span>
+        {note && <span className="ahead-note">{note}</span>}
       </div>
       {onEdit && (
         <button type="button" className="iconbtn edit" aria-label="Edit" title="Edit" onClick={onEdit}>
@@ -409,7 +412,7 @@ export function ActionRow({ act, m }: { act: ActivityDetail; m: ActivityModel })
 /** Open in RideWithGPS: their vertical logo, which already carries the name. */
 export const RwgpsTile = ({ url }: { url: string }) => (
   <a className="tile" href={url} target="_blank" rel="noopener noreferrer" aria-label="Open in RideWithGPS">
-    <img src={rwgpsLogo} alt="" width={40} height={47} />
+    <img src={rwgpsLogo} alt="" width={30} height={35} />
   </a>
 );
 
@@ -505,7 +508,9 @@ export function ActivityBody(props: {
         label="Route"
         summary={
           <>
-            <b>{route.name}</b> · {u.dist(ride.distMi)} · {u.elev(ride.climbFt)}
+            <span className="clamp">
+              <b>{route.name}</b> · {u.dist(ride.distMi)} · {u.elev(ride.climbFt)}
+            </span>
             {switcher && <div className="sw">{switcher}</div>}
           </>
         }
@@ -567,19 +572,22 @@ export function ActivityBody(props: {
         id={`${kp}weather`}
         label="Weather"
         summary={
-          <>
-            {wxSummary(st, u)}
-            {m.kit && (
-              <div className="tiny muted">
-                Wear: {m.kit.band.name.toLowerCase()} kit
-                {m.kit.addOns.length ? ` + ${m.kit.addOns.map((a) => ADD_ON_TEXT(a, u).short).join(", ")}` : ""}
-              </div>
-            )}
-          </>
+          <span className="clamp">
+            <b>
+              {u.temp(st.tMin)}–{u.temp(st.tMax)}
+            </b>{" "}
+            · rain {Math.round(st.ppMax)}% · wind {u.speed(st.wsMax)}
+          </span>
         }
       >
+        {m.kit && (
+          <p className="small" style={{ margin: "0 0 6px" }}>
+            <b>Wear:</b> {m.kit.band.name.toLowerCase()} kit
+            {m.kit.addOns.length ? ` + ${m.kit.addOns.map((a) => ADD_ON_TEXT(a, u).short).join(", ")}` : ""}
+          </p>
+        )}
         <p className="small" style={{ margin: 0 }}>
-          {fmtTime(m.start)}–{fmtTime(m.end)}
+          {fmtTime(m.start)}–{fmtTime(m.end)} · feels {u.temp(st.appMin)}–{u.temp(st.appMax)}
           {feel ? ` · ${feel} ${u.temp(st.feelMin)}–${u.temp(st.feelMax)}` : ""} · gusts {u.speed(st.wgMax)}{" "}
           {u.speedUnit} from {compass(st.dir)} · {u.rain(st.rain)} rain
           {rules.road ? ` · ${roadNote(st, u, s.lookback)}` : ""}

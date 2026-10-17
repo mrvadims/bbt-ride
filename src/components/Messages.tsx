@@ -192,11 +192,17 @@ export function MessagesPanel({
       expanded
       summary={(open) => (
         <>
-          {n ? `${n} message${n === 1 ? "" : "s"}` : "No messages yet"}
-          {fresh.length > 0 && <b className="unseen"> · {fresh.length} new</b>}
-          {!open && latest && (
-            <span className="clamp msg-latest">
-              <b>{author(latest)}:</b> {plainMentions(latest.body, (uid) => names.get(uid))}
+          {open || !latest ? (
+            <>
+              {n ? `${n} message${n === 1 ? "" : "s"}` : "No messages yet"}
+              {fresh.length > 0 && <b className="unseen"> · {fresh.length} new</b>}
+            </>
+          ) : (
+            // Closed: the count and the latest message on one line
+            <span className="clamp">
+              <b>{n}</b>
+              {fresh.length > 0 && <b className="unseen"> · {fresh.length} new</b>} · <b>{author(latest)}:</b>{" "}
+              {plainMentions(latest.body, (uid) => names.get(uid))}
             </span>
           )}
           {error && ( // in the header, so a failed delete shows even while the panel is closed

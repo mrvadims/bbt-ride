@@ -35,8 +35,26 @@ function View({ act, me, since }: { act: ActivityDetail; me: Me; since?: string 
           )}
         </div>
       )}
-      <ActivityHeader act={act} m={m} onEdit={editor && !past ? () => navigate(`/plan?edit=${act.id}`) : undefined} />
-      {act.status === "cancelled" ? (
+      <ActivityHeader
+        act={act}
+        m={m}
+        onEdit={editor && !past ? () => navigate(`/plan?edit=${act.id}`) : undefined}
+        note={
+          act.status !== "cancelled" &&
+          !past &&
+          last && (
+            <>
+              <b>
+                {typeof since === "string" && last.at > since
+                  ? "Changed since you last looked"
+                  : `Updated ${fmtStamp(last.at)}`}
+              </b>{" "}
+              · {last.text}
+            </>
+          )
+        }
+      />
+      {act.status === "cancelled" && (
         <div className="warn lv2 big">
           <LevelIcon level={2} />
           <div>
@@ -44,18 +62,6 @@ function View({ act, me, since }: { act: ActivityDetail; me: Me; since?: string 
             <span>{act.messages.findLast((x) => x.kind === "cancel")?.body ?? ""} See Messages below.</span>
           </div>
         </div>
-      ) : (
-        !past &&
-        last && (
-          <div className="notice">
-            <b>
-              {typeof since === "string" && last.at > since
-                ? "Changed since you last looked"
-                : `Updated ${fmtStamp(last.at)}`}
-            </b>{" "}
-            · {last.text}
-          </div>
-        )
       )}
       <ActionRow act={act} m={m} />
       <ActivityBody

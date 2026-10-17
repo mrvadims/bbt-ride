@@ -520,15 +520,15 @@ input::-webkit-date-and-time-value {
 }
 .warns {
   display: grid;
-  gap: 8px;
-  margin: 0 0 14px;
+  gap: 6px;
+  margin: 0 0 8px;
 }
 .warn {
   display: flex;
   gap: 10px;
   align-items: flex-start;
   border-radius: 12px;
-  padding: 10px 12px;
+  padding: 9px 12px;
 }
 .warn svg {
   width: 14px;
@@ -536,7 +536,10 @@ input::-webkit-date-and-time-value {
   flex: none;
   margin-top: 3px;
 }
-.warn b {
+.warns .warn b {
+  font-weight: 700;
+}
+.warn.big b {
   display: block;
 }
 .warn span {
@@ -545,7 +548,7 @@ input::-webkit-date-and-time-value {
 }
 .panels {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 .panel {
   background: var(--card);
@@ -583,7 +586,7 @@ input::-webkit-date-and-time-value {
   grid-template-columns: 76px minmax(0, 1fr) 16px;
   gap: 10px;
   align-items: start;
-  padding: 13px 14px;
+  padding: 11px 12px 11px 14px;
   cursor: pointer;
 }
 .panel-t {
@@ -683,10 +686,17 @@ input::-webkit-date-and-time-value {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-.msg-latest {
-  margin-top: 4px;
-  color: var(--muted);
-  overflow-wrap: anywhere;
+/* Who's in: the counts and In / Out on one line. */
+.sumrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+.sumrow .seg {
+  flex: none;
+  margin: -6px 0;
 }
 .panel-b .tablewrap {
   margin: 8px -14px 0;
@@ -974,7 +984,7 @@ td.sky {
   font-size: 14px;
 }
 .warn.big {
-  margin: 0 0 14px;
+  margin: 0 0 8px;
 }
 .editbar {
   display: flex;
@@ -1481,8 +1491,14 @@ a.linkbtn {
   display: flex;
   gap: 12px;
   align-items: center;
-  padding: 14px;
-  margin-bottom: 12px;
+  padding: 12px;
+  margin-bottom: 8px;
+}
+/* The latest change, under the day (it used to be its own strip). */
+.ahead-note {
+  margin-top: 3px;
+  font-size: 13px;
+  color: var(--link);
 }
 .ahead-icon {
   width: 52px;
@@ -1513,11 +1529,11 @@ a.linkbtn {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 .tile {
   appearance: none;
-  min-height: 64px;
+  min-height: 52px;
   border: 1px solid var(--line);
   border-radius: 12px;
   background: var(--card);
@@ -1529,7 +1545,7 @@ a.linkbtn {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 3px;
   text-decoration: none;
   cursor: pointer;
 }
