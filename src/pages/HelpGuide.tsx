@@ -88,8 +88,9 @@ export function HelpGuide({ me }: { me: Me }) {
           </li>
           {editor && (
             <li>
-              Editors: <b>Plan</b> → <b>Date poll</b> to start one (up to 14 days or weekends, within a year). On the
-              results, <b>Plan this</b> turns a date into an activity and closes the poll.
+              Editors: <b>Plan</b> → <b>Date poll</b> to start one (up to 14 days or weekends, within a year), Public or
+              Private like an activity. On the results, <b>Plan this</b> turns a date into an activity and closes the
+              poll.
             </li>
           )}
         </ul>

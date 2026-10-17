@@ -291,7 +291,7 @@ export function PollNew() {
           )}
         </Section>
 
-        <Section label="Who's asked">
+        <Section label="Visibility">
           {me && (
             <Visibility poll guests={guests} onChange={setGuests} meId={me.id} creatorId={me.id} original={null} />
           )}

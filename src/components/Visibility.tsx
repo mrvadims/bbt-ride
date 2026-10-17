@@ -16,7 +16,7 @@ export function Visibility({
   meId: string;
   creatorId: string | null; // editing: the creator, who stays invited; a new plan: the editor
   original: string[] | null; // editing a private activity: its saved guest list (else null: it's new)
-  poll?: boolean; // a date poll's "Who's asked": Everyone or Picked people
+  poll?: boolean; // a date poll: the same Public / Private choice, with hints about who's asked
 }) {
   const members = useMembers().data ?? [];
   const [q, setQ] = useState("");
@@ -47,25 +47,27 @@ export function Visibility({
   return (
     <div className="vis">
       {!editing && (
-        <div role="radiogroup" aria-label={poll ? "Who's asked" : "Visibility"}>
+        <div role="radiogroup" aria-label="Visibility">
           <label className="radio">
             <input type="radio" name="visibility" checked={guests === null} onChange={() => onChange(null)} />
             <span>
-              <b>{poll ? "Everyone" : "Public"}</b>
+              <b>Public</b>
               <br />
               <span className="small muted">
-                {poll ? "The whole team, notified unless they muted its sport." : "The whole team sees it."}
+                {poll
+                  ? "The whole team sees it and is asked; notified unless they muted its sport."
+                  : "The whole team sees it."}
               </span>
             </span>
           </label>
           <label className="radio">
             <input type="radio" name="visibility" checked={guests !== null} onChange={() => onChange(chosen)} />
             <span>
-              <b>{poll ? "Picked people" : "Private"}</b>
+              <b>Private</b>
               <br />
               <span className="small muted">
                 {poll
-                  ? "Only they see it, and they're notified."
+                  ? "Only the people you invite see it and are asked, and they're notified."
                   : "Only the people you invite see it, and they're notified."}
               </span>
             </span>
@@ -97,8 +99,8 @@ export function Visibility({
           </div>
           <input
             type="search"
-            aria-label={poll ? "Pick people" : "Invite people"}
-            placeholder={poll ? "Pick people" : "Invite people"}
+            aria-label="Invite people"
+            placeholder="Invite people"
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
