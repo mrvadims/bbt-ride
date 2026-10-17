@@ -237,7 +237,8 @@ export function PlanPage() {
   // "Plan this" on a date poll: its title, sport, the option's first day and, for a private poll, its people
   const pollId = editId || reuseId ? null : query.get("poll");
   const pollOptionId = query.get("option");
-  const poll = usePoll(pollId).data;
+  const pollQ = usePoll(pollId);
+  const poll = pollQ.data;
   const source = useActivity(editId ?? reuseId);
   const sourceAct = source.data;
   const editingAct = useActivity(form?.editing).data; // stays current after Cancel / Restore
@@ -491,6 +492,7 @@ export function PlanPage() {
 
   if (source.isError && !source.data)
     return <p className="small">That activity couldn't be loaded. {source.error.message}</p>;
+  if (pollQ.isError && !poll) return <p className="small">That date poll couldn't be loaded. {pollQ.error.message}</p>;
   if (!form || !team || !spots || !acts) return <p className="muted small">Loading…</p>;
   const s = team.settings;
   const active = spots.filter((x) => !x.archived);

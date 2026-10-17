@@ -2217,15 +2217,6 @@ a.tile[aria-label="Open in RideWithGPS"] {
 .poll-seg button {
   min-height: 40px;
 }
-.poll-seg button.a-in[aria-pressed="true"] {
-  background: #1f9d55;
-}
-.poll-seg button.a-maybe[aria-pressed="true"] {
-  background: #b57900;
-}
-.poll-seg button.a-out[aria-pressed="true"] {
-  background: #c53030;
-}
 .poll-res {
   display: grid;
   gap: 4px;

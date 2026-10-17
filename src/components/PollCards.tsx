@@ -103,6 +103,8 @@ export function PollList({ canCreate }: { canCreate: boolean }) {
       </div>
       {q.isPending ? (
         <p className="muted small">Loading…</p>
+      ) : q.isError && !q.data ? (
+        <p role="alert">Couldn't load date polls: {q.error.message}</p>
       ) : all.length ? (
         <>
           {open.length > 0 && <div className="sub-h">Open</div>}

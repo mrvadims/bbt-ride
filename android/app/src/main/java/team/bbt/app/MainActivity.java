@@ -14,8 +14,9 @@ import com.getcapacitor.BridgeActivity;
  */
 public class MainActivity extends BridgeActivity {
 
-    // Notifications open home or an activity; nothing else (another app could start this activity with any extra).
-    private static final Pattern PATH = Pattern.compile("^/(a/[A-Za-z0-9_-]{1,64})?$");
+    // Notifications open home, an activity, a date poll or Announcements; nothing else (another app could start this
+    // activity with any extra).
+    private static final Pattern PATH = Pattern.compile("^/((a|polls)/[A-Za-z0-9_-]{1,64}|announcements)?$");
     // Back closes an open sheet (<dialog>) the way Escape does, before going back a page.
     private static final String CLOSE_SHEET =
         "(function(){var d=document.querySelector('dialog[open]');" +

@@ -159,6 +159,7 @@ export interface PollOptionDetail extends PollOptionDates {
 }
 export interface PollDetail extends Omit<PollSummary, "options"> {
   note: string;
+  updatedAt: string; // sent back as baseUpdatedAt when editing
   options: PollOptionDetail[]; // in date order
   notes: { userId: string; name: string; note: string }[]; // each person's note on the whole poll
   guests: { userId: string; name: string }[]; // a private poll's people, its creator among them; [] for everyone
@@ -324,7 +325,13 @@ export const pollInput = z.object({
   guests: z.array(z.string().min(1).max(64)).max(GUESTS_MAX).nullable().default(null),
   closesOn: date.nullable().default(null), // null: the day before the first option
 });
-export const pollEdit = z.object({ title: pollTitle, note: pollNote, closesOn: date });
+// baseUpdatedAt: the poll's updatedAt when the editor opened it, so a later change isn't overwritten.
+export const pollEdit = z.object({
+  title: pollTitle,
+  note: pollNote,
+  closesOn: date,
+  baseUpdatedAt: z.string().max(40),
+});
 export const POLL_NOTE_MAX = 140;
 const pollAnswerNote = z.string().trim().max(POLL_NOTE_MAX).nullable().default(null);
 // Only what changed: one option's answer (tap), all of them (Can't make any), and/or the note on the whole poll.

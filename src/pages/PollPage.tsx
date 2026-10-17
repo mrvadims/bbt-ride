@@ -12,7 +12,7 @@ import { PersonButton } from "../components/Contact.tsx";
 import { MessagesPanel } from "../components/Messages.tsx";
 import { Section } from "../components/Panel.tsx";
 import { Sheet } from "../components/Sheet.tsx";
-import { api } from "../lib/api.ts";
+import { ApiError, api } from "../lib/api.ts";
 import { usePoll } from "../lib/data.ts";
 import { Link, navigate } from "../lib/router.tsx";
 
@@ -37,6 +37,8 @@ export function PollPage({ id, me }: { id: string; me: Me }) {
       .catch(() => undefined);
   }, [id, qc]);
   if (q.isPending) return <p className="muted small">Loading…</p>;
+  if (!q.data && !(q.error instanceof ApiError && q.error.status === 404))
+    return <p role="alert">Couldn't load this date poll: {q.error?.message}</p>;
   if (!q.data)
     return (
       <section className="panel empty">
@@ -66,7 +68,7 @@ function View({ poll, me, since }: { poll: PollDetail; me: Me; since?: string | 
     onSuccess: done,
     onError: (e) => setError(e.message),
   });
-  const manages = poll.createdBy === me.id || me.role === "admin";
+  const manages = (poll.createdBy === me.id && me.role !== "view") || me.role === "admin"; // as the server checks
   const plans = me.role !== "view";
   const mine = (o: PollOptionDetail) => o.answers.find((a) => a.userId === me.id);
   const answer = (o: PollOptionDetail, status: PollAnswer) => {
@@ -94,7 +96,12 @@ function View({ poll, me, since }: { poll: PollDetail; me: Me; since?: string | 
         <span className="small muted">
           {poll.activityId ? (
             <>
-              Planned: <Link href={`/a/${poll.activityId}`}>{poll.activityTitle ?? "see the activity"}</Link>
+              Planned:{" "}
+              {poll.activityTitle === null ? (
+                "a private activity"
+              ) : (
+                <Link href={`/a/${poll.activityId}`}>{poll.activityTitle}</Link>
+              )}
             </>
           ) : poll.open ? (
             `Answers close ${dayLabel(poll.closesOn)} · asking ${asked}`
@@ -117,7 +124,6 @@ function View({ poll, me, since }: { poll: PollDetail; me: Me; since?: string | 
                       <button
                         key={s}
                         type="button"
-                        className={`a-${s}`}
                         aria-pressed={cur?.status === s}
                         disabled={call.isPending}
                         onClick={() => answer(o, s)}
@@ -236,13 +242,17 @@ function View({ poll, me, since }: { poll: PollDetail; me: Me; since?: string | 
               <b>
                 {poll.answeredCount} of {poll.askedCount}
               </b>{" "}
-              answered{poll.notYet.length ? `. Not yet (${poll.notYet.length}):` : "."}
+              answered{poll.notYet.length ? `. Not answered yet (${poll.notYet.length}):` : "."}
             </span>
             {poll.notYet.length > 0 && (
               <div className="plist">
                 {(allNotYet ? poll.notYet : poll.notYet.slice(0, NOT_YET_SHOWN)).map((p) => (
-                  <PersonButton key={p.userId} userId={p.userId} className="person quiet">
-                    {p.userId === me.id ? "You" : p.name}
+                  <PersonButton
+                    key={p.userId}
+                    userId={p.userId}
+                    className={`person quiet${p.userId === me.id ? " me" : ""}`}
+                  >
+                    {p.name}
                   </PersonButton>
                 ))}
                 {!allNotYet && poll.notYet.length > NOT_YET_SHOWN && (
@@ -257,6 +267,7 @@ function View({ poll, me, since }: { poll: PollDetail; me: Me; since?: string | 
                 <button
                   type="button"
                   className="btn btn-outline btn-sm"
+                  disabled={nudged !== null} // one nudge per visit
                   onClick={() =>
                     api<{ nudged: number }>(`/polls/${poll.id}/nudge`, { method: "POST" })
                       .then((r) => setNudged(r.nudged))
@@ -379,7 +390,11 @@ function EditPoll({
   const [error, setError] = useState<string | null>(null);
   const last = poll.options.reduce((m, o) => (o.endsOn > m ? o.endsOn : m), "");
   const save = useMutation({
-    mutationFn: () => api<PollDetail>(`/polls/${poll.id}`, { method: "PUT", body: { title, note, closesOn } }),
+    mutationFn: () =>
+      api<PollDetail>(`/polls/${poll.id}`, {
+        method: "PUT",
+        body: { title, note, closesOn, baseUpdatedAt: poll.updatedAt },
+      }),
     onSuccess: (p) => {
       onSaved(p);
       onClose();

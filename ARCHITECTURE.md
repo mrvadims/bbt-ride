@@ -92,10 +92,10 @@ One repository and one language: the Worker, the browser app and the Android she
 
 | Path | What it holds |
 | --- | --- |
-| `shared/` | Pure, side-effect-free code used by both sides: API shapes and Zod request schemas (`api.ts`), sports rules (`sports.ts`), ride ETA math and places (`ride.ts`), weather evaluation and warnings (`weather.ts`), kit chart, New York time, `.ics` builder, mentions and name cleaning (`people.ts`), sport icon list. |
+| `shared/` | Pure, side-effect-free code used by both sides: API shapes and Zod request schemas (`api.ts`), sports rules (`sports.ts`), ride ETA math and places (`ride.ts`), weather evaluation and warnings (`weather.ts`), kit chart, New York time, `.ics` builder, mentions and name cleaning (`people.ts`), date poll rules (`polls.ts`), sport icon list. |
 | `worker/` | The Cloudflare Worker: Hono app (`index.ts`), session/role/origin middleware (`app.ts`), Better Auth setup (`auth.ts`, PBKDF2 in `password.ts`), Web Push and FCM delivery (`push.ts`, `fcm.ts`), unread markers (`seen.ts`), message threads (`threads.ts`), RideWithGPS client (`rwgps.ts`), the 3-hourly job (`cron.ts`), helpers including the visibility rule (`util.ts`). |
 | `worker/routes/` | One Hono router per resource: activities, message edit/delete (any thread), date polls, announcements, calendar feed, drafts, routes, settings, spots (places), users (me, team, admin users, invite/reset links), weather. |
-| `src/` | React 19 app: `App.tsx` (routing, sign-in gate), `pages/` (Home, Activity, Plan, History, Team, Settings, Help, Updates, sign-in, link pages), `components/` (activity body, Who's in, mentions, visibility, announcements, charts, map), `lib/` (TanStack Query hooks, API client, router, prefs, units, native bridge). |
+| `src/` | React 19 app: `App.tsx` (routing, sign-in gate), `pages/` (Home, Activity, Plan, date polls, History, Team, Settings, Help, Updates, sign-in, link pages), `components/` (activity body, Who's in, Messages, date poll cards, Plan tabs, mentions, visibility, announcements, charts, map), `lib/` (TanStack Query hooks, API client, router, prefs, units, native bridge). |
 | `migrations/` | Plain SQL migrations `0001`–`0019`, applied in order by Wrangler. |
 | `android/` | Capacitor 8 Android project: `MainActivity`, a native plugin (`BbtNativePlugin`: share, open external, app update, push), FCM messaging service, RSVP broadcast receiver. |
 | `public/`, `www/` | Static assets for the app (service worker, privacy page, download page, `_headers`) and the separate www site. |
@@ -106,7 +106,7 @@ Dependencies are deliberately few. Runtime: `hono` 4, `better-auth` 1.7, `zod` 4
 
 ## Data model
 
-All data lives in one D1 database of 30 tables; every reference to a person cascades or becomes NULL when the account is deleted, so deleting a person is one statement.
+All data lives in one D1 database; every reference to a person cascades or becomes NULL when the account is deleted, so deleting a person is one statement.
 
 ```mermaid
 erDiagram
@@ -334,7 +334,7 @@ CI gates every merge on lint, types, unit tests and a build; the two end-to-end 
 | Lint and format | Biome 2 | CI (every push), locally | Whole repo; CI fails on any error |
 | Types | TypeScript 7 (`tsc -b`) | CI, locally | Worker, client, shared, scripts |
 | Unit | Vitest 5 | CI, locally | 73 tests: date poll rules (options, closing date, ranking, next weekend), weather and road wetness, bike feel, ETA math (worked examples from DESIGN.md), kit chart, warnings, New York time, `.ics` (including a CPU budget), activity input rules, online places, mentions, names, phones |
-| API end to end | `scripts/smoke.ts` (fetch) | Locally against `npm run dev` | 209 checks: invites, sign-in, rate limit, roles, activities, RSVP, messages, Replace, calendar feed, private-activity access matrix (every route x role x invited or not), announcements, online places, date polls (rules, answers, Nudge, messages, private access matrix, Plan this) |
+| API end to end | `scripts/smoke.ts` (fetch) | Locally against `npm run dev` | 213 checks: invites, sign-in, rate limit, roles, activities, RSVP, messages, Replace, calendar feed, private-activity access matrix (every route x role x invited or not), announcements, online places, date polls (rules, answers, Nudge, close, edit conflicts, messages, private access matrix, Plan this once, private poll into a private activity) |
 | Browser end to end | `scripts/ui-smoke.ts` (Playwright, Chromium) | Locally against `npm run dev` | 87 checks: sign-in and invite pages, Plan, activity page, mentions, markers, Team, contacts, delete, private activities, announcements, online meet-ups, date polls, Help, What's new, phone-width layout, a collapsed ride fitting a 390 × 760 phone, dark mode, iPhone install hint; optional screenshots for review |
 | Android build | Gradle | CI on branches (unsigned), deploy (signed) | Compiles and passes release lint; no device tests |
 
@@ -362,7 +362,7 @@ The recurring driver is a small team, no operations staff and a free-tier budget
 | Calendar | Signed per-person `.ics` feed (HMAC of user and version), no session | Calendar apps can't send cookies; Reset revokes the link; nothing secret stored | Anyone holding the URL can read that person's feed until it's reset |
 | Private activities | One SQL visibility rule in every read; re-checked inside each write; 404 for outsiders | One place to audit; no existence leak; closes race conditions | Every new query must remember to apply it (code review and tests guard this) |
 | Online places | A place is a pin or a meeting link; the server checks the app planned it the same way | Reuses places, times and RSVP; no separate event type | Lat/lng stored as 0 for online places; places in use can't switch type |
-| Messages | One `messages` table keyed by thread; one thread per owner, with a nullable owner column per kind (`activity_id`, later `poll_id`) | One thread component, API helpers and mention path for every owner; deleting an owner cascades to its thread and messages; a new owner kind is an `ADD COLUMN` plus a trigger that makes the thread, no rebuild | One nullable column per owner kind; mapping tables would allow several threads per owner, not needed now |
+| Messages | One `messages` table keyed by thread; one thread per owner, with a nullable owner column per kind (`activity_id`, `poll_id`) | One thread component, API helpers and mention path for every owner; deleting an owner cascades to its thread and messages; a new owner kind is an `ADD COLUMN` plus a trigger that makes the thread, no rebuild | One nullable column per owner kind; mapping tables would allow several threads per owner, not needed now |
 | Date polls | Their own tables and routes, with a thread like activities; "Plan this" hands off to Plan and links the activity | No change to activities, the calendar feed or weather; one visibility rule per kind | A poll's options can't be changed after it's sent (title, note and closing date can) |
 | Release notes | Inside the app (members only), not the public site | Team content stays behind sign-in | Release notes live in code (`Updates.tsx`) and need a deploy |
 | Process | Every change is a pull request; CI then merge deploys; designs reviewed first for UI | Small, reviewable, reversible steps with a human approval | No staging, so review and local tests carry the risk |

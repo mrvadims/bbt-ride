@@ -1,7 +1,7 @@
 // Message threads (DESIGN.md → Messages, migrations/0018_threads.sql): every message belongs to a thread, and every thread
 // to one owner. Owners today: activities and date polls. A new owner kind adds a nullable column on threads, a trigger that makes the
 // thread when the owner is inserted, and an entry in OWNER below; who may read and post stays with the owner's route,
-// which checks it before calling these.
+// which checks it before calling these. Editing and deleting a message, in any thread, go through routes/messages.ts.
 import type { Message } from "../shared/api.ts";
 import { newId, nowIso } from "./util.ts";
 

@@ -14,6 +14,7 @@ create table date_polls (
   updated_at text not null
 );
 create index date_polls_created on date_polls (created_at);
+create index date_polls_activity on date_polls (activity_id); -- the activity's "From date poll" link, and set null on delete
 
 create table date_poll_guests (
   poll_id text not null references date_polls (id) on delete cascade,

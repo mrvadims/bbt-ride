@@ -23,7 +23,9 @@ describe("date poll options", () => {
     expect(optionsProblem([{ startsOn: "2026-10-24", endsOn: "2026-10-28" }], today)).toMatch(/at most 4 days/);
     expect(optionsProblem([{ startsOn: "2026-10-25", endsOn: "2026-10-24" }], today)).toMatch(/ends before/);
     const twice = { startsOn: "2026-10-24", endsOn: "2026-10-25" };
-    expect(optionsProblem([twice, twice], today)).toMatch(/twice/);
+    expect(optionsProblem([twice, twice], today)).toMatch(/share a day/);
+    expect(optionsProblem([twice, { startsOn: "2026-10-24", endsOn: "2026-10-24" }], today)).toMatch(/share a day/);
+    expect(optionsProblem([twice, { startsOn: "2026-10-26", endsOn: "2026-10-26" }], today)).toBeNull();
     const many = Array.from({ length: 15 }, (_, i) => ({
       startsOn: `2026-11-${String(i + 1).padStart(2, "0")}`,
       endsOn: `2026-11-${String(i + 1).padStart(2, "0")}`,
@@ -56,6 +58,11 @@ describe("date poll options", () => {
       endsOn: "2026-10-25",
     });
     expect(nextWeekend("2026-10-18", [])).toEqual({ startsOn: "2026-10-24", endsOn: "2026-10-25" }); // Sunday
+    // a single Saturday already picked: that weekend overlaps, so the next one
+    expect(nextWeekend(today, [{ startsOn: "2026-10-17", endsOn: "2026-10-17" }])).toEqual({
+      startsOn: "2026-10-24",
+      endsOn: "2026-10-25",
+    });
   });
 });
 

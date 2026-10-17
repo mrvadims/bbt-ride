@@ -49,9 +49,12 @@ if [ -s "$OUT/actions.log" ]; then
 else
   row actions-pinned PASS "every action pinned to a commit SHA"
 fi
-for f in .github/workflows/*.yml; do
-  grep -q '^permissions:' "$f" || row actions-permissions FAIL "no top-level permissions in $f"
-done
+grep -L '^permissions:' .github/workflows/*.yml > "$OUT/permissions.log"
+if [ -s "$OUT/permissions.log" ]; then
+  row actions-permissions FAIL "no top-level permissions in $(head -1 "$OUT/permissions.log")"
+else
+  row actions-permissions PASS "every workflow declares its permissions"
+fi
 
 gate npm-audit npm audit --omit=dev --audit-level=high
 

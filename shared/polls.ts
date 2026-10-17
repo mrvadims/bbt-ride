@@ -42,10 +42,13 @@ export function optionsProblem(options: PollDates[], today: string): string | nu
     if (o.endsOn > last) return "Pick dates within the next 12 months";
     if (daysIn(o) > POLL_BLOCK_DAYS_MAX) return `A block is at most ${POLL_BLOCK_DAYS_MAX} days`;
   }
-  const keys = options.map((o) => `${o.startsOn}/${o.endsOn}`);
-  if (new Set(keys).size !== keys.length) return "The same option is there twice";
+  const sorted = byDate(options);
+  if (sorted.some((o, i) => i > 0 && overlaps(o, sorted[i - 1] as PollDates))) return "Two options share a day";
   return null;
 }
+
+/** Whether two options share at least one day. */
+export const overlaps = (a: PollDates, b: PollDates): boolean => a.startsOn <= b.endsOn && b.startsOn <= a.endsOn;
 
 /** Options in date order. */
 export const byDate = <T extends PollDates>(options: T[]): T[] =>
@@ -70,13 +73,13 @@ export function ranked<T extends PollDates & { inCount: number; maybeCount: numb
   );
 }
 
-/** The next Saturday–Sunday not already an option (today's weekend when its Saturday is today or later). */
+/** The next Saturday–Sunday that shares no day with an option already picked (today's weekend when its Saturday is
+ * today or later). */
 export function nextWeekend(today: string, taken: PollDates[]): PollDates | null {
-  const has = new Set(taken.map((o) => `${o.startsOn}/${o.endsOn}`));
   const last = addDays(today, POLL_AHEAD_DAYS);
   for (let sat = addDays(today, (6 - dow(today) + 7) % 7); sat <= last; sat = addDays(sat, 7)) {
     const o = { startsOn: sat, endsOn: addDays(sat, 1) };
-    if (o.endsOn <= last && !has.has(`${o.startsOn}/${o.endsOn}`)) return o;
+    if (o.endsOn <= last && !taken.some((t) => overlaps(t, o))) return o;
   }
   return null;
 }

@@ -1071,12 +1071,23 @@ check((await creator.c(`/api/activities/${pid}`, { method: "DELETE" })).status =
     (await guest.c(`/api/polls/${poll.id}/seen`, { method: "POST" })).status === 200,
     "polls: opening it records the visit",
   );
-  const edit = { title: "Gunks weekend", note: "", closesOn: poll.closesOn };
+  const edit = { title: "Gunks weekend", note: "", closesOn: poll.closesOn, baseUpdatedAt: poll.updatedAt };
   check(
     (await guest.c(`/api/polls/${poll.id}`, { method: "PUT", body: edit })).status === 403 &&
       (await creator.c(`/api/polls/${poll.id}`, { method: "PUT", body: edit })).json?.title === "Gunks weekend",
     "polls: only its creator or an Admin edits it",
   );
+  check(
+    (await admin(`/api/polls/${poll.id}`, { method: "PUT", body: { ...edit, title: "Stale" } })).status === 409,
+    "polls: an edit made from an older copy is refused",
+  );
+  const closing = (await creator.c("/api/polls", { body: { ...body, title: `Closing ${stamp}` } })).json;
+  check(
+    (await guest.c(`/api/polls/${closing.id}/close`, { method: "POST" })).status === 403 &&
+      (await creator.c(`/api/polls/${closing.id}/close`, { method: "POST" })).json?.open === false,
+    "polls: its creator or an Admin closes it early, a Member can't",
+  );
+  await creator.c(`/api/polls/${closing.id}`, { method: "DELETE" });
 
   // A private poll: the people picked see it; anyone else, Admins included, gets 404 everywhere.
   check(
@@ -1100,7 +1111,10 @@ check((await creator.c(`/api/activities/${pid}`, { method: "DELETE" })).status =
       c(`/api/polls/${sp.id}/messages`, { body: { body: "hi" } }),
       c(`/api/polls/${sp.id}/seen`, { method: "POST" }),
       c(`/api/polls/${sp.id}/nudge`, { method: "POST" }),
-      c(`/api/polls/${sp.id}`, { method: "PUT", body: { title: "x", note: "", closesOn: sp.closesOn } }),
+      c(`/api/polls/${sp.id}`, {
+        method: "PUT",
+        body: { title: "x", note: "", closesOn: sp.closesOn, baseUpdatedAt: sp.updatedAt },
+      }),
       c(`/api/polls/${sp.id}/close`, { method: "POST" }),
       c(`/api/polls/${sp.id}`, { method: "DELETE" }),
     ]).then((rs) => rs.map((x) => x.status));
@@ -1154,6 +1168,32 @@ check((await creator.c(`/api/activities/${pid}`, { method: "DELETE" })).status =
     (await answer(guest.c, [{ optionId: a.id, status: "out" }])).status === 409,
     "polls: a closed poll takes no answers",
   );
+  check(
+    (
+      await creator.c("/api/activities", {
+        body: { ...pickle, title: `Again ${stamp}`, date: b.startsOn, pollId: poll.id, pollOptionId: b.id },
+      })
+    ).status === 409,
+    "polls: Plan this works once per poll",
+  );
+  // Planned into a private activity with other people: neither side learns about the other.
+  const sPlan = await creator.c("/api/activities", {
+    body: {
+      ...pickle,
+      title: `Secret plan ${stamp}`,
+      date: sa.startsOn,
+      guests: [outsider.id],
+      pollId: sp.id,
+      pollOptionId: sa.id,
+    },
+  });
+  check(
+    sPlan.status === 201 &&
+      (await outsider.c(`/api/activities/${sPlan.json.id}`)).json?.fromPoll === null &&
+      (await guest.c(`/api/polls/${sp.id}`)).json?.activityTitle === null,
+    "polls: a private poll planned into a private activity shows neither to people not on both",
+  );
+  await creator.c(`/api/activities/${sPlan.json.id}`, { method: "DELETE" });
   check(
     (await coEditor.c(`/api/polls/${sp.id}`, { method: "DELETE" })).status === 403 &&
       (await creator.c(`/api/polls/${sp.id}`, { method: "DELETE" })).status === 204 &&

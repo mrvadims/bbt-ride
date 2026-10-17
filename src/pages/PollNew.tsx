@@ -11,6 +11,7 @@ import {
   lastDay,
   nextWeekend,
   optionLabel,
+  overlaps,
   POLL_AHEAD_DAYS,
   POLL_BLOCK_DAYS_MAX,
   POLL_OPTIONS_MAX,
@@ -81,7 +82,7 @@ function MonthPicker({
       setStart(d);
       return onChange(options, `A block is at most ${POLL_BLOCK_DAYS_MAX} days`);
     }
-    if (options.some((o) => o.startsOn <= d && start <= o.endsOn)) {
+    if (options.some((o) => overlaps(o, { startsOn: start, endsOn: d }))) {
       setStart(null);
       return onChange(options, "That block overlaps a date already picked");
     }

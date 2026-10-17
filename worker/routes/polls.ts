@@ -16,10 +16,18 @@ import {
 import { firstName, mentionIds, plainMentions } from "../../shared/people.ts";
 import { byDate, defaultCloses, lastDay, optionLabel, optionsProblem } from "../../shared/polls.ts";
 import { SPORT_LABEL, type Sport } from "../../shared/sports.ts";
-import { nyNow } from "../../shared/time.ts";
+import { addDays, nyNow } from "../../shared/time.ts";
 import { type AppEnv, can, requireRole, type SessionUser } from "../app.ts";
-import { notifyPoll } from "../push.ts";
-import { checkParent, type MessageRow, messageOf, postMessage, readThread, threadMessages } from "../threads.ts";
+import { notifyActivity, notifyPoll } from "../push.ts";
+import {
+  checkParent,
+  deleteThread,
+  type MessageRow,
+  messageOf,
+  postMessage,
+  readThread,
+  threadMessages,
+} from "../threads.ts";
 import { audit, fail, newId, nowIso, pollVisible, visible } from "../util.ts";
 import { validate } from "../validate.ts";
 
@@ -38,6 +46,7 @@ interface PollRow {
   created_by: string | null;
   by_name: string | null;
   created_at: string;
+  updated_at: string;
   answered: number;
   answered_count: number;
   asked_count: number;
@@ -50,7 +59,7 @@ async function summaries(db: D1Database, viewer: string, where: string, binds: u
   const { results } = await db
     .prepare(
       `select p.id, p.title, p.note, p.sport, p.private, p.closes_on, p.closed_at, p.activity_id, p.created_by,
-              u.name as by_name, p.created_at,
+              u.name as by_name, p.created_at, p.updated_at,
               exists (select 1 from date_poll_answers a join date_poll_options o on o.id = a.option_id
                       where o.poll_id = p.id and a.user_id = ?1) as answered,
               (select count(distinct a.user_id) from date_poll_answers a join date_poll_options o on o.id = a.option_id
@@ -132,8 +141,8 @@ export async function pollDetail(db: D1Database, viewer: string, id: string): Pr
       .bind(id),
     db
       .prepare(
-        `select g.user_id, u.name from date_poll_guests g join "user" u on u.id = g.user_id where g.poll_id = ?1
-         order by g.user_id = ?2 desc, u.name`,
+        `select g.user_id, u.name from date_poll_guests g join "user" u on u.id = g.user_id
+         where g.poll_id = ?1 and coalesce(u.banned, 0) = 0 order by g.user_id = ?2 desc, u.name`,
       )
       .bind(id, row.created_by ?? ""),
     db
@@ -159,6 +168,7 @@ export async function pollDetail(db: D1Database, viewer: string, id: string): Pr
   return {
     ...summary,
     note: row.note,
+    updatedAt: row.updated_at,
     options: summary.options.map((o) => ({
       ...o,
       answers: ((answers?.results ?? []) as A[])
@@ -197,8 +207,9 @@ async function notifyMentions(env: Env, p: PollSummary, author: SessionUser, bod
   await notifyPoll(env, p.id, `${firstName(author.name)} mentioned you · ${p.title}`, text.slice(0, 300), { to: ids });
 }
 
-/** The poll's creator, or an Admin. */
-const manages = (user: SessionUser, p: PollSummary) => p.createdBy === user.id || can(user, "admin");
+/** Its creator while still an Editor, or an Admin (as for deleting an activity). */
+const manages = (user: SessionUser, p: PollSummary) =>
+  (p.createdBy === user.id && can(user, "edit")) || can(user, "admin");
 
 /** Only open polls take answers, nudges and changes to when they close. */
 const mustBeOpen = (p: PollSummary) => {
@@ -208,6 +219,7 @@ const mustBeOpen = (p: PollSummary) => {
 /** "Plan this": checks the option belongs to a poll the planner may see (activities.ts, before publishing). */
 export async function planFromPoll(db: D1Database, viewer: string, pollId: string, optionId: string | null) {
   const { summary } = await load(db, viewer, pollId);
+  if (summary.activityId) fail(409, "This date poll is already planned");
   const option = summary.options.find((o) => o.id === optionId) ?? fail(400, "Pick one of the poll's dates");
   return { poll: summary, option };
 }
@@ -218,7 +230,8 @@ export const linkPoll = (db: D1Database, pollId: string, activityId: string) =>
     .prepare("update date_polls set activity_id = ?, closed_at = coalesce(closed_at, ?), updated_at = ? where id = ?")
     .bind(activityId, nowIso(), nowIso(), pollId);
 
-/** After "Plan this" published the activity: tells those In or Maybe for that option (not the planner). */
+/** After "Plan this" published the activity: tells those In or Maybe for that option (not the planner). It goes through
+ * the activity's notifications, so a private activity reaches only its guests, whoever answered the poll. */
 export async function pollPlanned(
   env: Env,
   plan: { poll: PollSummary; option: { id: string; startsOn: string; endsOn: string } },
@@ -231,21 +244,26 @@ export async function pollPlanned(
   )
     .bind(plan.option.id, author.id)
     .all<{ user_id: string }>();
-  await notifyPoll(env, plan.poll.id, `Planned: ${plan.poll.title}`, `${optionLabel(plan.option)} · ${activityName}`, {
-    to: results.map((r) => r.user_id),
-    url: `/a/${activityId}`,
-  });
+  await notifyActivity(
+    env,
+    activityId,
+    `Planned: ${plan.poll.title}`,
+    `${optionLabel(plan.option)} · ${activityName}`,
+    {
+      to: results.map((r) => r.user_id),
+    },
+  );
 }
 
 export const polls = new Hono<AppEnv>()
-  // The polls the viewer is asked on: open ones, and closed ones from the last few months.
+  // The polls the viewer is asked on: open ones, and those closed in the last few months (closed early, or past their
+  // closing date; dates compare as text, so a closed_at timestamp works against a YYYY-MM-DD day).
   .get("/", async (c) => {
-    const since = new Date(Date.now() - RECENT_DAYS * 864e5).toISOString();
     const list = await summaries(
       c.env.DB,
       c.get("user").id,
-      "(p.closed_at is null and p.closes_on >= ?2) or p.created_at >= ?3",
-      [since],
+      "(p.closed_at is null and p.closes_on >= ?2) or coalesce(p.closed_at, p.closes_on) >= ?3",
+      [addDays(nyNow().date, -RECENT_DAYS)],
     );
     return c.json(list.map((p) => p.summary));
   })
@@ -327,16 +345,18 @@ export const polls = new Hono<AppEnv>()
       if (input.closesOn < nyNow().date || input.closesOn > lastDay(p.options))
         fail(400, "Answers must close between today and the last date");
     }
-    await c.env.DB.batch([
-      c.env.DB.prepare("update date_polls set title = ?, note = ?, closes_on = ?, updated_at = ? where id = ?").bind(
-        input.title,
-        input.note,
-        input.closesOn,
-        nowIso(),
-        p.id,
-      ),
-      audit(c.env.DB, user.id, "update", "poll", p.id, input),
-    ]);
+    // Saved only if nobody changed it since the editor loaded it (two saves at the same moment can't both win).
+    const saved = await c.env.DB.prepare(
+      "update date_polls set title = ?, note = ?, closes_on = ?, updated_at = ? where id = ? and updated_at = ?",
+    )
+      .bind(input.title, input.note, input.closesOn, nowIso(), p.id, input.baseUpdatedAt)
+      .run();
+    if (!saved.meta.changes) fail(409, "Someone else changed this poll. Reload to see the latest.");
+    await audit(c.env.DB, user.id, "update", "poll", p.id, {
+      title: input.title,
+      note: input.note,
+      closesOn: input.closesOn,
+    }).run();
     return c.json(await pollDetail(c.env.DB, user.id, p.id));
   })
   .post("/:id/close", async (c) => {
@@ -359,12 +379,8 @@ export const polls = new Hono<AppEnv>()
     if (!manages(user, p)) fail(403, "Only its creator or an Admin can delete this poll");
     const db = c.env.DB;
     await db.batch([
-      db
-        .prepare(
-          "delete from messages where parent_id is not null and thread_id in (select id from threads where poll_id = ?)",
-        )
-        .bind(p.id),
-      db.prepare("delete from date_polls where id = ?").bind(p.id), // options, answers, notes, guests, thread go with it
+      ...deleteThread(db, { kind: "poll", id: p.id }),
+      db.prepare("delete from date_polls where id = ?").bind(p.id), // options, answers, notes and guests go with it
       audit(db, user.id, "delete", "poll", p.id, { title: p.title }),
     ]);
     return c.body(null, 204);
