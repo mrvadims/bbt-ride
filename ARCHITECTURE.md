@@ -78,7 +78,7 @@ flowchart TB
 | --- | --- | --- |
 | Worker `bbt-ride` | `worker/index.ts`, `compatibility_date` 2026-10-01, `nodejs_compat`, observability on | All `/api/*` requests; everything else is served from static assets |
 | Static assets | `not_found_handling: single-page-application`, `run_worker_first: ["/api/*"]` | The built React PWA, service worker, privacy and download pages, with `_headers` (CSP, HSTS) |
-| D1 `bbt-ride` | binding `DB`, migrations `0001`–`0017` | All application and auth data |
+| D1 `bbt-ride` | binding `DB`, migrations `0001`–`0018` | All application and auth data |
 | KV `CACHE` | binding `CACHE` | Forecasts (30 min), NWS alerts (10 min), the FCM OAuth token (under 1 hour) |
 | Queue `bbt-ride-push` | producer `PUSH`; consumer batch size 1, 1 retry | Notification delivery off the request path, 5 devices per message |
 | Cron | `15 */3 * * *` | Saves observed weather on recent outdoor activities |
@@ -93,10 +93,10 @@ One repository and one language: the Worker, the browser app and the Android she
 | Path | What it holds |
 | --- | --- |
 | `shared/` | Pure, side-effect-free code used by both sides: API shapes and Zod request schemas (`api.ts`), sports rules (`sports.ts`), ride ETA math and places (`ride.ts`), weather evaluation and warnings (`weather.ts`), kit chart, New York time, `.ics` builder, mentions and name cleaning (`people.ts`), sport icon list. |
-| `worker/` | The Cloudflare Worker: Hono app (`index.ts`), session/role/origin middleware (`app.ts`), Better Auth setup (`auth.ts`, PBKDF2 in `password.ts`), Web Push and FCM delivery (`push.ts`, `fcm.ts`), unread markers (`seen.ts`), RideWithGPS client (`rwgps.ts`), the 3-hourly job (`cron.ts`), helpers including the visibility rule (`util.ts`). |
+| `worker/` | The Cloudflare Worker: Hono app (`index.ts`), session/role/origin middleware (`app.ts`), Better Auth setup (`auth.ts`, PBKDF2 in `password.ts`), Web Push and FCM delivery (`push.ts`, `fcm.ts`), unread markers (`seen.ts`), message threads (`threads.ts`), RideWithGPS client (`rwgps.ts`), the 3-hourly job (`cron.ts`), helpers including the visibility rule (`util.ts`). |
 | `worker/routes/` | One Hono router per resource: activities and messages, announcements, calendar feed, drafts, routes, settings, spots (places), users (me, team, admin users, invite/reset links), weather. |
 | `src/` | React 19 app: `App.tsx` (routing, sign-in gate), `pages/` (Home, Activity, Plan, History, Team, Settings, Help, Updates, sign-in, link pages), `components/` (activity body, Who's in, mentions, visibility, announcements, charts, map), `lib/` (TanStack Query hooks, API client, router, prefs, units, native bridge). |
-| `migrations/` | Plain SQL migrations `0001`–`0017`, applied in order by Wrangler. |
+| `migrations/` | Plain SQL migrations `0001`–`0018`, applied in order by Wrangler. |
 | `android/` | Capacitor 8 Android project: `MainActivity`, a native plugin (`BbtNativePlugin`: share, open external, app update, push), FCM messaging service, RSVP broadcast receiver. |
 | `public/`, `www/` | Static assets for the app (service worker, privacy page, download page, `_headers`) and the separate www site. |
 | `scripts/` | API smoke test, browser smoke test (Playwright), local seed, icon generation, APK build. |
@@ -106,16 +106,17 @@ Dependencies are deliberately few. Runtime: `hono` 4, `better-auth` 1.7, `zod` 4
 
 ## Data model
 
-All data lives in one D1 database of 23 tables; every reference to a person cascades or becomes NULL when the account is deleted, so deleting a person is one statement.
+All data lives in one D1 database of 25 tables (24 once the old `messages_v1` copy is dropped); every reference to a person cascades or becomes NULL when the account is deleted, so deleting a person is one statement.
 
 ```mermaid
 erDiagram
   user ||--o{ rsvps : "answers"
   user ||--o{ messages : "writes"
+  threads ||--o{ messages : "holds"
   user ||--o{ activity_guests : "is invited"
   user ||--o{ activity_seen : "visits"
   activities ||--o{ rsvps : "has"
-  activities ||--o{ messages : "has"
+  activities ||--|| threads : "has one"
   activities ||--o{ activity_guests : "has"
   activities ||--o{ activity_seen : "has"
   activities ||--o{ activity_routes : "has up to two"
@@ -152,7 +153,8 @@ Better Auth also keeps `session`, `account`, `verification` and `rateLimit` for 
 | `user`, `session`, `account`, `verification`, `rateLimit` | Better Auth: accounts (role, banned, phone, emergency contact), sessions, sign-in methods, rate-limit counters | Sessions and accounts cascade with the user |
 | `activities` | Every activity, past and upcoming (renamed from `rides`) | Children cascade; `created_by` set NULL |
 | `activity_routes`, `route_cache` | Up to two routes per activity; cached RideWithGPS data | Routes cascade with the activity |
-| `rsvps`, `messages` | Answers; thread with one level of replies and system notes | Cascade with activity; messages keep a NULL author ("Former member") |
+| `rsvps` | Answers | Cascade with activity |
+| `threads`, `messages` | One thread per owner (an activity today, date polls next); its messages, with one level of replies and system notes | Thread cascades with its owner, messages with the thread; messages keep a NULL author ("Former member") |
 | `activity_guests` | Guest list of a private activity (creator included) | Cascade with either side |
 | `activity_seen`, `seen_baseline` | Per-person last visit; when markers started for the person | Cascade with either side |
 | `spots` | Places: pin (lat, lng, Maps link) or online (`online = 1`, meeting link in `maps_url`) | Archived, never deleted |
@@ -164,7 +166,7 @@ Better Auth also keeps `session`, `account`, `verification` and `rateLimit` for 
 | `settings`, `kit_bands` | Team settings (JSON values) and the kit chart | Not personal |
 | `audit_log` | Who did what, when, with a JSON diff | Actor set NULL |
 
-Migrations `0001`–`0017` are plain SQL and only add: new tables, new columns, data fixes. The one rename (`rides` to `activities`, `0007`) and the one column-type change (`0011`) were done by column swaps, never a table rebuild, because D1 enforces foreign keys during a rebuild.
+Migrations `0001`–`0018` are plain SQL and only add: new tables, new columns, data fixes. The renames (`rides` to `activities`, `0007`; `messages` to `messages_v1` when threads replaced it, `0018`) and the one column-type change (`0011`) were done by renames, copies and column swaps, never a table rebuild, because D1 enforces foreign keys during a rebuild.
 
 ## Key flows
 
@@ -357,6 +359,7 @@ The recurring driver is a small team, no operations staff and a free-tier budget
 | Calendar | Signed per-person `.ics` feed (HMAC of user and version), no session | Calendar apps can't send cookies; Reset revokes the link; nothing secret stored | Anyone holding the URL can read that person's feed until it's reset |
 | Private activities | One SQL visibility rule in every read; re-checked inside each write; 404 for outsiders | One place to audit; no existence leak; closes race conditions | Every new query must remember to apply it (code review and tests guard this) |
 | Online places | A place is a pin or a meeting link; the server checks the app planned it the same way | Reuses places, times and RSVP; no separate event type | Lat/lng stored as 0 for online places; places in use can't switch type |
+| Messages | One `messages` table keyed by thread; one thread per owner, with a nullable owner column per kind (`activity_id`, later `poll_id`) | One thread component, API helpers and mention path for every owner; deleting an owner cascades to its thread and messages; a new owner kind is an `ADD COLUMN` plus a trigger that makes the thread, no rebuild | One nullable column per owner kind; mapping tables would allow several threads per owner, not needed now |
 | Release notes | Inside the app (members only), not the public site | Team content stays behind sign-in | Release notes live in code (`Updates.tsx`) and need a deploy |
 | Process | Every change is a pull request; CI then merge deploys; designs reviewed first for UI | Small, reviewable, reversible steps with a human approval | No staging, so review and local tests carry the risk |
 

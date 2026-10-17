@@ -8,14 +8,15 @@ const wide = () => window.matchMedia("(min-width: 960px)").matches;
 export function Panel(props: {
   id: string;
   label: string;
-  summary: ReactNode;
+  summary: ReactNode | ((open: boolean) => ReactNode); // a function can show more while closed (Messages' latest)
   children: ReactNode;
   collapsed?: boolean; // start closed even on desktop
+  expanded?: boolean; // start open even on a phone (Messages)
   titled?: boolean; // label shown as a title (long names) instead of a small caps tag
   quiet?: boolean; // record-keeping (History): no card fill or shadow, smaller grey text
 }) {
   const { panels } = usePrefs();
-  const open = panels[props.id] ?? (props.collapsed ? false : wide());
+  const open = panels[props.id] ?? (props.collapsed ? false : props.expanded || wide());
   const toggle = () => setPref("panels", { ...panels, [props.id]: !open });
   return (
     <section className={`panel${props.titled ? " titled" : ""}${props.quiet ? " quiet" : ""}`}>
@@ -30,7 +31,7 @@ export function Panel(props: {
         <button type="button" className="panel-t" aria-expanded={open} aria-controls={`pb-${props.id}`}>
           {props.label}
         </button>
-        <div className="panel-s">{props.summary}</div>
+        <div className="panel-s">{typeof props.summary === "function" ? props.summary(open) : props.summary}</div>
         <Chevron />
       </div>
       <div className="panel-b" id={`pb-${props.id}`} hidden={!open}>

@@ -69,7 +69,7 @@ The ride-only first version, kept as the base the v2 section builds on. Statemen
   - **Route** — collapsed: route name (opens RWGPS) · distance · climbing, plus the Full/Short switcher. Expanded: map, elevation profile, coffee stop (see below), "Open in RWGPS".
   - **Weather** — collapsed: temp range · real feel range · wind · rain chance, and a one-line kit hint. Expanded: ride-window summary (bike feel, gusts, rain total, roads), hourly table from the whole hour before meet time to 3 h after the estimated return, rounded to whole hours (ride window shaded; Sky column uses icons for clear, partly cloudy, overcast, fog, drizzle, rain, showers, snow and thunder, with a moon for clear night hours and the label on hover and for screen readers), a "Full-day forecast" button that opens the rider's chosen weather source (NWS, Weather.com, Windy or Google; choice saved in their browser), then What to wear (Run cold / Avg / Run hot).
   - **Notes** — only if the ride has notes; collapsed shows the first line.
-  - **Riders** *(v2: Who's in)* — collapsed: "5 in · 1 out · 3 messages" plus **In / Out** buttons, so riders answer without opening the panel; tapping the selected answer again clears it. The Full / Short choice appears only when the ride has an alternate route and only after tapping In (main route preselected); Out never asks for a route. Expanded: who's in (with their route) and out, and a message thread for the ride: anyone can post, reply to a message (one level), and see everyone's messages. All signed-in roles can RSVP and post while the ride is upcoming and not cancelled (a cancelled ride's thread stays readable). Authors can edit their own messages while the ride is upcoming and not cancelled, and delete them while it's upcoming; Edit and Admin can delete any message, also on past rides (moderation). The page refreshes RSVPs and messages every 30 s while open.
+  - **Riders** *(v2: Who's in)* — collapsed: "5 in · 1 out" plus **In / Out** buttons, so riders answer without opening the panel; tapping the selected answer again clears it. The Full / Short choice appears only when the ride has an alternate route and only after tapping In (main route preselected); Out never asks for a route. Expanded: who's in (with their route) and out. *(2026-10-17: the thread is its own **Messages** panel below Who's in, open by default; its header says "12 messages · 3 new", and while closed it previews the latest message. Same component for date polls.)* The message thread for the ride: anyone can post, reply to a message (one level), and see everyone's messages. All signed-in roles can RSVP and post while the ride is upcoming and not cancelled (a cancelled ride's thread stays readable). Authors can edit their own messages while the ride is upcoming and not cancelled, and delete them while it's upcoming; Edit and Admin can delete any message, also on past rides (moderation). The page refreshes RSVPs and messages every 30 s while open.
   - **Share** *(v2: a tile in the action row)*: uses the phone's share sheet (Web Share API) with a text brief (date, meet time and Maps link, routes with RWGPS links, coffee stop, time back, weather, notes) plus the ride link; falls back to a copy-to-clipboard sheet. The ride link requires sign-in.
   - Warnings: wet/drying roads, cold, heat, wind, rain, thunder, low light (meet time within 30 min of sunrise), and **active NWS alerts** at the spot's location (warnings red, advisories and watches amber; see Warnings).
 - "Open in RWGPS" works for riders only if the route is public or shared with them; the map and stats render regardless.
@@ -405,6 +405,15 @@ Later (2026-10-15):
   announcement_seen(announcement_id, user_id, at, PRIMARY KEY(announcement_id, user_id))  -- Got it; goes with either
 0016_online_places.sql: spots + online DEFAULT 0  -- an online place keeps its meeting link in maps_url, lat/lng 0
 0017_poster_sees_announcement.sql: drops the "seen" rows once added for an announcement's poster at posting time
+```
+Later (2026-10-17, Messages as their own panel; threads for date polls next):
+```
+0018_threads.sql: threads(id, kind, activity_id UNIQUE NULL → activities CASCADE, created_at)  -- one per owner
+  messages(id, thread_id → threads CASCADE, user_id NULL, parent_id NULL, kind DEFAULT 'user', body, created_at,
+           edited_at NULL, deleted_at NULL)  -- replaces the activity-keyed table, renamed messages_v1 until dropped
+  -- Each owner kind gets its own nullable column on threads (date polls: poll_id), so deleting the owner deletes its
+  -- thread and messages; `kind` is checked by the app, so a new kind needs no table rebuild (worker/threads.ts).
+  -- A trigger (activity_thread) makes an activity's thread when the activity is inserted.
 ```
 Step 2 (`0008_notify_calendar.sql`, built):
 ```

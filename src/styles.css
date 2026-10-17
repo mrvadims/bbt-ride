@@ -580,7 +580,7 @@ input::-webkit-date-and-time-value {
 }
 .panel-h {
   display: grid;
-  grid-template-columns: 66px minmax(0, 1fr) 16px;
+  grid-template-columns: 76px minmax(0, 1fr) 16px;
   gap: 10px;
   align-items: start;
   padding: 13px 14px;
@@ -682,6 +682,11 @@ input::-webkit-date-and-time-value {
   -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+.msg-latest {
+  margin-top: 4px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
 }
 .panel-b .tablewrap {
   margin: 8px -14px 0;
