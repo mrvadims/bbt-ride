@@ -18,37 +18,70 @@ const UPDATES: Update[] = [
     date: "2026-10-17",
     label: "October 17, 2026",
     title: "Date polls, message notifications and @here",
-    summary:
-      "Ask which date works, hear about new messages, and reach everyone at once. Plus a more compact activity page.",
+    summary: "Plus a more compact activity page and a few smaller improvements.",
     sections: [
       {
         h: "Date polls",
         items: [
           <>
-            Plan has a second tab, <b>Date poll</b>: up to 14 days or weekends, and everyone asked answers{" "}
-            <b>In, Maybe or Out</b> for each. The best date comes first, and <b>Plan this</b> turns it into an activity.
+            Editors: <b>Plan → Date poll</b> asks which day or weekend works. Pick up to 14 options within a year, and
+            make it <b>Public or Private</b>, like an activity.
           </>,
-          <>Each poll has its own Messages. Open polls show on Home; all of them are under All date polls.</>,
+          <>
+            Everyone asked answers <b>In, Maybe or Out</b> for each date, with an optional note. Polls waiting for you
+            are at the top of Home.
+          </>,
+          <>
+            The best date comes first. <b>Plan this</b> turns it into an activity and tells the people who said In or
+            Maybe.
+          </>,
+          <>Each poll has its own Messages. All of them are under All date polls on Home.</>,
         ],
       },
       {
-        h: "Messages",
+        h: "Message notifications",
         items: [
           <>
             New messages now <b>notify</b> the people In (on a poll, In or Maybe), whoever created it and anyone who
-            posted. Several in a row become one notification until you open it.
+            posted. Before, only @mentions did.
           </>,
+          <>Several messages in a row update one notification until you open the thread.</>,
           <>
-            <b>Notify me about new messages</b>, under each thread, mutes it or follows it.
+            <b>Notify me about new messages</b>, under each thread, turns them off for that thread, or on for one you're
+            not part of.
           </>,
           <>
             Type <b>@here</b> to notify everyone who can see the activity or poll.
           </>,
-          <>Messages are their own panel, and an activity with every panel closed fits on one phone screen.</>,
+        ],
+      },
+      {
+        h: "Activity page",
+        items: [
+          <>
+            <b>Messages</b> are their own panel, under Who's in. With every panel closed, an activity fits on one phone
+            screen.
+          </>,
+        ],
+      },
+      {
+        h: "Smaller improvements",
+        items: [
+          <>
+            The <b>calendar link</b> now keeps the last 30 days of activities you were In for, not 14.
+          </>,
+          <>
+            The <b>Team</b> list no longer shows roles.
+          </>,
         ],
       },
     ],
-    note: <>Android: update the app when it offers (version 1.3), so a thread's notifications stay on one card.</>,
+    note: (
+      <>
+        <b>Android:</b> update the app when it offers (version 1.3) so a thread's notifications stay on one card and
+        tapping one about a date poll opens it. The iPhone Home Screen app and browsers need no update.
+      </>
+    ),
   },
   {
     date: "2026-10-15",
